@@ -59,8 +59,8 @@ jobs:
           cd /home/qwaitingaithevis/public_html
         
           # Git setup
-          git config --global user.email "rajendra@stelleninfotech.in"
-          git config --global user.name "rajendrastellen"
+          git config --global user.email "jonu89@gmail.com"
+          git config --global user.name "Sandy"
           git config pull.rebase false
 
           git pull origin main
