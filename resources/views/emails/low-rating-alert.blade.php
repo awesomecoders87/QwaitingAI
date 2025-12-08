@@ -1,0 +1,143 @@
+<?php
+use Illuminate\Support\Facades\Session;
+?>
+<!DOCTYPE html>
+<html>
+
+<head>
+    <title>Feedback Detail</title>
+    <style>
+        body {
+            font-family: 'Inter', sans-serif;
+            background-color: #f7f7f7;
+            color: #333;
+            line-height: 1.6;
+            margin: 0;
+            padding: 20px;
+        }
+
+        .container {
+            max-width: 600px;
+            margin: 0 auto;
+            background-color: #ffffff;
+            padding: 30px;
+            border-radius: 12px;
+            box-shadow: 0 4px 10px rgba(0, 0, 0, 0.05);
+            border: 1px solid #e0e0e0;
+        }
+
+        h1 {
+            color: #d9534f;
+            font-size: 24px;
+            margin-bottom: 20px;
+            text-align: center;
+        }
+
+        p {
+            margin-bottom: 15px;
+            color:#000 !important;
+        }
+
+        blockquote {
+            background-color: #f2f2f2;
+            border-left: 5px solid #d9534f;
+            margin: 15px 0;
+            padding: 10px 20px;
+            border-radius: 8px;
+            color: #555;
+        }
+
+        ul {
+            list-style: none;
+            padding: 0;
+            margin: 15px 0;
+        }
+
+        ul li {
+            background-color: #f9f9f9;
+            margin-bottom: 8px;
+            padding: 10px 15px;
+            border-radius: 8px;
+            border: 1px solid #eee;
+        }
+
+        .footer {
+            margin-top: 30px;
+            padding-top: 15px;
+            border-top: 1px solid #eee;
+            /* text-align: center; */
+            color: #777;
+            font-size: 14px;
+        }
+
+        .button-container {
+            display: flex;
+            justify-content: center !important;
+            margin-top: 30px;
+        }
+
+        div.button-container a.btn {
+            background-color: #e74c3c;
+            color: white !important;
+            text-decoration: none;
+            padding: 10px 20px;
+            border-radius: 3px;
+            font-size: 14px;
+            font-weight: bold;
+            border: none;
+            cursor: pointer;
+            margin: auto !important;
+        }
+    </style>
+</head>
+
+<body>
+    @php
+        $url = request()->url();
+        $headerPage = App\Models\SiteDetail::FIELD_BUSINESS_LOGO;
+        $teamId = $teamId;
+        $locationId = $locationId ?? Session::get('selectedLocation');
+        $logo = App\Models\SiteDetail::viewImage($headerPage, $teamId, $locationId);
+    @endphp
+
+    <div
+        style="background:#e8e8e8;font-family:-apple-system,BlinkMacSystemFont,Segoe UI,Roboto,Oxygen,Ubuntu,Cantarell,Fira Sans,Droid Sans,Helvetica Neue,sans-serif;font-size:13px;line-height:1.4;padding:2% 7%">
+
+        <img id="Qwaiting" src="{{ url($logo) }}" alt="logo" class="CToWUd" style="vertical-align:middle;"
+            width="100">
+
+        <div
+            style="background:#fff;border-top-color:#6e8cce;border-top-style:solid;border-top-width:4px;margin:25px auto;
+        border-radius: 8px;">
+            <div style="border-color:#e5e5e5;border-style:none solid solid;border-width:2px;padding:7%">
+               
+
+                <h2 class="text-red-500">Low Feedback Alert</h2>
+                <p class="text-black-500">A customer has submitted feedback with an average rating <strong> {{ $threshold }}</strong>.
+                </p>
+
+                <p class="text-black-500"><strong>Queue Number:</strong> {{ $token ?? 'N/A' }}</p>
+                <p class="text-black-500"><strong>Average Rating:</strong> {{ number_format($average, 2) }} / 4</p>
+                <p class="text-black-500"><strong>Customer Info:</strong> {{ $customer ?? 'N/A' }}</p>
+
+                @if (!empty($comment))
+                    <p><strong>Customer Comment:</strong><br>{{ $comment }}</p>
+                @endif
+
+
+                <div class="button-container">
+                    <a class="btn" href="https://{{ $domain }}" target="_blank">View in Dashboard</a>
+                </div>
+
+                <div class="footer">
+                    <p>If the button doesn't work, paste this URL into your browser:</p>
+                    <p><a href="https://{{ $domain }}" style="color: #999;">https://{{ $domain }}</a></p>
+                    <div class="divider"></div>
+                    <p>Thanks,<br>{{ $teamName ?? 'Qwaiting' }} Team</p>
+                    <p>&copy; {{ date('Y') }} Qwaiting Inc. All Rights Reserved.</p>
+                </div>
+            </div>
+        </div>
+</body>
+
+</html>

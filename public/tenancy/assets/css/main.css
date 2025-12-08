@@ -1,0 +1,17 @@
+.selection-item {
+	background-color: #fff;
+	border: 2px solid #e3e3e3;
+	position: relative;
+	padding: 15px;
+	transition: .4s all;
+	box-shadow: 0px 4px 20px #DBDBDB;
+	border-radius: 12px;
+}
+.selection-item:hover {
+	border-color: #5c4ae4;
+    background-color: #f6f5ff;
+	color: #fff;
+}
+.selection-item:hover .text-slate-950{
+    color: #5c4ae4;
+}

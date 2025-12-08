@@ -1,0 +1,48 @@
+# Laravel storage & cache
+/storage/*
+!/storage/.gitignore
+
+# Laravel logs
+/storage/logs/*.log
+
+# Framework caches
+/bootstrap/cache/*
+!/bootstrap/cache/.gitignore
+
+# Node modules
+/node_modules
+
+# Public build & hot
+/public/build
+/public/hot
+
+# Public storage (symlinked storage/app/public)
+/public/storage
+
+# PHPUnit & test cache
+/.phpunit.cache
+.phpunit.result.cache
+
+# Environment files
+.env
+.env.backup
+.env.production
+
+# IDE / editor files
+/.idea
+/.vscode
+/.fleet
+/.zed
+
+# Composer / vendor
+/vendor
+/vendor copy
+/auth.json
+
+# Misc
+npm-debug.log
+yarn-error.log
+Homestead.json
+Homestead.yaml
+.phpactor.json
+/config/tenancy.php

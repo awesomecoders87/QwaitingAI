@@ -1,0 +1,15 @@
+.top_6 {
+	top: 6px;
+	height: 45px;
+}
+@media (max-width: 767px){
+    body,html{
+         overflow: hidden; 
+    }
+    .pt-sm-40{
+       padding-top: 40px;
+    }
+    /* .h-sm{
+        height: auto;
+    } */
+}
