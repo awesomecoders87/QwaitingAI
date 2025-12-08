@@ -11,7 +11,7 @@
 
   $logo =  App\Models\SiteDetail::viewImage($headerPage);
   @endphp
-
+aaaaaaaaaaaaaaaaaaaa
 <div class="relative p-0 bg-white z-1 dark:bg-gray-900 sm:p-0 h-screen h-sm pt-sm-40">
     <div class="relative flex-row-reverse flex flex-col justify-center w-full h-screen  h-sm dark:bg-gray-900 sm:p-0">
 
