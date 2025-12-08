@@ -111,7 +111,7 @@
                                         </label>
                                     </div>
                                     <a href="{{ route('tenant.password.request') }}"
-                                        class="text-sm text-brand-500 hover:text-brand-600">Forgot password?</a>
+                                        class="text-sm text-brand-500 hover:text-brand-600">Forgot password? 2343243</a>
                                 </div>
                                 <!-- Button -->
                                 <div>
