@@ -3,8 +3,7 @@
     @if(1== 1)
     <div class="block p-4">
         <div x-data="{ activeTab: 'summary' }" class="border-b border-gray-200 dark:border-gray-700">
-
-            <div class="mb-4 border-b border-gray-200">rtrtret
+            <div class="mb-4 border-b border-gray-200">
                 <ul class="flex text-sm font-semibold text-center text-gray-500 tabs-nav">
                     <li class="mr-2">
 
