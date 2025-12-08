@@ -1,5 +1,5 @@
 <div>
-khgllkgjlkhgjlkfjlk;hjbv
+
     @if(1== 1)
     <div class="block p-4">
         <div x-data="{ activeTab: 'summary' }" class="border-b border-gray-200 dark:border-gray-700">
