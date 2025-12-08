@@ -72,7 +72,7 @@
                                             class="dark:bg-dark-900 h-11 w-full rounded-lg border border-gray-300 bg-transparent px-4 py-2.5 text-sm text-gray-800 shadow-theme-xs placeholder:text-gray-400 focus:border-brand-300 focus:outline-none focus:ring focus:ring-brand-500/10 dark:border-gray-700 dark:bg-gray-900 dark:text-white/90 dark:placeholder:text-white/30 dark:focus:border-brand-800"
                                             name="password" />
                                             <button type="button" onclick="togglePassword()"
-            class="absolute inset-y-0 top_6 right-3 flex items-center text-gray-500 dark:text-gray-400">
+            class="absolute inset-y-0 top_6 right-3 flex items-center text-gray-500 dark:text-gray-400"> 
             <span id="eyeIcon" class="absolute right-1 z-30  cursor-pointer">
                 <!-- Eye Open Icon -->
                 <svg id="eyeOpen" class="fill-gray-500 dark:fill-gray-400" width="20" height="20" viewBox="0 0 20 20" xmlns="http://www.w3.org/2000/svg">
