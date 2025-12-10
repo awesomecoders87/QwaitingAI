@@ -82,7 +82,7 @@ class ServiceController extends Controller
     }
 
     $teamId     = $request->team_id ?? 3;
-    $locationId = $request->location_id ?? null;
+    $locationId = $request->location_id ?? 80;
 
     $serviceId  = $request->service_id;
     $date       = $request->date;
