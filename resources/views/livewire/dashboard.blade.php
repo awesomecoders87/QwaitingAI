@@ -1,6 +1,6 @@
 <div>
 
-    @if(1== 1)
+    @if(1== 1)test
     <div class="block p-4">
         <div x-data="{ activeTab: 'summary' }" class="border-b border-gray-200 dark:border-gray-700">
             <div class="mb-4 border-b border-gray-200">
