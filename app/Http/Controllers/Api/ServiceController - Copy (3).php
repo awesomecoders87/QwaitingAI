@@ -16,18 +16,13 @@ class ServiceController extends Controller
 {
     /**
      * 1️⃣ Check if a service exists
-     * API: Check service name
-     * Accepts: Form data (application/x-www-form-urlencoded) or JSON
-     * - If service exists: return success message
-     * - If service not exists: return error message + service list
      */
     public function checkService(Request $request)
     {
-        // Handle both form data and JSON requests
         $validator = \Validator::make($request->all(), [
             'service_name' => 'required|string',
-            'team_id'      => 'nullable|integer',
-            'location_id'  => 'nullable|integer',
+            //'team_id'      => 'nullable|integer',
+            //'location_id'  => 'nullable|integer',
         ]);
 
         if ($validator->fails()) {
@@ -37,13 +32,12 @@ class ServiceController extends Controller
             ], 400);
         }
 
-        // Get input values (works for both form data and JSON)
-        $teamId     = $request->input('team_id', 3);
-        $locationId = $request->input('location_id');
+        $teamId     = $request->team_id ?? 3;
+        $locationId = $request->location_id ?? null;
 
         $services = Category::getFirstCategorybooking($teamId, $locationId);
 
-        $queryName = strtolower(trim($request->input('service_name')));
+        $queryName = strtolower($request->service_name);
 
         $service = $services->first(function ($s) use ($queryName) {
             return strtolower($s->name) === $queryName ||
@@ -67,8 +61,8 @@ class ServiceController extends Controller
             'services' => $services->map(fn($s) => [
                 'id'   => $s->id,
                 'name' => $s->name
-            ])->values()
-        ], 404);
+            ])
+        ]);
     }
 
     /**
@@ -232,175 +226,8 @@ class ServiceController extends Controller
     }
 
     /**
-     * Extract booking details from natural language input
-     * Extracts: service_name, date, time, name, phone, email
-     */
-    private function extractBookingDetails($inputText, $teamId, $locationId)
-    {
-        $result = [
-            'service_name' => null,
-            'date' => null,
-            'time' => null,
-            'name' => null,
-            'phone' => null,
-            'email' => null,
-        ];
-
-        $inputLower = strtolower($inputText);
-
-        // Step 1: Get available services for matching
-        $services = Category::getFirstCategorybooking($teamId, $locationId);
-        
-        // Step 2: Extract service name (try to match with available services)
-        $bestMatch = null;
-        $bestMatchScore = 0;
-        
-        foreach ($services as $service) {
-            $serviceNameLower = strtolower($service->name);
-            $otherNameLower = strtolower($service->other_name ?? '');
-            
-            // Check for exact match
-            if (strpos($inputLower, $serviceNameLower) !== false || 
-                (!empty($otherNameLower) && strpos($inputLower, $otherNameLower) !== false)) {
-                $score = strlen($serviceNameLower);
-                if ($score > $bestMatchScore) {
-                    $bestMatch = $service->name;
-                    $bestMatchScore = $score;
-                }
-            }
-        }
-        
-        if ($bestMatch) {
-            $result['service_name'] = $bestMatch;
-        }
-
-        // Step 3: Extract date
-        // Patterns: "11 dec", "11 december", "11-12-2024", "2024-12-11", "dec 11", etc.
-        $datePatterns = [
-            '/(\d{1,2})\s+(jan|feb|mar|apr|may|jun|jul|aug|sep|oct|nov|dec)[a-z]*/i',
-            '/(jan|feb|mar|apr|may|jun|jul|aug|sep|oct|nov|dec)[a-z]*\s+(\d{1,2})/i',
-            '/(\d{1,2})[-\/](\d{1,2})[-\/](\d{2,4})/',
-            '/(\d{4})[-\/](\d{1,2})[-\/](\d{1,2})/',
-            '/tomorrow/i',
-            '/today/i',
-        ];
-
-        foreach ($datePatterns as $pattern) {
-            if (preg_match($pattern, $inputText, $matches)) {
-                try {
-                    $dateString = $matches[0];
-                    
-                    // Handle "tomorrow"
-                    if (stripos($dateString, 'tomorrow') !== false) {
-                        $result['date'] = Carbon::now()->addDay()->format('Y-m-d');
-                        break;
-                    }
-                    
-                    // Handle "today"
-                    if (stripos($dateString, 'today') !== false) {
-                        $result['date'] = Carbon::now()->format('Y-m-d');
-                        break;
-                    }
-                    
-                    // Parse the date - return original string for parseDate to handle
-                    $result['date'] = $dateString;
-                    break;
-                } catch (\Exception $e) {
-                    continue;
-                }
-            }
-        }
-
-        // Step 4: Extract time
-        // Patterns: "4pm", "4 pm", "4:00 PM", "16:00", "4:00pm", etc.
-        $timePatterns = [
-            '/(\d{1,2}):(\d{2})\s*(am|pm)/i',
-            '/(\d{1,2})\s*(am|pm)/i',
-            '/(\d{1,2}):(\d{2})/',
-            '/(\d{1,2})\s+o\'?clock/i',
-        ];
-
-        foreach ($timePatterns as $pattern) {
-            if (preg_match($pattern, $inputText, $matches)) {
-                $result['time'] = trim($matches[0]);
-                break;
-            }
-        }
-
-        // Step 5: Extract name (look for patterns like "name is", "I am", "my name")
-        if (preg_match('/(?:name is|I am|I\'m|my name is|call me)\s+([A-Z][a-z]+(?:\s+[A-Z][a-z]+)*)/i', $inputText, $matches)) {
-            $result['name'] = trim($matches[1]);
-        }
-
-        // Step 6: Extract email
-        if (preg_match('/\b[A-Za-z0-9._%+-]+@[A-Za-z0-9.-]+\.[A-Z|a-z]{2,}\b/', $inputText, $matches)) {
-            $result['email'] = trim($matches[0]);
-        }
-
-        // Step 7: Extract phone
-        if (preg_match('/\b(?:\+?\d{1,3}[-.\s]?)?\(?\d{3}\)?[-.\s]?\d{3}[-.\s]?\d{4}\b/', $inputText, $matches)) {
-            $result['phone'] = preg_replace('/[^0-9+]/', '', $matches[0]);
-        }
-
-        return $result;
-    }
-
-    /**
-     * Parse date in various formats
-     * Handles formats like "11 dec", "11 december", "11-12-2024", "2024-12-11", etc.
-     */
-    private function parseDate($dateString)
-    {
-        $dateString = trim($dateString);
-        $currentYear = Carbon::now()->year;
-        
-        // First, try to handle formats like "11 dec" or "11 december"
-        $parts = explode(' ', strtolower($dateString));
-        if (count($parts) >= 2 && is_numeric($parts[0])) {
-            $day = (int)$parts[0];
-            $monthName = trim($parts[1]);
-            
-            $monthMap = [
-                'jan' => 1, 'january' => 1,
-                'feb' => 2, 'february' => 2,
-                'mar' => 3, 'march' => 3,
-                'apr' => 4, 'april' => 4,
-                'may' => 5,
-                'jun' => 6, 'june' => 6,
-                'jul' => 7, 'july' => 7,
-                'aug' => 8, 'august' => 8,
-                'sep' => 9, 'september' => 9,
-                'oct' => 10, 'october' => 10,
-                'nov' => 11, 'november' => 11,
-                'dec' => 12, 'december' => 12,
-            ];
-            
-            if (isset($monthMap[$monthName])) {
-                try {
-                    return Carbon::createFromDate($currentYear, $monthMap[$monthName], $day);
-                } catch (\Exception $e) {
-                    // Invalid date (e.g., Feb 30), fall through to Carbon parsing
-                }
-            }
-        }
-        
-        // Try Carbon's flexible parsing for other formats
-        try {
-            $date = Carbon::parse($dateString);
-            // If year is not specified or is in the past, use current year
-            if ($date->year < 2000) {
-                $date->year($currentYear);
-            }
-            return $date;
-        } catch (\Exception $e) {
-            // If parsing fails, throw exception
-            throw new \Exception("Unable to parse date: " . $dateString);
-        }
-    }
-
-    /**
      * Normalize time format for comparison
-     * Handles various time formats like "09:00 AM", "9:00 AM", "09:00", "4pm", "4 pm", "16:00", etc.
+     * Handles various time formats like "09:00 AM", "9:00 AM", "09:00", etc.
      * Returns standardized format: "09:00 AM" (uppercase)
      */
     private function normalizeTime($time)
@@ -410,23 +237,6 @@ class ServiceController extends Controller
         
         if (empty($time)) {
             return $time;
-        }
-        
-        // Handle formats like "4pm", "4 pm", "4PM", "16:00"
-        $timeLower = strtolower($time);
-        if (preg_match('/^(\d{1,2})\s*(am|pm)$/', $timeLower, $matches)) {
-            $hour = (int)$matches[1];
-            $meridiem = strtoupper($matches[2]);
-            
-            // Convert to 24-hour format first
-            if ($meridiem == 'PM' && $hour != 12) {
-                $hour += 12;
-            } elseif ($meridiem == 'AM' && $hour == 12) {
-                $hour = 0;
-            }
-            
-            // Format as "04:00 PM" or "12:00 PM"
-            return Carbon::createFromTime($hour, 0, 0)->format('h:i A');
         }
         
         // Try to parse with Carbon to standardize format
@@ -445,41 +255,29 @@ class ServiceController extends Controller
                     $parsed = Carbon::createFromFormat('h:i a', $time);
                     return strtoupper($parsed->format('h:i A'));
                 } catch (\Exception $e3) {
-                    try {
-                        // Try parsing formats like "4:00pm", "4:00 pm"
-                        $parsed = Carbon::createFromFormat('g:i A', $time);
-                        return strtoupper($parsed->format('h:i A'));
-                    } catch (\Exception $e4) {
-                        // If parsing fails, return uppercase version (might already be in correct format)
-                        return strtoupper($time);
-                    }
+                    // If parsing fails, return uppercase version (might already be in correct format)
+                    return strtoupper($time);
                 }
             }
         }
     }
 
     /**
-     * 2️⃣ Comprehensive API: Check service, date, time availability and book appointment
-     * API: Accepts single natural language input from OpenAI/chatbot
-     * Static values: team_id = 3, location_id = 80
-     * Accepts: Form data (application/x-www-form-urlencoded) or JSON
-     * Input: Single text field containing booking request (e.g., "I want to book appointment for dental service on 11 dec at 4pm")
-     * Flow:
-     * 1. Parse natural language to extract service name, date, and time
-     * 2. Check service availability → if not available, return error + service list
-     * 3. Check date availability → if not available, return error + available dates (next week)
-     * 4. Check time availability → if not available, return error + other time slots for same day
-     * 5. Book appointment if all checks pass
+     * Comprehensive API: Check service, date, time availability and book appointment
+     * Single endpoint that handles:
+     * 1. Service name validation
+     * 2. Date availability check
+     * 3. Time availability check
+     * 4. Appointment booking if all checks pass
      */
     public function checkAndBook(Request $request)
     {
-        // Static values
-        $teamId = 3;
-        $locationId = 80;
-
-        // Handle both form data and JSON requests - accept single input field
         $validator = \Validator::make($request->all(), [
-            'input'            => 'required|string', // Single natural language input
+            'service_name'      => 'required|string',
+            'team_id'          => 'required|integer',
+            'location_id'      => 'required|integer',
+            'date'             => 'nullable|date',
+            'time'             => 'nullable|string',
             'name'             => 'nullable|string',
             'phone'            => 'nullable|string',
             'email'            => 'nullable|email',
@@ -493,35 +291,9 @@ class ServiceController extends Controller
             ], 400);
         }
 
-        // Extract booking details from natural language input
-        $inputText = trim($request->input('input'));
-        $extractedData = $this->extractBookingDetails($inputText, $teamId, $locationId);
-
-        // Validate extracted data
-        if (empty($extractedData['service_name'])) {
-            return response()->json([
-                'status'  => 'error',
-                'message' => 'Could not identify service name from input. Please specify the service name clearly.'
-            ], 400);
-        }
-
-        if (empty($extractedData['date'])) {
-            return response()->json([
-                'status'  => 'error',
-                'message' => 'Could not identify date from input. Please specify the date (e.g., "11 dec", "11 december", "11-12-2024")'
-            ], 400);
-        }
-
-        if (empty($extractedData['time'])) {
-            return response()->json([
-                'status'  => 'error',
-                'message' => 'Could not identify time from input. Please specify the time (e.g., "4pm", "4:00 PM", "16:00")'
-            ], 400);
-        }
-
-        $serviceName = $extractedData['service_name'];
-        $extractedDate = $extractedData['date'];
-        $timeString = $extractedData['time'];
+        $teamId = $request->team_id;
+        $locationId = $request->location_id;
+        $serviceName = trim($request->service_name);
 
         // Step 1: Check if service exists
         $services = Category::getFirstCategorybooking($teamId, $locationId);
@@ -532,12 +304,12 @@ class ServiceController extends Controller
                    strtolower($s->other_name ?? '') === $queryName;
         });
 
-        // Error Case 1: Service not available
         if (!$service) {
             return response()->json([
                 'status'  => 'error',
-                'message' => 'Service not available',
-                'services' => $services->map(fn($s) => [
+                'message' => 'Service not found',
+                'step'    => 'service_check',
+                'available_services' => $services->map(fn($s) => [
                     'id'   => $s->id,
                     'name' => $s->name
                 ])->values()
@@ -546,22 +318,28 @@ class ServiceController extends Controller
 
         $serviceId = $service->id;
 
-        // Step 2: Parse and check date availability
-        try {
-            // If date is already in YYYY-MM-DD format, use it directly
-            if (preg_match('/^\d{4}-\d{2}-\d{2}$/', $extractedDate)) {
-                $appointmentDate = Carbon::parse($extractedDate);
-            } else {
-                // Parse the extracted date string
-                $appointmentDate = $this->parseDate($extractedDate);
-            }
-            $dateString = $appointmentDate->toDateString();
-        } catch (\Exception $e) {
+        // If only service name is provided (without date/time), return success
+        if (empty($request->date) && empty($request->time)) {
+            return response()->json([
+                'status'  => 'success',
+                'message' => 'Service found',
+                'service' => [
+                    'id'   => $service->id,
+                    'name' => $service->name
+                ]
+            ]);
+        }
+
+        // Step 2: Check date availability (if date is provided)
+        if (empty($request->date)) {
             return response()->json([
                 'status'  => 'error',
-                'message' => 'Invalid date format. Please provide date in a valid format (e.g., "11 dec", "11-12-2024")'
+                'message' => 'Date is required for booking'
             ], 400);
         }
+
+        $appointmentDate = Carbon::parse($request->date);
+        $dateString = $appointmentDate->toDateString();
 
         // Fetch site setting
         $siteSetting = SiteDetail::where('team_id', $teamId)
@@ -571,7 +349,8 @@ class ServiceController extends Controller
         if (!$siteSetting) {
             return response()->json([
                 'status' => 'error',
-                'message' => 'Site setting not found for this team and location'
+                'message' => 'Site setting not found for this team and location',
+                'step'   => 'date_check'
             ], 404);
         }
 
@@ -592,10 +371,7 @@ class ServiceController extends Controller
                 return response()->json([
                     'status'  => 'error',
                     'message' => 'No staff available for this service',
-                    'services' => $services->map(fn($s) => [
-                        'id'   => $s->id,
-                        'name' => $s->name
-                    ])->values()
+                    'step'    => 'date_check'
                 ], 404);
             }
 
@@ -605,21 +381,36 @@ class ServiceController extends Controller
         $availableSlots = $slots['start_at'] ?? [];
         $disabledDates = $slots['disabled_date'] ?? [];
 
-        // Error Case 2: Date not available - no time slots available
+        // Check if date has available time slots
         if (empty($availableSlots)) {
             // Get available dates for next week
             $availableDates = $this->getAvailableDatesForNextWeek($teamId, $locationId, $serviceId, $siteSetting, $bookingSetting);
 
             return response()->json([
                 'status'  => 'error',
-                'message' => 'Date not available for this service',
+                'message' => 'Date not available for this service - no time slots available',
+                'step'    => 'date_check',
                 'requested_date' => $dateString,
                 'available_dates' => $availableDates
             ], 404);
         }
 
-        // Step 3: Check time availability
-        $requestedTime = trim($timeString);
+        // Step 3: Check time availability (if time is provided)
+        if (empty($request->time)) {
+            // Return available time slots for the date
+            return response()->json([
+                'status'  => 'success',
+                'message' => 'Date is available',
+                'service' => [
+                    'id'   => $service->id,
+                    'name' => $service->name
+                ],
+                'date'    => $dateString,
+                'available_times' => $availableSlots
+            ]);
+        }
+
+        $requestedTime = trim($request->time);
         $normalizedRequestedTime = $this->normalizeTime($requestedTime);
         $timeExists = false;
         $matchedSlot = null;
@@ -640,11 +431,12 @@ class ServiceController extends Controller
             }
         }
 
-        // Error Case 3: Time not available - show other time slots for same day
         if (!$timeExists) {
+            // Return available time slots for the same day
             return response()->json([
                 'status'  => 'error',
-                'message' => 'Time slot not available for this date',
+                'message' => 'Requested time is not available for this date',
+                'step'    => 'time_check',
                 'requested_time' => $requestedTime,
                 'date'    => $dateString,
                 'available_times' => $availableSlots
@@ -662,10 +454,10 @@ class ServiceController extends Controller
                 'team_id' => $teamId,
                 'booking_date' => $dateString,
                 'booking_time' => $startTime . '-' . $endTime,
-                'name' => $request->input('name', ''),
-                'phone' => $request->input('phone', ''),
-                'phone_code' => $request->input('phone_code', '91'),
-                'email' => $request->input('email', ''),
+                'name' => $request->name ?? '',
+                'phone' => $request->phone ?? '',
+                'phone_code' => $request->phone_code ?? '91',
+                'email' => $request->email ?? '',
                 'category_id' => $serviceId,
                 'sub_category_id' => null,
                 'child_category_id' => null,

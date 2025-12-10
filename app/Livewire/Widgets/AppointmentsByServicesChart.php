@@ -52,10 +52,11 @@ class AppointmentsByServicesChart  extends Component
     'bookings' => function ($bookingQuery) use ($filter) {
         // 👉 Add eager loading for booking relationships here
 				$bookingQuery->with([
-					'service:id,name',
-					'category:id,name',
-					'customer:id,name',
-					'agent:id,name'
+					'categories:id,name',
+					'sub_category:id,name',
+					'child_category:id,name',
+					'staff:id,name',
+					'createdBy:id,name'
 				]);
 
 				if ($filter == 'today') {

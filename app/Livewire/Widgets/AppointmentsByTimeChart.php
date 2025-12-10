@@ -51,10 +51,11 @@ class AppointmentsByTimeChart extends Component
 
         // Fetch appointments with eager loading
 		$appointmentsQuery = Booking::with([
-            'service:id,name',
-            'category:id,name',
-            'customer:id,name',
-            'agent:id,name'
+            'categories:id,name',
+            'sub_category:id,name',
+            'child_category:id,name',
+            'staff:id,name',
+            'createdBy:id,name'
         ])
         ->where('team_id', $this->teamId)
         ->where('location_id', $this->location);

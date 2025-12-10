@@ -55,7 +55,7 @@ return [
         'base_url'      => env('OKTA_BASE_URL'), // required for SocialiteProviders
     ],
     'openai' => [
-         'key' => env('OPENAI_API_KEY'),
+         'api_key' => env('OPENAI_API_KEY'),
     ],
 
     'gupshup' => [

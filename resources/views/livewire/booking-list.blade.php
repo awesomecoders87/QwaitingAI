@@ -317,6 +317,10 @@
                                              <span class="block text-theme-sm dark:text-white/90">
 											@if($booking->convert_datetime)
 												{{ \Carbon\Carbon::parse($booking->convert_datetime)->format($datetimeFormat) }}
+											@elseif($booking->created_at)
+												{{ \Carbon\Carbon::parse($booking->created_at)->format($datetimeFormat) }}
+											@elseif($booking->booking_date && $booking->booking_time)
+												{{ \Carbon\Carbon::parse($booking->booking_date . ' ' . explode('-', $booking->booking_time)[0])->format($datetimeFormat) }}
 											@endif
 										</span>
 
@@ -331,7 +335,14 @@
                                         <div>
                                             <span
                                                 class="block text-theme-sm dark:text-white/90">
-                                                {{ $booking->email ?? ''}}
+                                                @php
+                                                    $email = $booking->email ?? '';
+                                                    if (empty($email) && $booking->json) {
+                                                        $jsonData = json_decode($booking->json, true);
+                                                        $email = $jsonData['email'] ?? $jsonData['Email'] ?? $jsonData['email_address'] ?? '';
+                                                    }
+                                                @endphp
+                                                {{ $email }}
                                             </span>
 
                                         </div>
@@ -345,7 +356,14 @@
                                         <div>
                                             <span
                                                 class="block text-theme-sm dark:text-white/90">
-                                                {{ $booking->name ?? ''}}
+                                                @php
+                                                    $name = $booking->name ?? '';
+                                                    if (empty($name) && $booking->json) {
+                                                        $jsonData = json_decode($booking->json, true);
+                                                        $name = $jsonData['name'] ?? $jsonData['Name'] ?? '';
+                                                    }
+                                                @endphp
+                                                {{ $name }}
                                             </span>
 
                                         </div>
@@ -359,7 +377,18 @@
                                         <div>
                                             <span
                                                 class="block text-theme-sm dark:text-white/90">
-                                                {{ $booking->phone ?? ''}}
+                                                @php
+                                                    $phone = $booking->phone ?? '';
+                                                    if (empty($phone) && $booking->json) {
+                                                        $jsonData = json_decode($booking->json, true);
+                                                        $phone = $jsonData['phone'] ?? $jsonData['Phone'] ?? $jsonData['contact'] ?? '';
+                                                    }
+                                                    // Add phone code if available
+                                                    if ($phone && $booking->phone_code) {
+                                                        $phone = $booking->phone_code . $phone;
+                                                    }
+                                                @endphp
+                                                {{ $phone }}
                                             </span>
 
                                         </div>

@@ -160,6 +160,7 @@ use App\Livewire\QRCodeScanner;
 use App\Livewire\PublicAIAgentCall;
 use App\Livewire\PublicVirtualQueueTypeSelection;
 use App\Livewire\PublicLocationSelection;
+use App\Livewire\BookingChatbot;
 
 use App\Livewire\TicketGenerationSelection;
 use App\Livewire\VirtualQueueTypeSelection;
@@ -507,6 +508,10 @@ Route::name('public.')->group(function () {
     // AI Agent Call - Public access
     Route::get('/ai-agent-call/{virtualQueueId}', PublicAIAgentCall::class)
         ->name('ai-agent-call');
+    
+    // Booking Chatbot - Public access for appointment booking
+    Route::get('/booking-chatbot', BookingChatbot::class)
+        ->name('booking-chatbot');
     
     // Placeholder routes for human agent waiting and virtual meeting
     // These should be implemented if needed

@@ -29,6 +29,24 @@ class Handler extends ExceptionHandler
      */
     public function register(): void
     {
+        // Handle API routes - always return JSON
+        $this->renderable(function (Throwable $e, $request) {
+            // Check if this is an API request
+            if ($request->is('api/*') || $request->expectsJson()) {
+                $status = method_exists($e, 'getStatusCode') ? $e->getStatusCode() : 500;
+                
+                return response()->json([
+                    'status' => 'error',
+                    'message' => $e->getMessage() ?: 'An error occurred',
+                    'error' => config('app.debug') ? [
+                        'file' => $e->getFile(),
+                        'line' => $e->getLine(),
+                        'trace' => $e->getTraceAsString()
+                    ] : null
+                ], $status);
+            }
+        });
+
         $this->renderable(function (\Symfony\Component\HttpKernel\Exception\HttpException $e, $request) {
             $status = $e->getStatusCode();
 
@@ -42,7 +60,7 @@ class Handler extends ExceptionHandler
 
             if ($status === 419) {
                 Log::warning('CSRF token expired: ' . $request->url());
-                if ($request->expectsJson()) {
+                if ($request->expectsJson() || $request->is('api/*')) {
                     return response()->json(['message' => 'Session Expired'], 419);
                 }
                 return response()->view('errors.419', [], 419);

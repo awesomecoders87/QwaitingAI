@@ -210,7 +210,7 @@ public function getPendingQueues(Request $request)
 
     $conditionTeam = ['team_id' => $teamId];
 
-    $pendingQueues = Queue::getPendingQu eues(
+    $pendingQueues = Queue::getPendingQueues(
         $conditionTeam,
         $isFixed,
         $locationId,
