@@ -70,7 +70,7 @@ class ServiceController extends Controller
 	public function checkDate(Request $request)
 {
 	
-	
+	dd($request->all());
     $request->validate([
         'team_id' => 'required|integer',
         'location_id' => 'required|integer',
@@ -80,7 +80,7 @@ class ServiceController extends Controller
         'third_child_id' => 'nullable|integer',
     ]);
 	
-	dd($request->all());
+	
 	
     $teamId = $request->team_id;
     $locationId = $request->location_id;
