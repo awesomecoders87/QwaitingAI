@@ -84,7 +84,7 @@ class ServiceController extends Controller
         $locationId = $request->location_id ?? null;
         $serviceId  = $request->service_id;
         $date       = $request->date;
-
+		print_r($request->all());exit;
         // Check slot type (simplified, your logic may vary)
         if (site_setting('choose_time_slot') != 'staff') {
             $slots = AccountSetting::checktimeslot($teamId, $locationId, $date, $serviceId, site_setting());
