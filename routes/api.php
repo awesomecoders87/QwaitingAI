@@ -89,7 +89,7 @@ Route::middleware('auth:sanctum')->group(function () {
     Route::get('staff', [StaffController::class, 'index']);
     Route::get('getcountries', [ApiController::class, 'getCountries']);
 
-  Route::post('/check-date', [ServiceController::class, 'checkDate']);
+  
 
 
 
@@ -103,5 +103,5 @@ Route::post('/generate-ticket-with-qr', [ApiController::class, 'generateTicketWi
 // });
 
 Route::post('/check-service', [ServiceController::class, 'checkService']);
-	
+Route::post('/check-date', [ServiceController::class, 'checkDate']);	
 Route::post('/check-time', [ServiceController::class, 'checkTime']);

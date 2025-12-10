@@ -68,78 +68,83 @@ class ServiceController extends Controller
      */
 	 
 	public function checkDate(Request $request)
-{
-	
-	dd($request->all());
-    $request->validate([
-        'team_id' => 'required|integer',
-        'location_id' => 'required|integer',
-        'appointment_date' => 'required|date',
-        'selected_category_id' => 'nullable|integer',
-        'second_child_id' => 'nullable|integer',
-        'third_child_id' => 'nullable|integer',
-    ]);
-	
-	
-	
-    $teamId = $request->team_id;
-    $locationId = $request->location_id;
-    $appointment_date = $request->appointment_date;
-    $selectedCategoryId = $request->selected_category_id;
-    $secondChildId = $request->second_child_id;
-    $thirdChildId = $request->third_child_id;
+    {
+        // Validate request
+        $request->validate([
+            'team_id' => 'required|integer',
+            'location_id' => 'required|integer',
+            'appointment_date' => 'required|date',
+            'selected_category_id' => 'nullable|integer',
+            'second_child_id' => 'nullable|integer',
+            'third_child_id' => 'nullable|integer',
+        ]);
 
-    $siteSetting = SiteDetail::where('team_id', $teamId)
-        ->where('location_id', $locationId)
-        ->first();
+        $teamId = $request->team_id;
+        $locationId = $request->location_id;
+        $appointment_date = $request->appointment_date;
+        $selectedCategoryId = $request->selected_category_id;
+        $secondChildId = $request->second_child_id;
+        $thirdChildId = $request->third_child_id;
 
-    // Determine category for slots
-    if ($siteSetting->category_slot_level == 1 && $selectedCategoryId) {
-        $categoryId = $selectedCategoryId;
-    } elseif ($siteSetting->category_slot_level == 2 && $secondChildId) {
-        $categoryId = $secondChildId;
-    } elseif ($siteSetting->category_slot_level == 3 && $thirdChildId) {
-        $categoryId = $thirdChildId;
-    } else {
-        $categoryId = $selectedCategoryId;
+        $siteSetting = SiteDetail::where('team_id', $teamId)
+            ->where('location_id', $locationId)
+            ->first();
+
+        if (!$siteSetting) {
+            return response()->json([
+                'status' => 'error',
+                'message' => 'Site settings not found for this team/location',
+            ], 404);
+        }
+
+        // Determine category for slots
+        if ($siteSetting->category_slot_level == 1 && $selectedCategoryId) {
+            $categoryId = $selectedCategoryId;
+        } elseif ($siteSetting->category_slot_level == 2 && $secondChildId) {
+            $categoryId = $secondChildId;
+        } elseif ($siteSetting->category_slot_level == 3 && $thirdChildId) {
+            $categoryId = $thirdChildId;
+        } else {
+            $categoryId = $selectedCategoryId;
+        }
+
+        // Determine estimate category
+        if ($siteSetting->category_level_est == "parent" && $selectedCategoryId) {
+            $estimatecategoryId = $selectedCategoryId;
+        } elseif ($siteSetting->category_level_est == "child" && $secondChildId) {
+            $estimatecategoryId = $secondChildId;
+        } elseif ($siteSetting->category_level_est == "automatic" && $thirdChildId) {
+            $estimatecategoryId = $thirdChildId;
+        } else {
+            $estimatecategoryId = $selectedCategoryId;
+        }
+
+        // Check type and get slots
+        if ($siteSetting->choose_time_slot != 'staff') {
+            $slots = AccountSetting::checktimeslot($teamId, $locationId, $appointment_date, $categoryId, $siteSetting);
+        } else {
+            $selectedCategories = array_filter([
+                $selectedCategoryId,
+                $secondChildId,
+                $thirdChildId
+            ], fn($val) => !is_null($val));
+
+            $staffIds = User::whereHas('categories', function ($query) use ($selectedCategories) {
+                $query->whereIn('categories.id', $selectedCategories);
+            })->pluck('id')->toArray();
+
+            $slots = !empty($staffIds)
+                ? AccountSetting::checkStafftimeslot($teamId, $locationId, $appointment_date, $estimatecategoryId, $siteSetting, $staffIds)
+                : ['start_at' => [], 'disabled_date' => []];
+        }
+
+        return response()->json([
+            'status' => 'success',
+            'slots' => $slots['start_at'] ?? [],
+            'disabled_dates' => $slots['disabled_date'] ?? [],
+        ]);
     }
-
-    // Determine estimate category
-    if ($siteSetting->category_level_est == "parent" && $selectedCategoryId) {
-        $estimatecategoryId = $selectedCategoryId;
-    } elseif ($siteSetting->category_level_est == "child" && $secondChildId) {
-        $estimatecategoryId = $secondChildId;
-    } elseif ($siteSetting->category_level_est == "automatic" && $thirdChildId) {
-        $estimatecategoryId = $thirdChildId;
-    } else {
-        $estimatecategoryId = $selectedCategoryId;
-    }
-
-    // Check type
-    if ($siteSetting->choose_time_slot != 'staff') {
-        $slots = AccountSetting::checktimeslot($teamId, $locationId, $appointment_date, $categoryId, $siteSetting);
-    } else {
-        $selectedCategories = array_filter([
-            $selectedCategoryId,
-            $secondChildId,
-            $thirdChildId
-        ], fn($val) => !is_null($val));
-
-        $staffIds = User::whereHas('categories', function ($query) use ($selectedCategories) {
-            $query->whereIn('categories.id', $selectedCategories);
-        })->pluck('id')->toArray();
-
-        $slots = !empty($staffIds)
-            ? AccountSetting::checkStafftimeslot($teamId, $locationId, $appointment_date, $estimatecategoryId, $siteSetting, $staffIds)
-            : ['start_at' => [], 'disabled_date' => []];
-    }
-
-    return response()->json([
-        'status' => 'success',
-        'slots' => $slots['start_at'] ?? [],
-        'disabled_dates' => $slots['disabled_date'] ?? [],
-    ]);
-} 
+}
 	 
     public function checkDate22(Request $request)
 {
