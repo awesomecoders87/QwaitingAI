@@ -6,6 +6,7 @@ use App\Http\Controllers\WebhookController;
 use App\Http\Controllers\Api\ApiController;
 use App\Http\Controllers\Api\CallScreenApiController;
 use App\Http\Controllers\Api\StaffController;
+use App\Http\Controllers\Api\ServiceController;
 
 /*
 |--------------------------------------------------------------------------
@@ -100,3 +101,5 @@ Route::post('/generate-ticket-with-qr', [ApiController::class, 'generateTicketWi
         return response()->json(['message' => 'Test successfully']);
     });
 // });
+
+Route::get('/check-service', [ServiceController::class, 'checkService']);
