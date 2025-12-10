@@ -577,7 +577,7 @@ class ServiceController extends Controller
                    strtolower($s->other_name ?? '') === $queryName;
         });
 
-        // Error Case 1: Service does NOT exist
+        // Error Case 1: Service does NOT exist - return error with service list
         if (!$service) {
             return response()->json([
                 'status'  => 'error',
@@ -591,13 +591,14 @@ class ServiceController extends Controller
             ], 404);
         }
 
-        // Service exists - return success message
+        // Service exists - continue with checks
         $serviceId = $service->id;
         
-        // If only service_name is provided (no date/time), return success
+        // Get date and time inputs
         $appointmentDateInput = trim($request->input('appointment_date', ''));
         $timeString = trim($request->input('time', ''));
         
+        // If only service_name is provided (no date/time), return success message WITHOUT service list
         if (empty($appointmentDateInput) && empty($timeString)) {
             return response()->json([
                 'status'  => 'success',
@@ -608,31 +609,19 @@ class ServiceController extends Controller
                 ]
             ], 200);
         }
-
-        // Step 3: If date is provided, proceed with date and time checks
-        // If only service_name provided (no date/time), we already returned success above
+        
+        // If date & time + service_name are provided, proceed with full check
+        // Step 3: Check if appointment_date is provided (required when time is provided)
         if (empty($appointmentDateInput)) {
-            // If time is provided but date is not, ask for date
-            if (!empty($timeString)) {
-                return response()->json([
-                    'status'  => 'error',
-                    'error_type' => 'missing_date',
-                    'message' => 'Please provide appointment date.',
-                    'service' => [
-                        'id' => $service->id,
-                        'name' => $service->name
-                    ]
-                ], 400);
-            }
-            // If neither date nor time provided, success already returned above
             return response()->json([
-                'status'  => 'success',
-                'message' => 'Service found',
+                'status'  => 'error',
+                'error_type' => 'missing_date',
+                'message' => 'Please provide appointment date.',
                 'service' => [
-                    'id'   => $service->id,
+                    'id' => $service->id,
                     'name' => $service->name
                 ]
-            ], 200);
+            ], 400);
         }
 
         // Step 4: Parse and validate date
@@ -798,19 +787,19 @@ class ServiceController extends Controller
             ], 404);
         }
 
-        // Step 5: Check if time is provided (if date is provided, time is required for booking)
+        // Step 5: Check if time is provided (required when date is provided for booking)
         if (empty($timeString)) {
-            // If date is available but time not provided, return success with available times
             return response()->json([
-                'status'  => 'success',
-                'message' => 'Date is available. Please provide time to book appointment.',
+                'status'  => 'error',
+                'error_type' => 'missing_time',
+                'message' => 'Please provide appointment time.',
                 'service' => [
                     'id' => $service->id,
                     'name' => $service->name
                 ],
                 'date' => $dateString,
                 'available_times' => $availableSlots
-            ], 200);
+            ], 400);
         }
 
         // Step 6: Validate time format
