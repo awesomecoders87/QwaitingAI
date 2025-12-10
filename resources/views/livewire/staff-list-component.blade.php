@@ -179,14 +179,17 @@
                                         <div>
                                             <span
                                                 class="block font-medium text-gray-800 text-theme-sm dark:text-white/90">
-                                                <?php
-                     $locations = $staff->locations != '' ? App\Models\Location::whereIn('id',$staff->locations)->pluck('location_name')->toArray() : [];
-
-                        if(!empty($locations)){
-                            $loc = implode(',',$locations);
-                            echo $loc;
-                        }
-                     ?>
+                                                @php
+												$locations = [];
+												if (!empty($staff->locations)) {
+													foreach ($staff->locations as $locationId) {
+														if (isset($allLocations[$locationId])) {
+															$locations[] = $allLocations[$locationId];
+														}
+													}
+												}
+												echo implode(', ', $locations);
+											@endphp
 
                                             </span>
 
@@ -202,12 +205,8 @@
                                         <div>
                                             <span
                                                 class="block font-medium text-gray-800 text-theme-sm dark:text-white/90">
-                                                <?php  $datetimeFormat = App\Models\AccountSetting::showDateTimeFormat(); // Fallback to default format
-                          // Return the formatted date based on the format from AccountSetting table
-                          echo $created = \Carbon\Carbon::parse($staff->created_at)->format($datetimeFormat) ?? '';
-
-                          ?>
-
+                                               
+											{{ \Carbon\Carbon::parse($staff->created_at)->format($datetimeFormat) }}
                                             </span>
 
                                         </div>

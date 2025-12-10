@@ -126,7 +126,7 @@ class StaffListComponent extends Component
 
     public function render()
     {
-        $staffs = User::where('team_id', $this->teamId)
+        $staffs = User::with('roles')->where('team_id', $this->teamId)
             //  ->where(function ($query) {
             //     $query->whereJsonContains('locations', "$this->locationId")
             //         ->orWhereRaw("JSON_LENGTH(locations) = 0")
@@ -165,7 +165,10 @@ class StaffListComponent extends Component
             ->whereNotNull('locations')
             ->whereJsonContains('locations', "$this->locationId")
             ->pluck('name', 'id');
-
-        return view('livewire.staff-list-component', compact('staffs','users'));
+		
+		$datetimeFormat = AccountSetting::showDateTimeFormat();
+		$allLocations = Location::pluck('location_name', 'id')->toArray();
+			
+        return view('livewire.staff-list-component', compact('staffs','users','datetimeFormat','allLocations'));
     }
 }
