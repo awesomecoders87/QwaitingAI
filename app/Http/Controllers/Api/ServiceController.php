@@ -51,11 +51,7 @@ class ServiceController extends Controller
             'services' => $services->map(function ($s) {
                 return [
                     'id' => $s->id,
-                    'name' => $s->name,
-                    'other_name' => $s->other_name,
-                    'description' => $s->description,
-                    'img' => $s->img,
-                    'redirect_url' => $s->redirect_url,
+                    'name' => $s->name
                 ];
             })
         ]);

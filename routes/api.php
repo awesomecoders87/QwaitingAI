@@ -102,4 +102,4 @@ Route::post('/generate-ticket-with-qr', [ApiController::class, 'generateTicketWi
     });
 // });
 
-Route::get('/check-service', [ServiceController::class, 'checkService']);
+Route::post('/check-service', [ServiceController::class, 'checkService']);
