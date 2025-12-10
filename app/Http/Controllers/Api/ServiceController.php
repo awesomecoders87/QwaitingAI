@@ -18,8 +18,8 @@ class ServiceController extends Controller
     {
         $validator = \Validator::make($request->all(), [
             'service_name' => 'required|string',
-            'team_id'      => 'nullable|integer',
-            'location_id'  => 'nullable|integer',
+            //'team_id'      => 'nullable|integer',
+            //'location_id'  => 'nullable|integer',
         ]);
 
         if ($validator->fails()) {
@@ -69,8 +69,8 @@ class ServiceController extends Controller
 {
     $validator = \Validator::make($request->all(), [
         'service_id'   => 'required|integer',
-        'team_id'      => 'required|integer',
-        'location_id'  => 'required|integer',
+       // 'team_id'      => 'required|integer',
+       // 'location_id'  => 'required|integer',
         'date'         => 'required|date'
     ]);
 
@@ -81,8 +81,9 @@ class ServiceController extends Controller
         ], 400);
     }
 
-    $teamId     = $request->team_id;
-    $locationId = $request->location_id;
+    $teamId     = $request->team_id ?? 3;
+    $locationId = $request->location_id ?? null;
+
     $serviceId  = $request->service_id;
     $date       = $request->date;
 
