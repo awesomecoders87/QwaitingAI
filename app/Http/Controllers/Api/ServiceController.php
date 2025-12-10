@@ -126,7 +126,7 @@ class ServiceController extends Controller
     /**
      * 3️⃣ Check if a specific time is available for a service & date
      */
-    public function checkTime(Request $request)
+   /*  public function checkTime(Request $request)
     {
         $validator = \Validator::make($request->all(), [
             'service_id'   => 'required|integer',
@@ -183,5 +183,5 @@ class ServiceController extends Controller
             'date'       => $date,
             'time'       => $time
         ]);
-    }
+    } */
 }
