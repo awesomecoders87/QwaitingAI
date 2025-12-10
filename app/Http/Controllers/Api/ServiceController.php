@@ -577,12 +577,12 @@ class ServiceController extends Controller
                    strtolower($s->other_name ?? '') === $queryName;
         });
 
-        // Error Case 2.2: Service does NOT exist
+        // Error Case 1: Service does NOT exist
         if (!$service) {
             return response()->json([
                 'status'  => 'error',
                 'error_type' => 'service_not_available',
-                'message' => 'This service is not available. Here are the available services:',
+                'message' => 'Service not available',
                 'requested_service' => $serviceName,
                 'services_list' => $services->map(fn($s) => [
                     'id'   => $s->id,
@@ -591,20 +591,48 @@ class ServiceController extends Controller
             ], 404);
         }
 
+        // Service exists - return success message
         $serviceId = $service->id;
-
-        // Step 3: Check if appointment_date is provided
+        
+        // If only service_name is provided (no date/time), return success
         $appointmentDateInput = trim($request->input('appointment_date', ''));
-        if (empty($appointmentDateInput)) {
+        $timeString = trim($request->input('time', ''));
+        
+        if (empty($appointmentDateInput) && empty($timeString)) {
             return response()->json([
-                'status'  => 'error',
-                'error_type' => 'missing_date',
-                'message' => 'Please tell me your preferred date.',
+                'status'  => 'success',
+                'message' => 'Service found',
                 'service' => [
-                    'id' => $service->id,
+                    'id'   => $service->id,
                     'name' => $service->name
                 ]
-            ], 400);
+            ], 200);
+        }
+
+        // Step 3: If date is provided, proceed with date and time checks
+        // If only service_name provided (no date/time), we already returned success above
+        if (empty($appointmentDateInput)) {
+            // If time is provided but date is not, ask for date
+            if (!empty($timeString)) {
+                return response()->json([
+                    'status'  => 'error',
+                    'error_type' => 'missing_date',
+                    'message' => 'Please provide appointment date.',
+                    'service' => [
+                        'id' => $service->id,
+                        'name' => $service->name
+                    ]
+                ], 400);
+            }
+            // If neither date nor time provided, success already returned above
+            return response()->json([
+                'status'  => 'success',
+                'message' => 'Service found',
+                'service' => [
+                    'id'   => $service->id,
+                    'name' => $service->name
+                ]
+            ], 200);
         }
 
         // Step 4: Parse and validate date
@@ -756,11 +784,11 @@ class ServiceController extends Controller
             // Get available dates (extend search if requested date is beyond next week)
             $availableDates = $this->getAvailableDatesForNextWeek($teamId, $locationId, $serviceId, $siteSetting, $bookingSetting, $requestedDateObj);
 
-            // Error Case 3.2: Date valid but NOT available
+            // Error Case 2: Date not available - return error message and available dates next week
             return response()->json([
                 'status'  => 'error',
                 'error_type' => 'date_not_available',
-                'message' => 'This date is not available. Here are the next available dates:',
+                'message' => 'Date not available for this service',
                 'requested_date' => $dateString,
                 'available_dates' => $availableDates,
                 'service' => [
@@ -770,19 +798,19 @@ class ServiceController extends Controller
             ], 404);
         }
 
-        // Step 5: Check if time is provided
-        $timeString = trim($request->input('time', ''));
+        // Step 5: Check if time is provided (if date is provided, time is required for booking)
         if (empty($timeString)) {
+            // If date is available but time not provided, return success with available times
             return response()->json([
-                'status'  => 'error',
-                'error_type' => 'missing_time',
-                'message' => 'At what time should I schedule your appointment?',
+                'status'  => 'success',
+                'message' => 'Date is available. Please provide time to book appointment.',
                 'service' => [
                     'id' => $service->id,
                     'name' => $service->name
                 ],
-                'date' => $dateString
-            ], 400);
+                'date' => $dateString,
+                'available_times' => $availableSlots
+            ], 200);
         }
 
         // Step 6: Validate time format
@@ -841,15 +869,15 @@ class ServiceController extends Controller
             }
         }
 
-        // Error Case 4.2: Time NOT available - show other time slots for same day
+        // Error Case 3: Time not available - show error message and other time slots of same day
         if (!$timeExists) {
             return response()->json([
                 'status'  => 'error',
                 'error_type' => 'time_not_available',
-                'message' => 'This time is not available. Here are available time slots:',
+                'message' => 'Time slot not available for this date',
                 'requested_time' => $requestedTime,
                 'date'    => $dateString,
-                'alternative_times' => $availableSlots,
+                'available_times' => $availableSlots,
                 'service' => [
                     'id' => $service->id,
                     'name' => $service->name
@@ -862,70 +890,88 @@ class ServiceController extends Controller
 
         // Step 8: Check for duplicate/overlapping bookings
         $startTime = $normalizedRequestedTime;
-        $endTime = $this->calculateEndTime($startTime, $service, $bookingSetting, $siteSetting);
+        
+        try {
+            $endTime = $this->calculateEndTime($startTime, $service, $bookingSetting, $siteSetting);
+        } catch (\Exception $e) {
+            return response()->json([
+                'status'  => 'error',
+                'error_type' => 'booking_failed',
+                'message' => 'System error while booking. Please try again.',
+                'details' => 'Failed to calculate end time: ' . $e->getMessage()
+            ], 500);
+        }
         
         // Check for duplicate booking (same phone/email at same date and time)
         $phone = $request->input('phone');
         $email = $request->input('email');
         
         if ($phone || $email) {
-            $duplicateQuery = Booking::where('team_id', $teamId)
+            try {
+                $duplicateQuery = Booking::where('team_id', $teamId)
+                    ->where('location_id', $locationId)
+                    ->where('booking_date', $dateString)
+                    ->where('start_time', $startTime)
+                    ->where('status', '!=', Booking::STATUS_CANCELLED);
+                
+                if ($phone) {
+                    $duplicateQuery->where('phone', $phone);
+                }
+                if ($email) {
+                    $duplicateQuery->where('email', $email);
+                }
+                
+                $duplicateBooking = $duplicateQuery->first();
+                
+                if ($duplicateBooking) {
+                    // Error Case 5.3: Duplicate booking
+                    return response()->json([
+                        'status'  => 'error',
+                        'error_type' => 'duplicate_booking',
+                        'message' => 'You already have an appointment at this time.',
+                        'existing_booking' => [
+                            'id' => $duplicateBooking->id,
+                            'date' => $duplicateBooking->booking_date,
+                            'time' => $duplicateBooking->booking_time,
+                            'status' => $duplicateBooking->status
+                        ],
+                        'service' => [
+                            'id' => $service->id,
+                            'name' => $service->name
+                        ]
+                    ], 409);
+                }
+            } catch (\Exception $e) {
+                // If duplicate check fails, continue (don't block booking)
+            }
+        }
+        
+        // Check for overlapping time slots (any booking at same date and time)
+        try {
+            $overlappingBooking = Booking::where('team_id', $teamId)
                 ->where('location_id', $locationId)
                 ->where('booking_date', $dateString)
                 ->where('start_time', $startTime)
-                ->where('status', '!=', Booking::STATUS_CANCELLED);
+                ->where('status', '!=', Booking::STATUS_CANCELLED)
+                ->first();
             
-            if ($phone) {
-                $duplicateQuery->where('phone', $phone);
-            }
-            if ($email) {
-                $duplicateQuery->where('email', $email);
-            }
-            
-            $duplicateBooking = $duplicateQuery->first();
-            
-            if ($duplicateBooking) {
-                // Error Case 5.3: Duplicate booking
+            if ($overlappingBooking) {
+                // Error Case 5.4: Overlapping time
                 return response()->json([
                     'status'  => 'error',
-                    'error_type' => 'duplicate_booking',
-                    'message' => 'You already have an appointment at this time.',
-                    'existing_booking' => [
-                        'id' => $duplicateBooking->id,
-                        'date' => $duplicateBooking->booking_date,
-                        'time' => $duplicateBooking->booking_time,
-                        'status' => $duplicateBooking->status
-                    ],
+                    'error_type' => 'overlapping_time',
+                    'message' => 'This time slot is already booked. Please select another time.',
+                    'requested_time' => $startTime . '-' . $endTime,
+                    'date' => $dateString,
+                    'alternative_times' => $availableSlots ?? [],
                     'service' => [
                         'id' => $service->id,
                         'name' => $service->name
                     ]
                 ], 409);
             }
-        }
-        
-        // Check for overlapping time slots (any booking at same date and time)
-        $overlappingBooking = Booking::where('team_id', $teamId)
-            ->where('location_id', $locationId)
-            ->where('booking_date', $dateString)
-            ->where('start_time', $startTime)
-            ->where('status', '!=', Booking::STATUS_CANCELLED)
-            ->first();
-        
-        if ($overlappingBooking) {
-            // Error Case 5.4: Overlapping time
-            return response()->json([
-                'status'  => 'error',
-                'error_type' => 'overlapping_time',
-                'message' => 'This time slot is already booked. Please select another time.',
-                'requested_time' => $startTime . '-' . $endTime,
-                'date' => $dateString,
-                'alternative_times' => $availableSlots,
-                'service' => [
-                    'id' => $service->id,
-                    'name' => $service->name
-                ]
-            ], 409);
+        } catch (\Exception $e) {
+            // If overlapping check fails, continue (don't block booking)
         }
 
         // Step 9: All checks passed - Book the appointment
