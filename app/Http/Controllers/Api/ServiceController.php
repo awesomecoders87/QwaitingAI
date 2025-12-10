@@ -670,6 +670,8 @@ class ServiceController extends Controller
             
             // Check if date is beyond the advance booking window
             $advanceDays = $bookingSetting ? ($bookingSetting->allow_req_before ?? 30) : 30;
+            // Ensure advanceDays is numeric to avoid Carbon TypeError
+            $advanceDays = is_numeric($advanceDays) ? (int)$advanceDays : 30;
             $maxBookingDate = Carbon::now()->addDays($advanceDays)->startOfDay();
             
             if ($requestedDateObj->gt($maxBookingDate)) {
@@ -792,6 +794,8 @@ class ServiceController extends Controller
         
         // Limit to maximum advance booking days
         $advanceDays = $bookingSetting ? ($bookingSetting->allow_req_before ?? 30) : 30;
+        // Ensure advanceDays is numeric to avoid Carbon TypeError
+        $advanceDays = is_numeric($advanceDays) ? (int)$advanceDays : 30;
         $maxDate = Carbon::now()->addDays($advanceDays);
         if ($endDate->gt($maxDate)) {
             $endDate = $maxDate;
@@ -839,10 +843,10 @@ class ServiceController extends Controller
             $start = Carbon::createFromFormat('h:i A', $startTime);
 
             // Try to get slot period from booking setting
-            $slotPeriod = $bookingSetting->slot_period ?? null;
+            $slotPeriod = $bookingSetting ? ($bookingSetting->slot_period ?? null) : null;
 
             // If not available, try to get from service time
-            if (!$slotPeriod && $service->service_time) {
+            if (!$slotPeriod && $service && $service->service_time) {
                 $slotPeriod = $service->service_time;
             }
 
