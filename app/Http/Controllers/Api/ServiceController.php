@@ -514,8 +514,8 @@ class ServiceController extends Controller
                         $parsed = Carbon::createFromFormat('g:i A', $time);
                         return strtoupper($parsed->format('h:i A'));
                     } catch (\Exception $e4) {
-                        // If parsing fails, return uppercase version (might already be in correct format)
-                        return strtoupper($time);
+                    // If parsing fails, return uppercase version (might already be in correct format)
+                    return strtoupper($time);
                     }
                 }
             }
@@ -593,7 +593,7 @@ class ServiceController extends Controller
 
         // Service exists - continue with checks
         $serviceId = $service->id;
-        
+
         // Get date and time inputs
         $appointmentDateInput = trim($request->input('appointment_date', ''));
         $timeString = trim($request->input('time', ''));
@@ -609,7 +609,7 @@ class ServiceController extends Controller
                 ]
             ], 200);
         }
-        
+
         // If date & time + service_name are provided, proceed with full check
         // Step 3: Check if appointment_date is provided (required when time is provided)
         if (empty($appointmentDateInput)) {
@@ -663,7 +663,7 @@ class ServiceController extends Controller
                 throw new \Exception('Invalid date');
             }
             
-            $dateString = $appointmentDate->toDateString();
+        $dateString = $appointmentDate->toDateString();
             $today = Carbon::now()->startOfDay();
             $requestedDateObj = $appointmentDate->startOfDay();
             
@@ -681,19 +681,7 @@ class ServiceController extends Controller
                 ], 400);
             }
             
-            // Error Case 3.4: Date passed (old date)
-            if ($requestedDateObj->lt($today)) {
-                return response()->json([
-                    'status'  => 'error',
-                    'error_type' => 'date_in_past',
-                    'message' => 'Cannot book appointments for past dates. Please select a future date.',
-                    'requested_date' => $dateString,
-                    'service' => [
-                        'id' => $service->id,
-                        'name' => $service->name
-                    ]
-                ], 400);
-            }
+            // Note: Past date check will be done after fetching site settings to get available dates
         } catch (\Exception $e) {
             // Error Case 3.3: Date invalid
             return response()->json([
@@ -726,6 +714,23 @@ class ServiceController extends Controller
             ->where('location_id', $locationId)
             ->where('slot_type', AccountSetting::BOOKING_SLOT)
             ->first();
+        
+        // Check if date is in the past - return error message and available dates next week
+        if ($requestedDateObj->lt($today)) {
+            $availableDates = $this->getAvailableDatesForNextWeek($teamId, $locationId, $serviceId, $siteSetting, $bookingSetting);
+            
+            return response()->json([
+                'status'  => 'error',
+                'error_type' => 'date_not_available',
+                'message' => 'Date not available for this service',
+                'requested_date' => $dateString,
+                'available_dates' => $availableDates,
+                'service' => [
+                    'id' => $service->id,
+                    'name' => $service->name
+                ]
+            ], 400);
+        }
 
         // Check available slots for the date
         if ($siteSetting->choose_time_slot != 'staff') {
@@ -751,7 +756,7 @@ class ServiceController extends Controller
         $availableSlots = $slots['start_at'] ?? [];
         $disabledDates = $slots['disabled_date'] ?? [];
 
-        // Error Case 2: Date not available - no time slots available
+        // Error Case: Date not available or already booked - return error message and available dates next week
         if (empty($availableSlots)) {
             // Check if date is beyond the advance booking window
             $advanceDays = $bookingSetting ? ($bookingSetting->allow_req_before ?? 30) : 30;
@@ -760,12 +765,11 @@ class ServiceController extends Controller
             $maxBookingDate = Carbon::now()->addDays($advanceDays)->startOfDay();
             
             if ($requestedDateObj->gt($maxBookingDate)) {
-                return response()->json([
-                    'status'  => 'error',
-                    'error_type' => 'date_beyond_booking_window',
-                    'message' => 'Date is beyond the maximum advance booking period (' . $advanceDays . ' days)',
-                    'requested_date' => $dateString,
-                    'max_booking_date' => $maxBookingDate->toDateString(),
+            return response()->json([
+                'status'  => 'error',
+                    'error_type' => 'date_not_available',
+                    'message' => 'Date not available for this service',
+                'requested_date' => $dateString,
                     'available_dates' => $this->getAvailableDatesForNextWeek($teamId, $locationId, $serviceId, $siteSetting, $bookingSetting)
                 ], 400);
             }
@@ -773,7 +777,7 @@ class ServiceController extends Controller
             // Get available dates (extend search if requested date is beyond next week)
             $availableDates = $this->getAvailableDatesForNextWeek($teamId, $locationId, $serviceId, $siteSetting, $bookingSetting, $requestedDateObj);
 
-            // Error Case 2: Date not available - return error message and available dates next week
+            // Error Case: Date not available or already booked - return error message and available dates next week
             return response()->json([
                 'status'  => 'error',
                 'error_type' => 'date_not_available',
@@ -806,7 +810,7 @@ class ServiceController extends Controller
         $requestedTime = trim($timeString);
         
         try {
-            $normalizedRequestedTime = $this->normalizeTime($requestedTime);
+        $normalizedRequestedTime = $this->normalizeTime($requestedTime);
             // Try to parse the normalized time to ensure it's valid
             $testTime = Carbon::createFromFormat('h:i A', $normalizedRequestedTime);
             if (!$testTime || !$testTime->isValid()) {
@@ -858,7 +862,7 @@ class ServiceController extends Controller
             }
         }
 
-        // Error Case 3: Time not available - show error message and other time slots of same day
+        // Error Case 3: If dates available but time not available - show error message and other time slots of same day
         if (!$timeExists) {
             return response()->json([
                 'status'  => 'error',
@@ -866,19 +870,19 @@ class ServiceController extends Controller
                 'message' => 'Time slot not available for this date',
                 'requested_time' => $requestedTime,
                 'date'    => $dateString,
-                'available_times' => $availableSlots,
+                'available_times' => $availableSlots, // Other time slots of same day
                 'service' => [
                     'id' => $service->id,
                     'name' => $service->name
                 ]
             ], 404);
         }
-        
+
         // Step 7: Check if time is outside business hours (if needed)
         // This is handled by the available slots check above, but we can add explicit check here if needed
 
         // Step 8: Check for duplicate/overlapping bookings
-        $startTime = $normalizedRequestedTime;
+            $startTime = $normalizedRequestedTime;
         
         try {
             $endTime = $this->calculateEndTime($startTime, $service, $bookingSetting, $siteSetting);
@@ -1026,7 +1030,7 @@ class ServiceController extends Controller
         if ($requestedDate && $requestedDate->gt(Carbon::now()->addWeek())) {
             $endDate = $requestedDate->copy()->addWeek(); // Search up to requested date + 1 week
         } else {
-            $endDate = Carbon::now()->addWeek();
+        $endDate = Carbon::now()->addWeek();
         }
         
         // Limit to maximum advance booking days
