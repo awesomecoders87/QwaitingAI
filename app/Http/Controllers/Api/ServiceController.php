@@ -524,16 +524,22 @@ class ServiceController extends Controller
 
     /**
      * 2️⃣ Comprehensive API: Check service, date, time availability and book appointment
-     * API: Accepts single natural language input from OpenAI/chatbot
+     * API: Accepts three explicit inputs: service_name, appointment_date, and time
      * Static values: team_id = 3, location_id = 80
      * Accepts: Form data (application/x-www-form-urlencoded) or JSON
-     * Input: Single text field containing booking request (e.g., "I want to book appointment for dental service on 11 dec at 4pm")
+     * Input fields:
+     *   - service_name (required): Name of the service
+     *   - appointment_date (required): Date in format "YYYY-MM-DD", "DD-MM-YYYY", "11 dec", etc.
+     *   - time (required): Time in format "4pm", "4:00 PM", "16:00", etc.
+     *   - name (optional): Customer name
+     *   - phone (optional): Customer phone
+     *   - email (optional): Customer email
+     *   - phone_code (optional): Phone country code (default: 91)
      * Flow:
-     * 1. Parse natural language to extract service name, date, and time
-     * 2. Check service availability → if not available, return error + service list
-     * 3. Check date availability → if not available, return error + available dates (next week)
-     * 4. Check time availability → if not available, return error + other time slots for same day
-     * 5. Book appointment if all checks pass
+     * 1. Check service availability → if not available, return error + service list
+     * 2. Check date availability → if not available, return error + available dates (next week)
+     * 3. Check time availability → if not available, return error + other time slots for same day
+     * 4. Book appointment if all checks pass
      */
     public function checkAndBook(Request $request)
     {
@@ -541,13 +547,15 @@ class ServiceController extends Controller
         $teamId = 3;
         $locationId = 80;
 
-        // Handle both form data and JSON requests - accept single input field
+        // Handle both form data and JSON requests - accept three explicit inputs
         $validator = \Validator::make($request->all(), [
-            'input'            => 'required|string', // Single natural language input
-            'name'             => 'nullable|string',
-            'phone'            => 'nullable|string',
-            'email'            => 'nullable|email',
-            'phone_code'       => 'nullable|string',
+            'service_name'    => 'required|string',
+            'appointment_date' => 'required|string',
+            'time'            => 'required|string',
+            'name'            => 'nullable|string',
+            'phone'           => 'nullable|string',
+            'email'           => 'nullable|email',
+            'phone_code'      => 'nullable|string',
         ]);
 
         if ($validator->fails()) {
@@ -557,35 +565,10 @@ class ServiceController extends Controller
             ], 400);
         }
 
-        // Extract booking details from natural language input
-        $inputText = trim($request->input('input'));
-        $extractedData = $this->extractBookingDetails($inputText, $teamId, $locationId);
-
-        // Validate extracted data
-        if (empty($extractedData['service_name'])) {
-            return response()->json([
-                'status'  => 'error',
-                'message' => 'Could not identify service name from input. Please specify the service name clearly.'
-            ], 400);
-        }
-
-        if (empty($extractedData['date'])) {
-            return response()->json([
-                'status'  => 'error',
-                'message' => 'Could not identify date from input. Please specify the date (e.g., "11 dec", "11 december", "11-12-2024")'
-            ], 400);
-        }
-
-        if (empty($extractedData['time'])) {
-            return response()->json([
-                'status'  => 'error',
-                'message' => 'Could not identify time from input. Please specify the time (e.g., "4pm", "4:00 PM", "16:00")'
-            ], 400);
-        }
-
-        $serviceName = $extractedData['service_name'];
-        $extractedDate = $extractedData['date'];
-        $timeString = $extractedData['time'];
+        // Get inputs
+        $serviceName = trim($request->input('service_name'));
+        $appointmentDateInput = trim($request->input('appointment_date'));
+        $timeString = trim($request->input('time'));
 
         // Step 1: Check if service exists
         $services = Category::getFirstCategorybooking($teamId, $locationId);
@@ -613,17 +596,17 @@ class ServiceController extends Controller
         // Step 2: Parse and check date availability
         try {
             // If date is already in YYYY-MM-DD format, use it directly
-            if (preg_match('/^\d{4}-\d{2}-\d{2}$/', $extractedDate)) {
-                $appointmentDate = Carbon::parse($extractedDate);
+            if (preg_match('/^\d{4}-\d{2}-\d{2}$/', $appointmentDateInput)) {
+                $appointmentDate = Carbon::parse($appointmentDateInput);
             } else {
-                // Parse the extracted date string
-                $appointmentDate = $this->parseDate($extractedDate);
+                // Parse the date string (handles formats like "11 dec", "11-12-2024", etc.)
+                $appointmentDate = $this->parseDate($appointmentDateInput);
             }
             $dateString = $appointmentDate->toDateString();
         } catch (\Exception $e) {
             return response()->json([
                 'status'  => 'error',
-                'message' => 'Invalid date format. Please provide date in a valid format (e.g., "11 dec", "11-12-2024")'
+                'message' => 'Invalid date format. Please provide date in a valid format (e.g., "2024-12-11", "11-12-2024", "11 dec")'
             ], 400);
         }
 
