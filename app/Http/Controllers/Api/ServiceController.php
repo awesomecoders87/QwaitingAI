@@ -66,6 +66,7 @@ class ServiceController extends Controller
     /**
      * Get time slots for a service/date
      * Handles category slot levels and staff-based time slots
+     * Optionally checks if a specific time is available
      */
     public function timeSlots(Request $request)
     {
@@ -76,6 +77,7 @@ class ServiceController extends Controller
             'selected_category_id' => 'required|integer',
             'second_child_id'      => 'nullable|integer',
             'third_child_id'       => 'nullable|integer',
+            'time'                 => 'nullable|string', // Optional time to check availability
         ]);
 
         if ($validator->fails()) {
@@ -157,15 +159,105 @@ class ServiceController extends Controller
         }
 
         $disabledDate = $slots['disabled_date'] ?? [];
+        $availableSlots = $slots['start_at'] ?? [];
 
+        // If time is provided, check if that specific time is available
+        if ($request->has('time') && !empty($request->time)) {
+            $requestedTime = trim($request->time);
+            
+            // Normalize time format for comparison (handle different formats like "09:00 AM", "09:00", etc.)
+            $timeExists = false;
+            $normalizedRequestedTime = $this->normalizeTime($requestedTime);
+            
+            foreach ($availableSlots as $slot) {
+                // Handle slot format "09:00 AM-10:00 AM" by extracting start time
+                $slotStartTime = $slot;
+                if (strpos($slot, '-') !== false) {
+                    [$slotStartTime, $slotEndTime] = explode('-', $slot, 2);
+                    $slotStartTime = trim($slotStartTime);
+                }
+                
+                $normalizedSlot = $this->normalizeTime($slotStartTime);
+                if ($normalizedSlot === $normalizedRequestedTime) {
+                    $timeExists = true;
+                    break;
+                }
+            }
+
+            if (!$timeExists) {
+                return response()->json([
+                    'status'        => 'error',
+                    'message'       => 'Requested time is not available',
+                    'requested_time' => $requestedTime,
+                    'available_times' => $availableSlots,
+                    'slots'         => $availableSlots,
+                    'disabled_date' => $disabledDate,
+                    'appointment_date' => $appointmentDate->toDateString(),
+                    'category_id'  => $categoryId,
+                    'estimate_category_id' => $estimatecategoryId
+                ], 404);
+            }
+
+            // Time is available
+            return response()->json([
+                'status'        => 'success',
+                'message'       => 'Time is available',
+                'requested_time' => $requestedTime,
+                'time_available' => true,
+                'slots'         => $availableSlots,
+                'disabled_date' => $disabledDate,
+                'appointment_date' => $appointmentDate->toDateString(),
+                'category_id'  => $categoryId,
+                'estimate_category_id' => $estimatecategoryId
+            ]);
+        }
+
+        // Return all available slots if no specific time is requested
         return response()->json([
             'status'        => 'success',
-            'slots'         => $slots['start_at'] ?? [],
+            'slots'         => $availableSlots,
             'disabled_date' => $disabledDate,
             'appointment_date' => $appointmentDate->toDateString(),
             'category_id'  => $categoryId,
             'estimate_category_id' => $estimatecategoryId
         ]);
+    }
+
+    /**
+     * Normalize time format for comparison
+     * Handles various time formats like "09:00 AM", "9:00 AM", "09:00", etc.
+     * Returns standardized format: "09:00 AM" (uppercase)
+     */
+    private function normalizeTime($time)
+    {
+        // Remove extra spaces
+        $time = trim($time);
+        
+        if (empty($time)) {
+            return $time;
+        }
+        
+        // Try to parse with Carbon to standardize format
+        try {
+            // Try parsing as time with AM/PM (case insensitive)
+            $parsed = Carbon::createFromFormat('h:i A', $time);
+            return strtoupper($parsed->format('h:i A'));
+        } catch (\Exception $e) {
+            try {
+                // Try parsing as 24-hour format
+                $parsed = Carbon::createFromFormat('H:i', $time);
+                return strtoupper($parsed->format('h:i A'));
+            } catch (\Exception $e2) {
+                try {
+                    // Try parsing with lowercase am/pm
+                    $parsed = Carbon::createFromFormat('h:i a', $time);
+                    return strtoupper($parsed->format('h:i A'));
+                } catch (\Exception $e3) {
+                    // If parsing fails, return uppercase version (might already be in correct format)
+                    return strtoupper($time);
+                }
+            }
+        }
     }
 
     /**
