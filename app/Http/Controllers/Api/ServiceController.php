@@ -47,10 +47,6 @@ class ServiceController extends Controller
                 'service' => [
                     'id'           => $exists->id,
                     'name'         => $exists->name,
-                    'other_name'   => $exists->other_name,
-                    'description'  => $exists->description,
-                    'img'          => $exists->img,
-                    'redirect_url' => $exists->redirect_url,
                 ]
             ]);
         }
