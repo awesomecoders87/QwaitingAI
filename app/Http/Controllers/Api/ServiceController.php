@@ -279,8 +279,8 @@ class ServiceController extends Controller
         $datePatterns = [
             '/(\d{1,2})\s+(jan|feb|mar|apr|may|jun|jul|aug|sep|oct|nov|dec)[a-z]*/i',
             '/(jan|feb|mar|apr|may|jun|jul|aug|sep|oct|nov|dec)[a-z]*\s+(\d{1,2})/i',
-            '/(\d{1,2})[-\/](\d{1,2})[-\/](\d{2,4})/',
-            '/(\d{4})[-\/](\d{1,2})[-\/](\d{1,2})/',
+            '/(\d{1,2})[-\/](\d{1,2})[-\/](\d{4})/',  // DD-MM-YYYY or MM-DD-YYYY
+            '/(\d{4})[-\/](\d{1,2})[-\/](\d{1,2})/',  // YYYY-MM-DD or YYYY-DD-MM
             '/tomorrow/i',
             '/today/i',
         ];
@@ -348,11 +348,13 @@ class ServiceController extends Controller
     /**
      * Parse date in various formats
      * Handles formats like "11 dec", "11 december", "11-12-2024", "2024-12-11", etc.
+     * For "11-12-2024" format, tries both DD-MM-YYYY and MM-DD-YYYY
      */
     private function parseDate($dateString)
     {
         $dateString = trim($dateString);
         $currentYear = Carbon::now()->year;
+        $today = Carbon::now()->startOfDay();
         
         // First, try to handle formats like "11 dec" or "11 december"
         $parts = explode(' ', strtolower($dateString));
@@ -377,9 +379,67 @@ class ServiceController extends Controller
             
             if (isset($monthMap[$monthName])) {
                 try {
-                    return Carbon::createFromDate($currentYear, $monthMap[$monthName], $day);
+                    $date = Carbon::createFromDate($currentYear, $monthMap[$monthName], $day);
+                    // If date is in the past, try next year
+                    if ($date->lt($today)) {
+                        $date = Carbon::createFromDate($currentYear + 1, $monthMap[$monthName], $day);
+                    }
+                    return $date;
                 } catch (\Exception $e) {
                     // Invalid date (e.g., Feb 30), fall through to Carbon parsing
+                }
+            }
+        }
+        
+        // Handle formats like "11-12-2024" or "11-12-2025" - try both DD-MM-YYYY and MM-DD-YYYY
+        if (preg_match('/^(\d{1,2})[-\/](\d{1,2})[-\/](\d{4})$/', $dateString, $matches)) {
+            $part1 = (int)$matches[1];
+            $part2 = (int)$matches[2];
+            $year = (int)$matches[3];
+            
+            // Try DD-MM-YYYY first (more common in international format)
+            if ($part1 <= 31 && $part2 <= 12) {
+                try {
+                    $date = Carbon::createFromDate($year, $part2, $part1);
+                    // If date is valid and not in the past, return it
+                    if ($date->isValid() && $date->gte($today)) {
+                        return $date;
+                    }
+                } catch (\Exception $e) {
+                    // Invalid date, try MM-DD-YYYY
+                }
+            }
+            
+            // Try MM-DD-YYYY format
+            if ($part2 <= 31 && $part1 <= 12) {
+                try {
+                    $date = Carbon::createFromDate($year, $part1, $part2);
+                    // If date is valid and not in the past, return it
+                    if ($date->isValid() && $date->gte($today)) {
+                        return $date;
+                    }
+                } catch (\Exception $e) {
+                    // Invalid date
+                }
+            }
+            
+            // If both formats failed but year is in the future, prefer DD-MM-YYYY
+            if ($year > $currentYear) {
+                try {
+                    $date = Carbon::createFromDate($year, $part2, $part1);
+                    if ($date->isValid()) {
+                        return $date;
+                    }
+                } catch (\Exception $e) {
+                    // Try MM-DD-YYYY as fallback
+                    try {
+                        $date = Carbon::createFromDate($year, $part1, $part2);
+                        if ($date->isValid()) {
+                            return $date;
+                        }
+                    } catch (\Exception $e2) {
+                        // Both failed
+                    }
                 }
             }
         }
@@ -390,6 +450,10 @@ class ServiceController extends Controller
             // If year is not specified or is in the past, use current year
             if ($date->year < 2000) {
                 $date->year($currentYear);
+            }
+            // If date is in the past, try next year
+            if ($date->lt($today)) {
+                $date->year($currentYear + 1);
             }
             return $date;
         } catch (\Exception $e) {
@@ -607,8 +671,36 @@ class ServiceController extends Controller
 
         // Error Case 2: Date not available - no time slots available
         if (empty($availableSlots)) {
-            // Get available dates for next week
-            $availableDates = $this->getAvailableDatesForNextWeek($teamId, $locationId, $serviceId, $siteSetting, $bookingSetting);
+            // Get available dates - check if requested date is in the past or beyond booking window
+            $today = Carbon::now()->startOfDay();
+            $requestedDateObj = Carbon::parse($dateString)->startOfDay();
+            
+            // Check if date is in the past
+            if ($requestedDateObj->lt($today)) {
+                return response()->json([
+                    'status'  => 'error',
+                    'message' => 'Cannot book appointments for past dates',
+                    'requested_date' => $dateString,
+                    'available_dates' => $this->getAvailableDatesForNextWeek($teamId, $locationId, $serviceId, $siteSetting, $bookingSetting)
+                ], 404);
+            }
+            
+            // Check if date is beyond the advance booking window
+            $advanceDays = $bookingSetting ? ($bookingSetting->allow_req_before ?? 30) : 30;
+            $maxBookingDate = Carbon::now()->addDays($advanceDays)->startOfDay();
+            
+            if ($requestedDateObj->gt($maxBookingDate)) {
+                return response()->json([
+                    'status'  => 'error',
+                    'message' => 'Date is beyond the maximum advance booking period (' . $advanceDays . ' days)',
+                    'requested_date' => $dateString,
+                    'max_booking_date' => $maxBookingDate->toDateString(),
+                    'available_dates' => $this->getAvailableDatesForNextWeek($teamId, $locationId, $serviceId, $siteSetting, $bookingSetting)
+                ], 404);
+            }
+            
+            // Get available dates (extend search if requested date is beyond next week)
+            $availableDates = $this->getAvailableDatesForNextWeek($teamId, $locationId, $serviceId, $siteSetting, $bookingSetting, $requestedDateObj);
 
             return response()->json([
                 'status'  => 'error',
@@ -701,15 +793,27 @@ class ServiceController extends Controller
     }
 
     /**
-     * Get available dates for next week
+     * Get available dates for next week (or extend if requested date is beyond)
      */
-    private function getAvailableDatesForNextWeek($teamId, $locationId, $serviceId, $siteSetting, $bookingSetting)
+    private function getAvailableDatesForNextWeek($teamId, $locationId, $serviceId, $siteSetting, $bookingSetting, $requestedDate = null)
     {
         $availableDates = [];
         $startDate = Carbon::now()->addDay();
-        $endDate = Carbon::now()->addWeek();
-
-        $advanceDays = $bookingSetting->allow_req_before ?? 30;
+        
+        // If requested date is provided and beyond next week, extend search range
+        if ($requestedDate && $requestedDate->gt(Carbon::now()->addWeek())) {
+            $endDate = $requestedDate->copy()->addWeek(); // Search up to requested date + 1 week
+        } else {
+            $endDate = Carbon::now()->addWeek();
+        }
+        
+        // Limit to maximum advance booking days
+        $advanceDays = $bookingSetting ? ($bookingSetting->allow_req_before ?? 30) : 30;
+        $maxDate = Carbon::now()->addDays($advanceDays);
+        if ($endDate->gt($maxDate)) {
+            $endDate = $maxDate;
+        }
+        
         $getAdvanceBookingDates = AccountSetting::datesGet($advanceDays);
 
         for ($date = $startDate; $date->lte($endDate); $date->addDay()) {
@@ -763,6 +867,9 @@ class ServiceController extends Controller
             if (!$slotPeriod) {
                 $slotPeriod = 30;
             }
+
+            // Ensure slotPeriod is numeric (cast to int/float) to avoid Carbon TypeError
+            $slotPeriod = is_numeric($slotPeriod) ? (float)$slotPeriod : 30;
 
             $end = $start->copy()->addMinutes($slotPeriod);
             return $end->format('h:i A');
