@@ -106,3 +106,4 @@ Route::post('/check-service', [ServiceController::class, 'checkService']);
 Route::post('/time-slots', [ServiceController::class, 'timeSlots']);
 Route::post('/check-date', [ServiceController::class, 'checkDate']);	
 Route::post('/check-time', [ServiceController::class, 'checkTime']);
+Route::post('/check-and-book', [ServiceController::class, 'checkAndBook']);
