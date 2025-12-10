@@ -66,50 +66,62 @@ class ServiceController extends Controller
      * 2️⃣ Check if a date is available for a service
      */
     public function checkDate(Request $request)
-    {
-        $validator = \Validator::make($request->all(), [
-            'service_id'   => 'required|integer',
-            //'team_id'      => 'required|integer',
-            //'location_id'  => 'required|integer',
-            'date'         => 'required|date'
-        ]);
+{
+    $validator = \Validator::make($request->all(), [
+        'service_id'   => 'required|integer',
+        'team_id'      => 'required|integer',
+        'location_id'  => 'required|integer',
+        'date'         => 'required|date'
+    ]);
 
-        if ($validator->fails()) {
-            return response()->json([
-                'status'  => 'error',
-                'message' => $validator->errors()->first()
-            ], 400);
-        }
-
-        $teamId     = $request->team_id ?? 3;
-        $locationId = $request->location_id ?? null;
-        $serviceId  = $request->service_id;
-        $date       = $request->date;
-
-        // Check slot type (simplified, your logic may vary)
-        if (site_setting('choose_time_slot') != 'staff') {
-            $slots = AccountSetting::checktimeslot($teamId, $locationId, $date, $serviceId, site_setting());
-        } else {
-            $staffIds = User::whereHas('categories', fn($q) => $q->where('categories.id', $serviceId))
-                            ->pluck('id')->toArray();
-
-            $slots = AccountSetting::checkStafftimeslot($teamId, $locationId, $date, $serviceId, site_setting(), $staffIds);
-        }
-
-        if (empty($slots['start_at'])) {
-            return response()->json([
-                'status'  => 'error',
-                'message' => 'Date not available for this service',
-                'available_dates' => $slots['disabled_date'] ?? []
-            ]);
-        }
-
+    if ($validator->fails()) {
         return response()->json([
-            'status'  => 'success',
-            'message' => 'Date available',
-            'available_times' => $slots['start_at']
+            'status'  => 'error',
+            'message' => $validator->errors()->first()
+        ], 400);
+    }
+
+    $teamId     = $request->team_id;
+    $locationId = $request->location_id;
+    $serviceId  = $request->service_id;
+    $date       = $request->date;
+
+    // Fetch site setting
+    $siteSetting = \App\Models\SiteDetail::where('team_id', $teamId)
+        ->where('location_id', $locationId)
+        ->first();
+
+    if (!$siteSetting) {
+        return response()->json([
+            'status' => 'error',
+            'message' => 'Site setting not found for this team and location'
+        ], 404);
+    }
+
+    // Check available slots
+    if ($siteSetting->choose_time_slot != 'staff') {
+        $slots = AccountSetting::checktimeslot($teamId, $locationId, $date, $serviceId, $siteSetting);
+    } else {
+        $staffIds = User::whereHas('categories', fn($q) => $q->where('categories.id', $serviceId))
+                        ->pluck('id')->toArray();
+
+        $slots = AccountSetting::checkStafftimeslot($teamId, $locationId, $date, $serviceId, $siteSetting, $staffIds);
+    }
+
+    if (empty($slots['start_at'])) {
+        return response()->json([
+            'status'  => 'error',
+            'message' => 'Date not available for this service',
+            'available_dates' => $slots['disabled_date'] ?? []
         ]);
     }
+
+    return response()->json([
+        'status'  => 'success',
+        'message' => 'Date available',
+        'available_times' => $slots['start_at']
+    ]);
+}
 
     /**
      * 3️⃣ Check if a specific time is available for a service & date
