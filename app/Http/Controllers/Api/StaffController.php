@@ -10,16 +10,14 @@ use Illuminate\Support\Facades\Validator;
 class StaffController extends Controller
 {public function index(Request $request)
     {
-       dd($request->all());
-
-	   try {
+        try {
             $validatedData = $request->validate([
                 'teamId' => 'required|integer',
                 'locationId' => 'required|integer',
                 'offset' => 'nullable|integer|min:0',
                 'limit' => 'nullable|integer|min:1|max:100',
             ]);
-			
+    
             $teamId = $validatedData['teamId'];
             $locationId = $validatedData['locationId'];
             $offset = $validatedData['offset'] ?? 0;
