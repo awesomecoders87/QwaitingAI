@@ -539,7 +539,8 @@ class ServiceController extends Controller
      * 1. Check service availability → if not available, return error + service list
      * 2. Check date availability → if not available, return error + available dates (next week)
      * 3. Check time availability → if not available, return error + other time slots for same day
-     * 4. Book appointment if all checks pass
+     * 4. Check for duplicate/overlapping bookings
+     * 5. Book appointment if all checks pass
      */
     public function checkAndBook(Request $request)
     {
@@ -548,6 +549,7 @@ class ServiceController extends Controller
         $locationId = 80;
 
         // Handle both form data and JSON requests - accept three explicit inputs
+        // Make validation more flexible - only check if fields are provided
         $validator = \Validator::make($request->all(), [
             'service_name'    => 'required|string',
             'appointment_date' => 'required|string',
@@ -559,9 +561,24 @@ class ServiceController extends Controller
         ]);
 
         if ($validator->fails()) {
+            $errors = $validator->errors();
+            $missingFields = [];
+            
+            if ($errors->has('service_name')) {
+                $missingFields[] = 'service_name';
+            }
+            if ($errors->has('appointment_date')) {
+                $missingFields[] = 'appointment_date';
+            }
+            if ($errors->has('time')) {
+                $missingFields[] = 'time';
+            }
+            
             return response()->json([
                 'status'  => 'error',
-                'message' => $validator->errors()->first()
+                'error_type' => 'missing_fields',
+                'message' => 'Required fields are missing: ' . implode(', ', $missingFields),
+                'missing_fields' => $missingFields
             ], 400);
         }
 
@@ -583,7 +600,9 @@ class ServiceController extends Controller
         if (!$service) {
             return response()->json([
                 'status'  => 'error',
+                'error_type' => 'service_not_available',
                 'message' => 'Service not available',
+                'requested_service' => $serviceName,
                 'services' => $services->map(fn($s) => [
                     'id'   => $s->id,
                     'name' => $s->name
@@ -602,11 +621,32 @@ class ServiceController extends Controller
                 // Parse the date string (handles formats like "11 dec", "11-12-2024", etc.)
                 $appointmentDate = $this->parseDate($appointmentDateInput);
             }
+            
+            // Validate the parsed date is valid
+            if (!$appointmentDate->isValid()) {
+                throw new \Exception('Invalid date');
+            }
+            
             $dateString = $appointmentDate->toDateString();
+            $today = Carbon::now()->startOfDay();
+            $requestedDateObj = $appointmentDate->startOfDay();
+            
+            // Check if date is in the past
+            if ($requestedDateObj->lt($today)) {
+                return response()->json([
+                    'status'  => 'error',
+                    'error_type' => 'date_in_past',
+                    'message' => 'Cannot book appointments for past dates',
+                    'requested_date' => $dateString,
+                    'available_dates' => $this->getAvailableDatesForNextWeek($teamId, $locationId, $serviceId, $siteSetting, $bookingSetting)
+                ], 400);
+            }
         } catch (\Exception $e) {
             return response()->json([
                 'status'  => 'error',
-                'message' => 'Invalid date format. Please provide date in a valid format (e.g., "2024-12-11", "11-12-2024", "11 dec")'
+                'error_type' => 'invalid_date',
+                'message' => 'Invalid date format. Please provide date in a valid format (e.g., "2024-12-11", "11-12-2024", "11 dec")',
+                'requested_date' => $appointmentDateInput
             ], 400);
         }
 
@@ -654,20 +694,6 @@ class ServiceController extends Controller
 
         // Error Case 2: Date not available - no time slots available
         if (empty($availableSlots)) {
-            // Get available dates - check if requested date is in the past or beyond booking window
-            $today = Carbon::now()->startOfDay();
-            $requestedDateObj = Carbon::parse($dateString)->startOfDay();
-            
-            // Check if date is in the past
-            if ($requestedDateObj->lt($today)) {
-                return response()->json([
-                    'status'  => 'error',
-                    'message' => 'Cannot book appointments for past dates',
-                    'requested_date' => $dateString,
-                    'available_dates' => $this->getAvailableDatesForNextWeek($teamId, $locationId, $serviceId, $siteSetting, $bookingSetting)
-                ], 404);
-            }
-            
             // Check if date is beyond the advance booking window
             $advanceDays = $bookingSetting ? ($bookingSetting->allow_req_before ?? 30) : 30;
             // Ensure advanceDays is numeric to avoid Carbon TypeError
@@ -677,11 +703,12 @@ class ServiceController extends Controller
             if ($requestedDateObj->gt($maxBookingDate)) {
                 return response()->json([
                     'status'  => 'error',
+                    'error_type' => 'date_beyond_booking_window',
                     'message' => 'Date is beyond the maximum advance booking period (' . $advanceDays . ' days)',
                     'requested_date' => $dateString,
                     'max_booking_date' => $maxBookingDate->toDateString(),
                     'available_dates' => $this->getAvailableDatesForNextWeek($teamId, $locationId, $serviceId, $siteSetting, $bookingSetting)
-                ], 404);
+                ], 400);
             }
             
             // Get available dates (extend search if requested date is beyond next week)
@@ -689,30 +716,54 @@ class ServiceController extends Controller
 
             return response()->json([
                 'status'  => 'error',
+                'error_type' => 'date_not_available',
                 'message' => 'Date not available for this service',
                 'requested_date' => $dateString,
                 'available_dates' => $availableDates
             ], 404);
         }
 
-        // Step 3: Check time availability
+        // Step 3: Check time availability and validate time format
         $requestedTime = trim($timeString);
-        $normalizedRequestedTime = $this->normalizeTime($requestedTime);
+        
+        // Validate time format
+        try {
+            $normalizedRequestedTime = $this->normalizeTime($requestedTime);
+            // Try to parse the normalized time to ensure it's valid
+            $testTime = Carbon::createFromFormat('h:i A', $normalizedRequestedTime);
+            if (!$testTime || !$testTime->isValid()) {
+                throw new \Exception('Invalid time format');
+            }
+        } catch (\Exception $e) {
+            return response()->json([
+                'status'  => 'error',
+                'error_type' => 'invalid_time',
+                'message' => 'Invalid time format. Please provide time in a valid format (e.g., "4pm", "4:00 PM", "16:00")',
+                'requested_time' => $requestedTime
+            ], 400);
+        }
+        
         $timeExists = false;
         $matchedSlot = null;
+        $matchedStartTime = null;
+        $matchedEndTime = null;
 
         foreach ($availableSlots as $slot) {
             // Handle slot format "09:00 AM-10:00 AM" by extracting start time
             $slotStartTime = $slot;
+            $slotEndTime = null;
             if (strpos($slot, '-') !== false) {
                 [$slotStartTime, $slotEndTime] = explode('-', $slot, 2);
                 $slotStartTime = trim($slotStartTime);
+                $slotEndTime = trim($slotEndTime);
             }
 
             $normalizedSlot = $this->normalizeTime($slotStartTime);
             if ($normalizedSlot === $normalizedRequestedTime) {
                 $timeExists = true;
                 $matchedSlot = $slot;
+                $matchedStartTime = $normalizedSlot;
+                $matchedEndTime = $slotEndTime ? $this->normalizeTime($slotEndTime) : null;
                 break;
             }
         }
@@ -721,6 +772,7 @@ class ServiceController extends Controller
         if (!$timeExists) {
             return response()->json([
                 'status'  => 'error',
+                'error_type' => 'time_not_available',
                 'message' => 'Time slot not available for this date',
                 'requested_time' => $requestedTime,
                 'date'    => $dateString,
@@ -728,12 +780,66 @@ class ServiceController extends Controller
             ], 404);
         }
 
-        // Step 4: All checks passed - Book the appointment
-        try {
-            // Calculate end time
-            $startTime = $normalizedRequestedTime;
-            $endTime = $this->calculateEndTime($startTime, $service, $bookingSetting, $siteSetting);
+        // Step 4: Check for duplicate/overlapping bookings
+        $startTime = $normalizedRequestedTime;
+        $endTime = $this->calculateEndTime($startTime, $service, $bookingSetting, $siteSetting);
+        
+        // Check for duplicate booking (same phone/email at same date and time)
+        $phone = $request->input('phone');
+        $email = $request->input('email');
+        
+        if ($phone || $email) {
+            $duplicateQuery = Booking::where('team_id', $teamId)
+                ->where('location_id', $locationId)
+                ->where('booking_date', $dateString)
+                ->where('start_time', $startTime)
+                ->where('status', '!=', Booking::STATUS_CANCELLED);
+            
+            if ($phone) {
+                $duplicateQuery->where('phone', $phone);
+            }
+            if ($email) {
+                $duplicateQuery->where('email', $email);
+            }
+            
+            $duplicateBooking = $duplicateQuery->first();
+            
+            if ($duplicateBooking) {
+                return response()->json([
+                    'status'  => 'error',
+                    'error_type' => 'duplicate_booking',
+                    'message' => 'You already have an appointment at this time',
+                    'existing_booking' => [
+                        'id' => $duplicateBooking->id,
+                        'date' => $duplicateBooking->booking_date,
+                        'time' => $duplicateBooking->booking_time,
+                        'status' => $duplicateBooking->status
+                    ]
+                ], 409);
+            }
+        }
+        
+        // Check for overlapping time slots (any booking at same date and time)
+        $overlappingBooking = Booking::where('team_id', $teamId)
+            ->where('location_id', $locationId)
+            ->where('booking_date', $dateString)
+            ->where('start_time', $startTime)
+            ->where('status', '!=', Booking::STATUS_CANCELLED)
+            ->first();
+        
+        if ($overlappingBooking) {
+            return response()->json([
+                'status'  => 'error',
+                'error_type' => 'overlapping_time',
+                'message' => 'This time slot is already booked',
+                'requested_time' => $startTime . '-' . $endTime,
+                'date' => $dateString,
+                'available_times' => $availableSlots
+            ], 409);
+        }
 
+        // Step 5: All checks passed - Book the appointment
+        try {
             // Create booking
             $booking = Booking::create([
                 'team_id' => $teamId,
@@ -772,7 +878,9 @@ class ServiceController extends Controller
         } catch (\Exception $e) {
             return response()->json([
                 'status'  => 'error',
-                'message' => 'Failed to book appointment: ' . $e->getMessage()
+                'error_type' => 'booking_failed',
+                'message' => 'System error while booking. Please try again.',
+                'details' => $e->getMessage()
             ], 500);
         }
     }
