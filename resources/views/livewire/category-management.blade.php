@@ -151,24 +151,23 @@
                                             {{ $category->display_on ?? '' }}
                                 </td> --}}
                                 <td class="px-5 py-4 sm:px-6">
-                                          @php
-											$locations = $category->category_locations;
+									@php
+										$locIds = $category->category_locations;
 
-											// Normalize locations to array
-											if (is_string($locations) && $locations !== '') {
-												$locations = json_decode($locations, true) ?? [];
-											} elseif (!is_array($locations)) {
-												$locations = [];
-											}
+										// Normalize JSON → array
+										if (is_string($locIds) && $locIds !== '') {
+											$locIds = json_decode($locIds, true) ?? [];
+										} elseif (!is_array($locIds)) {
+											$locIds = [];
+										}
 
-											$data = !empty($locations)
-												? App\Models\Location::whereIn('id', $locations)->pluck('location_name')->toArray()
-												: [];
-										@endphp
+										// Use already-loaded $locations from Livewire
+										$names = array_map(fn($id) => $locations[$id] ?? null, $locIds);
+										$names = array_filter($names); // remove nulls
+									@endphp
 
-										{{ implode(', ', $data) }}
-
-                                </td>
+									{{ implode(', ', $names) }}
+								</td>
                                 <td class="px-5 py-4 sm:px-6">
                                             {{ $category->created_at ?? '' }}
                                 </td>

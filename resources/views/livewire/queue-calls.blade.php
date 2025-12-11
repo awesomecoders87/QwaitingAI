@@ -1548,21 +1548,21 @@
                         <li class="flex justify-between py-2 border-b">
                             <span class="text-gray-600">{{ __('text.Level') }} 1:</span>
                             <span
-                                class="font-semibold text-gray-900">{{ App\Models\Category::viewCategoryName($randomCurrentQueue->category_id) }}</span>
+                                class="font-semibold text-gray-900">{{ $randomCurrentQueue->category->name }}</span>
                         </li>
                         @endif
                         @if(!empty($randomCurrentQueue->sub_category_id))
                         <li class="flex justify-between py-2 border-b">
                             <span class="text-gray-600">{{ __('text.Level') }} 2:</span>
                             <span
-                                class="font-semibold text-gray-900">{{ App\Models\Category::viewCategoryName($randomCurrentQueue->sub_category_id) }}</span>
+                                class="font-semibold text-gray-900">{{ $randomCurrentQueue->subCategory->name }}</span>
                         </li>
                         @endif
                         @if(!empty($randomCurrentQueue->child_category_id))
                         <li class="flex justify-between py-2 border-b">
                             <span class="text-gray-600">{{ __('text.Level') }} 3:</span>
                             <span
-                                class="font-semibold text-gray-900">{{ App\Models\Category::viewCategoryName($randomCurrentQueue->child_category_id) }}</span>
+                                class="font-semibold text-gray-900">{{ $randomCurrentQueue->childCategory->name }}</span>
                         </li>
                         @endif
 
@@ -1746,7 +1746,7 @@
                         <li class="flex justify-between py-2">
                             <span class="text-gray-600">{{ __('text.Level') }} 1:</span>
                             <span
-                                class="font-semibold text-gray-900">{{ App\Models\Category::viewCategoryName($randomCurrentQueue->category_id) }}</span>
+                                class="font-semibold text-gray-900">{{ $randomCurrentQueue->category->name }}</span>
                         </li>
                         @endif
 
@@ -1754,7 +1754,7 @@
                         <li class="flex justify-between py-2">
                             <span class="text-gray-600">{{ __('text.Level') }} 2:</span>
                             <span
-                                class="font-semibold text-gray-900">{{ App\Models\Category::viewCategoryName($randomCurrentQueue->sub_category_id) }}</span>
+                                class="font-semibold text-gray-900">{{ $randomCurrentQueue->subCategory->name }}</span>
                         </li>
                         @endif
 
@@ -1762,7 +1762,7 @@
                         <li class="flex justify-between py-2">
                             <span class="text-gray-600">{{ __('text.Level') }} 3:</span>
                             <span
-                                class="font-semibold text-gray-900">{{ App\Models\Category::viewCategoryName($randomCurrentQueue->child_category_id) }}</span>
+                                class="font-semibold text-gray-900">{{ $randomCurrentQueue->childCategory->name }}</span>
                         </li>
                         @endif
 
