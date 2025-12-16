@@ -49,7 +49,7 @@ class AuthController extends Controller
 
 public function loginstore(Request $request)
 {
-    // Validate input (email or username required, along with password)
+    // Validate input (email or username required, along with password) 
     $request->validate([
         'login' => 'required',
         'password' => 'required|min:6'
