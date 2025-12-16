@@ -222,6 +222,10 @@ public function loginstore(Request $request)
     }
 }
 
+ /**
+  * Log the user out of the application.
+  * Only clears user session, does not affect superadmin session.
+  */
  public function logout(Request $request)
 {
     $user = Auth::guard('web')->user();
@@ -248,16 +252,22 @@ public function loginstore(Request $request)
     }
 
     // Logout only the 'web' guard
+    // This clears the 'login_web_*' session key only
     Auth::guard('web')->logout();
 
-    // Forget only user session keys (do NOT invalidate the whole session)
+    // Forget only user session keys
+    // Do NOT call session()->regenerate() as it would create a new session ID
+    // and invalidate other sessions sharing the same cookie
     $request->session()->forget([
         'user_id',
         'selectedLocation',
+        'timezone_set',
+        'otp_user_id',
+        'verify_otp',
         // add any other user-specific keys
     ]);
 
-    // Regenerate CSRF token (does not affect superadmin session)
+    // Regenerate CSRF token for security (does not affect session ID)
     $request->session()->regenerateToken();
 
     return redirect()->route('tenant.login');
