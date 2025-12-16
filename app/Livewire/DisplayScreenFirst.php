@@ -10,7 +10,7 @@ use App\Models\{
     DisplaySettingModel,
     QueueStorage,
     SiteDetail,
-    PusherDetail,
+    ReverbDetail,
     Counter
 };
 use Carbon\Carbon;
@@ -47,9 +47,9 @@ class DisplayScreenFirst extends Component
     public $siteData = [];
     public $counterID = [];
     public $categoryID = [];
-    public $pusherDetails;
+    public $reverbDetails;
     public $timezone;
-    public $pusherKey, $pusherCluster;
+    public $reverbKey, $reverbHost, $reverbPort, $reverbScheme;
     public $waitingCalls;
     public $selectedSound;
 
@@ -88,9 +88,11 @@ class DisplayScreenFirst extends Component
         // $this->displaySetting = DisplaySettingModel::getDetails($this->teamId, $this->location);
         $this->siteData = SiteDetail::Where('team_id', $this->teamId)->where('location_id', $this->location)->select('id','team_id','location_id','queue_heading_first','queue_heading_second')->first();
 
-        $this->pusherDetails = PusherDetail::viewPusherDetails($this->teamId, $this->location);
-        $this->pusherKey = $this->pusherDetails->key ?? env('PUSHER_APP_KEY');
-        $this->pusherCluster = $this->pusherDetails->options_cluster ?? env('PUSHER_APP_CLUSTER');
+        $this->reverbDetails = ReverbDetail::viewReverbDetails($this->teamId, $this->location);
+        $this->reverbKey = $this->reverbDetails->key ?? env('REVERB_APP_KEY');
+        $this->reverbHost = $this->reverbDetails->host ?? env('REVERB_HOST', '127.0.0.1');
+        $this->reverbPort = $this->reverbDetails->port ?? env('REVERB_PORT', 8080);
+        $this->reverbScheme = $this->reverbDetails->scheme ?? env('REVERB_SCHEME', 'http');
          $this->counterID = $this->currentTemplate?->counters?->pluck('id')?->toArray();
         $this->categoryID = $this->currentTemplate?->categories?->pluck('id')?->toArray();
          $this->getcallsdetail();

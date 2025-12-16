@@ -2,7 +2,7 @@
 
 namespace App\Livewire;
 use Livewire\Component;
-use App\Models\{Queue, SiteDetail, QueueStorage, PusherDetail};
+use App\Models\{Queue, SiteDetail, QueueStorage, ReverbDetail};
 use Livewire\Attributes\Layout;
 use Illuminate\Support\Facades\Session;
 use Livewire\Attributes\Title;
@@ -32,7 +32,7 @@ class ViewWaitlist extends Component
     public $queueStorageId;
     public $totalEsitmateTime;
     public $timezone;
-    public $pusherKey, $pusherCluster, $pusherDetails;
+    public $reverbKey, $reverbHost, $reverbPort, $reverbScheme, $reverbDetails;
     public $isOpen = false;
 
  public function mount($location = null, $id = null)
@@ -66,9 +66,11 @@ class ViewWaitlist extends Component
 
     $this->refresh();
 
-    $this->pusherDetails = PusherDetail::viewPusherDetails($this->teamId, $this->location);
-    $this->pusherKey = $this->pusherDetails->key ?? env('PUSHER_APP_KEY');
-    $this->pusherCluster = $this->pusherDetails->options_cluster ?? env('PUSHER_APP_CLUSTER');
+    $this->reverbDetails = ReverbDetail::viewReverbDetails($this->teamId, $this->location);
+    $this->reverbKey = $this->reverbDetails->key ?? env('REVERB_APP_KEY');
+    $this->reverbHost = $this->reverbDetails->host ?? env('REVERB_HOST', '127.0.0.1');
+    $this->reverbPort = $this->reverbDetails->port ?? env('REVERB_PORT', 8080);
+    $this->reverbScheme = $this->reverbDetails->scheme ?? env('REVERB_SCHEME', 'http');
       $this->timezone = Config::get('app.timezone') ?? 'UTC';
      $this->dispatch('header-hide-title'); // hide header title from custom form
 

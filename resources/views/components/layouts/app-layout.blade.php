@@ -143,7 +143,7 @@
     @stack('scripts')
 
     @php
-        $pusherDetails = App\Models\PusherDetail::viewPusherDetails();
+        $reverbDetails = App\Models\ReverbDetail::viewReverbDetails();
     @endphp
 
     <script type="module">

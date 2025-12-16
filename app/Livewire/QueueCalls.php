@@ -28,7 +28,7 @@ use App\Models\{
     FeedbackSetting,
     Location,
     FormField,
-    PusherDetail,
+    ReverbDetail,
     QueueStorage,
     SmtpDetails,
     BreakReason,
@@ -140,8 +140,8 @@ class QueueCalls extends Component
     public $categoriesShow = true;
     public $isfixedQueueSize = true;
     public $isCheckSameCounter = true;
-    public $pusherDetails;
-    public $pusherKey, $pusherCluster;
+    public $reverbDetails;
+    public $reverbKey, $reverbHost, $reverbPort, $reverbScheme;
     public $timezone;
     public $currentUrl;
     public $holdsms;
@@ -305,10 +305,12 @@ class QueueCalls extends Component
         $this->firstCategories = Category::getFirstCategoryN($this->team_id, $this->location);
         $this->updateCategories('secondChildId', $this->selectedCategoryId);
         $this->updateCategories('thirdChildId', $this->secondChildId);
-        $this->pusherDetails = PusherDetail::viewPusherDetails($this->team_id, $this->location);
+        $this->reverbDetails = ReverbDetail::viewReverbDetails($this->team_id, $this->location);
 
-        $this->pusherKey = $this->pusherDetails->key ?? env('PUSHER_APP_KEY');
-        $this->pusherCluster = $this->pusherDetails->options_cluster ?? env('PUSHER_APP_CLUSTER');
+        $this->reverbKey = $this->reverbDetails->key ?? env('REVERB_APP_KEY');
+        $this->reverbHost = $this->reverbDetails->host ?? env('REVERB_HOST', '127.0.0.1');
+        $this->reverbPort = $this->reverbDetails->port ?? env('REVERB_PORT', 8080);
+        $this->reverbScheme = $this->reverbDetails->scheme ?? env('REVERB_SCHEME', 'http');
 
         if (!Session::has('refresh-page')) {
             Session::put('refresh-page', true);
@@ -349,14 +351,19 @@ class QueueCalls extends Component
 
      public function refreshQueues(): void
     {
+        \Log::info('🔄 refreshQueues() called');
 
         if($this->enable_callDepartment){
-
-            $this->queues = Queue::getPendingQueuesDepartment($this->conditionTeam, ($this->siteDetail?->fixed_visitor_list_queue == SiteDetail::STATUS_YES ? true : false), $this->location, $this->page, $this->term, $this->team_id, $this->queueType,(int)$this->selectedCounter,Auth::id(),true);
+            $newQueues = Queue::getPendingQueuesDepartment($this->conditionTeam, ($this->siteDetail?->fixed_visitor_list_queue == SiteDetail::STATUS_YES ? true : false), $this->location, $this->page, $this->term, $this->team_id, $this->queueType,(int)$this->selectedCounter,Auth::id(),true);
         }else{
-            $this->queues = Queue::getPendingQueues($this->conditionTeam, ($this->siteDetail?->fixed_visitor_list_queue == SiteDetail::STATUS_YES ? true : false), $this->location, $this->page, $this->term, $this->team_id, $this->queueType,(int)$this->selectedCounter);
-
+            $newQueues = Queue::getPendingQueues($this->conditionTeam, ($this->siteDetail?->fixed_visitor_list_queue == SiteDetail::STATUS_YES ? true : false), $this->location, $this->page, $this->term, $this->team_id, $this->queueType,(int)$this->selectedCounter);
         }
+        
+        // Create new collection to ensure Livewire detects change
+        $this->queues = collect($newQueues)->values();
+        
+        \Log::info('📊 Queues refreshed', ['count' => $this->queues->count()]);
+        
           if(!empty($this->queues)){
         $this->transferCalls = $this->queues
             ->filter(function ($queue) {
@@ -375,7 +382,7 @@ class QueueCalls extends Component
             ->toArray();
         }
 
-        $this->queuesCount = count($this->queues) ?? 0;
+        $this->queuesCount = $this->queues->count();
         $this->tokenServed = Queue::totalTokenServed($this->conditionTeam, $this->userAuth->id, $this->location);
     }
 
@@ -1103,6 +1110,9 @@ class QueueCalls extends Component
 
             $this->callPendingEvent($this->currentStorageID);
             ActivityLog::storeLog($this->team_id, $this->userAuth->id, $this->currentVisitorId, $this->currentStorageID, ActivityLog::QUEUE_CALLED, $this->location);
+            
+            // Immediately refresh queues to remove the called queue from waiting list
+            $this->refreshQueues();
         }
         catch (\Throwable $ex) {
 
@@ -1958,6 +1968,8 @@ class QueueCalls extends Component
 
             $this->emptyCurrentVisitor();
         }
+        
+        // Refresh queues to remove the called queue from waiting list
         $this->refreshQueues();
 
         $this->nextId  = $this->queues?->first()?->queue_id ?? null;
@@ -2009,11 +2021,61 @@ class QueueCalls extends Component
     #[On('create-queue')]
     public function pushLiveQueue($event)
     {
-
-        $this->refreshQueues();
-        $this->initialiAfterQueue();
-       if(!empty($this->currentVisitorRecord) && is_null($this->currentVisitorRecord->called_datetime)){
-
+        \Log::info('📢 create-queue event received', ['event' => $event]);
+        
+        // Extract queue data from event structure
+        // Event comes as: { event: { queue: {...} } }
+        $queueData = $event['queue'] ?? $event['event']['queue'] ?? ($event['event'] ?? null);
+        
+        if ($queueData) {
+            $queueId = $queueData['id'] ?? null;
+            $queueLocation = $queueData['locations_id'] ?? $queueData['location_id'] ?? null;
+            
+            \Log::info('📢 Queue data extracted', [
+                'queue_id' => $queueId,
+                'queue_location' => $queueLocation,
+                'current_location' => $this->location
+            ]);
+            
+            // Only process if queue is for current location (or no location filter)
+            if ($queueLocation && $queueLocation != $this->location) {
+                // Queue is for different location, skip
+                \Log::info('⏭️ Skipping queue - different location');
+                return;
+            }
+            
+            if ($queueId) {
+                $queueStorage = QueueStorage::find($queueId);
+                // Only add to list if it hasn't been called yet and matches location
+                if ($queueStorage && is_null($queueStorage->called_datetime) && $queueStorage->locations_id == $this->location) {
+                    // Immediately refresh queues to show new queue
+                    \Log::info('✅ Refreshing queues - new queue added');
+                    $this->refreshQueues();
+                    $this->initialiAfterQueue();
+                    // Force Livewire to re-render
+                    $this->dispatch('$refresh');
+                } else {
+                    // If queue was called, just refresh to remove it from waiting list
+                    \Log::info('🔄 Refreshing queues - queue was called');
+                    $this->refreshQueues();
+                    $this->dispatch('$refresh');
+                }
+            } else {
+                // Fallback: refresh anyway
+                \Log::info('🔄 Refreshing queues - fallback');
+                $this->refreshQueues();
+                $this->initialiAfterQueue();
+                $this->dispatch('$refresh');
+            }
+        } else {
+            // Fallback: refresh anyway (event received but data structure unexpected)
+            \Log::warning('⚠️ Event received but queue data not found', ['event' => $event]);
+            $this->refreshQueues();
+            $this->initialiAfterQueue();
+            $this->dispatch('$refresh');
+        }
+        
+        if(!empty($this->currentVisitorRecord) && is_null($this->currentVisitorRecord->called_datetime)){
            $this->dispatch('reset-serving-time');
            $this->dispatch('event-serving-time');
        }
@@ -2404,6 +2466,7 @@ class QueueCalls extends Component
             ActivityLog::storeLog($this->team_id, $this->userAuth->id, $queueCreated->id, $queueStorage->id, ActivityLog::QUEUE_REGISTERED, $this->location);
               if(!empty($queueStorage)){
             QueueCreated::dispatch($queueStorage);
+            QueueDisplay::dispatch($queueStorage);
               }
 
             $this->dispatch('event-success-call', ['message' => __('message.SUCCESS0012.message')]);
@@ -2532,6 +2595,7 @@ class QueueCalls extends Component
             if(!empty($queueStorage)){
             QueueCreated::dispatch($queueStorage);
             QueueProgress::dispatch($queueStorage);
+            QueueDisplay::dispatch($queueStorage);
             }
             $this->dispatch('event-success-call', ['message' => __('message.SUCCESS0014.message')]);
         } catch (\Throwable $ex) {

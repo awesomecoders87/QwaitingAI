@@ -300,9 +300,23 @@
 <script src="{{asset('/js/app/call.js?v=4.1.0.0')}}"></script>
 
 <script>
-    var pusher = new Pusher("{{ $pusherKey }}", {
-        cluster: "{{ $pusherCluster }}",
-        encrypted: true
+    var pusher = new Pusher("{{ $reverbKey }}", {
+        cluster: 'mt1',
+        wsHost: "{{ $reverbHost }}",
+        wsPort: {{ $reverbPort }},
+        wssPort: {{ $reverbPort }},
+        forceTLS: "{{ $reverbScheme }}" === 'https',
+        enabledTransports: ['ws', 'wss'],
+        encrypted: true,
+        disableStats: true
+    });
+
+    console.log('🤖 Visit Pusher connected to Reverb', {
+        host: '{{ $reverbHost }}',
+        port: {{ $reverbPort }},
+        scheme: '{{ $reverbScheme }}',
+        team: {{ tenant('id') }},
+        location: {{ $location }}
     });
 
 
@@ -314,9 +328,10 @@
         });
     });
 
-    var queuesuspension = pusher.subscribe("queue-suspension.{{ tenant('id') }}.{{$location}}");
+    var queueSuspension = pusher.subscribe("queue-suspension.{{ tenant('id') }}.{{$location}}");
 
-    queuesuspension.bind('queue-suspension', function() {
+    queueSuspension.bind('queue-suspension', function() {
+        console.log('🔄 Visit page received queue-suspension event, reloading.');
         window.location.reload();
     });
 </script>

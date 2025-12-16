@@ -25,7 +25,7 @@ class ServiceController extends Controller
     {
         // Handle both form data and JSON requests
         $validator = \Validator::make($request->all(), [
-            'service_name' => 'required|string',
+            'service_name' => 'nullable|string',
             'team_id'      => 'nullable|integer',
             'location_id'  => 'nullable|integer',
         ]);
@@ -1122,8 +1122,8 @@ class ServiceController extends Controller
         $validator = \Validator::make($request->all(), [
             'service_id'   => 'nullable|integer',
             'service_name' => 'nullable|string',
-            'team_id'      => 'required|integer',
-            'location_id'  => 'required|integer',
+            'team_id'      => 'nullable|integer',
+            'location_id'  => 'nullable|integer',
             'date'         => 'required|date'
         ]);
 
@@ -1142,8 +1142,8 @@ class ServiceController extends Controller
             ], 400);
         }
 
-        $teamId     = $request->team_id;
-        $locationId = $request->location_id;
+        $teamId = 3;
+        $locationId = 80;
         $date       = Carbon::parse($request->date);
         $dateString = $date->toDateString();
 
@@ -1172,7 +1172,7 @@ class ServiceController extends Controller
             
             $service = $services->first(function ($s) use ($queryName) {
                 return strtolower($s->name) === $queryName ||
-                       strtolower($s->other_name ?? '') === $queryName;
+                      strtolower($s->other_name ?? '') === $queryName;
             });
             
             if (!$service) {
@@ -1239,5 +1239,155 @@ class ServiceController extends Controller
         ]);
     }
 
-    
+    public function checkDateTimeAvailability(Request $request)
+{
+    $validator = \Validator::make($request->all(), [
+        'service_id'   => 'nullable|integer',
+        'service_name' => 'nullable|string',
+        'team_id'      => 'nullable|integer',
+        'location_id'  => 'nullable|integer',
+        'date'         => 'required|date',
+        'time'         => 'nullable|string' // <-- Add this
+    ]);
+
+    if ($validator->fails()) {
+        return response()->json([
+            'status'  => 'error',
+            'message' => $validator->errors()->first()
+        ], 400);
+    }
+
+    // At least one of service_id or service_name must be provided
+    if (empty($request->service_id) && empty($request->service_name)) {
+        return response()->json([
+            'status'  => 'error',
+            'message' => 'Either service_id or service_name is required'
+        ], 400);
+    }
+
+    $teamId = 3;
+    $locationId = 80;
+    $date = Carbon::parse($request->date);
+    $dateString = $date->toDateString();
+
+    // STEP 1: Validate Service
+    $services = Category::getFirstCategorybooking($teamId, $locationId);
+
+    if ($request->service_id) {
+        $service = $services->firstWhere('id', $request->service_id);
+    } else {
+        $queryName = strtolower($request->service_name);
+        $service = $services->first(function ($s) use ($queryName) {
+            return strtolower($s->name) === $queryName ||
+                   strtolower($s->other_name ?? '') === $queryName;
+        });
+    }
+
+    if (!$service) {
+        return response()->json([
+            'status'  => 'error',
+            'message' => 'Service not found or not available',
+            'available_services' => $services->map(fn($s) => [
+                'id'   => $s->id,
+                'name' => $s->name
+            ])
+        ], 404);
+    }
+
+    $serviceId = $service->id;
+
+    // STEP 2: Validate Date Availability
+    $siteSetting = SiteDetail::where('team_id', $teamId)
+        ->where('location_id', $locationId)
+        ->first();
+
+    if (!$siteSetting) {
+        return response()->json([
+            'status' => 'error',
+            'message' => 'Site setting not found',
+        ], 404);
+    }
+
+    // STEP 3: Generate Available Time Slots
+    if ($siteSetting->choose_time_slot != 'staff') {
+        $slots = AccountSetting::checktimeslot($teamId, $locationId, $date, $serviceId, $siteSetting);
+    } else {
+        $staffIds = User::whereHas('categories', fn($q) => $q->where('categories.id', $serviceId))
+            ->pluck('id')->toArray();
+
+        $slots = AccountSetting::checkStafftimeslot(
+            $teamId, $locationId, $date, $serviceId, $siteSetting, $staffIds
+        );
+    }
+
+    // Check if no slots at all
+    if (empty($slots['start_at'])) {
+        return response()->json([
+            'status'  => 'error',
+            'message' => 'No time slots available for this date',
+            'date'    => $dateString,
+            'service_id' => $serviceId,
+            'available_dates' => $slots['disabled_date'] ?? []
+        ], 404);
+    }
+
+    // STEP 4: Time Conflict Check (BOOKING VALIDATION)
+if ($request->time) {
+
+    // Normalize user input
+    try {
+        $requestedTime = trim($request->time);
+        $parsedTime = Carbon::parse($requestedTime)->format('h:i A');
+    } catch (\Exception $e) {
+        return response()->json([
+            'status' => 'error',
+            'message' => 'Invalid time format.',
+        ], 400);
+    }
+
+    // Get booked start_times from DB
+    $bookedSlots = \DB::table('bookings')
+        ->where('team_id', $teamId)
+        ->where('location_id', $locationId)
+        ->where('category_id', $serviceId)
+        ->where('booking_date', $date->toDateString())
+        ->pluck('start_time')
+        ->toArray();
+
+    // Extract only start times from all generated slots
+    $generatedStartTimes = array_map(function ($slot) {
+        return trim(explode('-', $slot)[0]);  // "02:00 PM-02:30 PM" → "02:00 PM"
+    }, $slots['start_at']);
+
+    // Remove booked times from available list
+    $availableStartTimes = array_values(array_filter($generatedStartTimes, function ($t) use ($bookedSlots) {
+        return !in_array($t, $bookedSlots);
+    }));
+
+    // If user-selected time is not available → booked
+    if (!in_array($parsedTime, $availableStartTimes)) {
+        return response()->json([
+            'status'  => 'error',
+            'message' => 'This time slot is already booked for the selected service.',
+            'requested_time' => $parsedTime,
+            'date'    => $dateString,
+            'available_times' => $availableStartTimes
+        ], 409);
+    }
+}
+
+
+    // SUCCESS — Service, Date, and Requested Time are Available
+    return response()->json([
+        'status'  => 'success',
+        'message' => 'Service, date, and time are available',
+        'service' => [
+            'id'   => $serviceId,
+            'name' => $service->name
+        ],
+        'date'    => $dateString,
+        'available_times' => $slots['start_at']
+    ]);
+}
+
 }

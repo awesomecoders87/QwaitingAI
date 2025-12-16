@@ -25,6 +25,7 @@ use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\Session;
 use SimpleSoftwareIO\QrCode\Facades\QrCode;
 use App\Events\QueueCreated;
+use App\Events\QueueDisplay;
 use App\Services\SalesforceService;
 use Livewire\Attributes\Layout;
 use Livewire\Attributes\Title;
@@ -308,6 +309,7 @@ class CheckinComponent extends Component
             $queueStorage =  QueueStorage::storeQueue(array_merge($storeData, ['queue_id' => $queueCreated->id]));
 
             QueueCreated::dispatch($queueStorage);
+            QueueDisplay::dispatch($queueStorage);
 
             // QueueStorage::assignCounterToQueue( $queueStorage->id );
 

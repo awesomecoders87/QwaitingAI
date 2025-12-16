@@ -102,9 +102,10 @@ Route::post('/generate-ticket-with-qr', [ApiController::class, 'generateTicketWi
     });
 // });
 
-Route::post('/check-service', [ServiceController::class, 'checkService']);
+Route::get('/check-service', [ServiceController::class, 'checkService']);
 Route::post('/time-slots', [ServiceController::class, 'timeSlots']);
 Route::post('/check-date', [ServiceController::class, 'checkDate']);	
+Route::post('/check-datetime-availability', [ServiceController::class, 'checkDateTimeAvailability']);	
 Route::post('/check-time', [ServiceController::class, 'checkTime']);
 Route::post('/check-and-book', [ServiceController::class, 'checkAndBook']);
 Route::post('/chatbot-book', [ServiceController::class, 'chatbotBook'])->name('api.chatbot-book');

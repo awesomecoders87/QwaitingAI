@@ -6,7 +6,7 @@ use Livewire\Component;
 use App\Services\TwilioVideoService;
 use Livewire\Attributes\Layout;
 use App\Models\QueueStorage;
-use App\Models\PusherDetail;
+use App\Models\ReverbDetail;
 use App\Models\User;
 use Livewire\Attributes\On;
 use Illuminate\Support\Facades\Session;
@@ -22,9 +22,9 @@ class VirtualMeeting extends Component
     public $staff;
     public $ticketLink;
     public $showTicketPage = false;
-    public $pusherDetails;
-    public $pusherKey;
-    public $pusherCluster;
+    public $reverbDetails;
+    public $reverbKey;
+    public $reverbHost, $reverbPort, $reverbScheme;
 
 
     public function mount($room, $queueId)
@@ -35,12 +35,14 @@ class VirtualMeeting extends Component
         if ($this->queueStorage) {
             $this->staff = User::where('id', $this->queueStorage->served_by)->first();
             $this->ticketLink = url('visits/' . base64_encode($this->queueStorage->queue_id));
-            $this->pusherDetails = PusherDetail::viewPusherDetails(
+            $this->reverbDetails = ReverbDetail::viewReverbDetails(
                 $this->queueStorage->team_id,
                 $this->queueStorage->locations_id
             );
-            $this->pusherKey = $this->pusherDetails->key ?? env('PUSHER_APP_KEY');
-            $this->pusherCluster = $this->pusherDetails->options_cluster ?? env('PUSHER_APP_CLUSTER');
+            $this->reverbKey = $this->reverbDetails->key ?? env('REVERB_APP_KEY');
+            $this->reverbHost = $this->reverbDetails->host ?? env('REVERB_HOST', '127.0.0.1');
+            $this->reverbPort = $this->reverbDetails->port ?? env('REVERB_PORT', 8080);
+            $this->reverbScheme = $this->reverbDetails->scheme ?? env('REVERB_SCHEME', 'http');
 
             // ✅ First set the selected location
             Session::put('selectedLocation', $this->queueStorage->locations_id);

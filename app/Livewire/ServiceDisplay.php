@@ -10,7 +10,7 @@ use App\Models\{
     DisplaySettingModel,
     QueueStorage,
     SiteDetail,
-    PusherDetail,
+    ReverbDetail,
     Counter,
     Category
 };

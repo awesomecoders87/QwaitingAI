@@ -291,11 +291,11 @@
 
                 <li>
                   <a
-                    href="{{ route('tenant.pusher-settings') }}"
+                    href="{{ route('tenant.reverb-settings') }}"
                     class="menu-dropdown-item group"
-                    :class="page === 'pusher-settings' ? 'menu-dropdown-item-active' : 'menu-dropdown-item-inactive'"
+                    :class="page === 'reverb-settings' ? 'menu-dropdown-item-active' : 'menu-dropdown-item-inactive'"
                     wire:navigate>
-                    Pusher Settings
+                    Reverb Settings
                   </a>
                 </li>
 

@@ -107,8 +107,8 @@ class Tenant extends BaseTenant implements TenantWithDatabase
     public function smtpDetails(): HasMany{
         return $this->hasMany(SmtpDetails::class);
     }
-    public function pusherDetails(): HasMany{
-        return $this->hasMany(PusherDetail::class);
+    public function reverbDetails(): HasMany{
+        return $this->hasMany(ReverbDetail::class);
     }
     public function locations(): HasMany{
         return $this->hasMany(Location::class);

@@ -377,11 +377,15 @@
         //     encrypted: true
         // });
 Pusher.logToConsole = true;
-        var pusher = new Pusher("{{ $pusherKey }}", {
-        cluster: "{{ $pusherCluster }}",
-        encrypted: true,
-         forceTLS: true,
-       transports: ['websocket'],
+        var pusher = new Pusher("{{ $reverbKey }}", {
+        cluster: '', // Required by Pusher library, but empty for Reverb
+        wsHost: "{{ $reverbHost }}",
+        wsPort: {{ $reverbPort }},
+        wssPort: {{ $reverbPort }},
+        forceTLS: "{{ $reverbScheme }}" === 'https',
+        enabledTransports: ['ws', 'wss'],
+        encrypted: false, // Reverb doesn't need encryption for local
+        disableStats: true
     });
 
         // var queueCall = pusher.subscribe("queue-call.{{ tenant('id') }}");

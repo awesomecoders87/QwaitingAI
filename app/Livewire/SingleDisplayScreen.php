@@ -9,7 +9,7 @@ use App\Models\{
     Location,
     DisplaySettingModel,
     QueueStorage,
-    PusherDetail,
+    ReverbDetail,
     Counter
 };
 use Carbon\Carbon;
@@ -39,8 +39,8 @@ class SingleDisplayScreen extends Component
     public $currentTemplate;
     public $displaySetting;
     public $holdCalls;
-    public $pusherDetails;
-    public $pusherKey, $pusherCluster;
+    public $reverbDetails;
+    public $reverbKey, $reverbHost, $reverbPort, $reverbScheme;
     public $locationStep =false;
     public $displayStep =true;
 
@@ -85,9 +85,11 @@ class SingleDisplayScreen extends Component
         //     }
         // }
         $this->displaySetting = DisplaySettingModel::getDetails($this->teamId);
-        $this->pusherDetails = PusherDetail::viewPusherDetails($this->teamId,$this->location);
-        $this->pusherKey = $this->pusherDetails->key ?? env('PUSHER_APP_KEY');
-        $this->pusherCluster = $this->pusherDetails->options_cluster ?? env('PUSHER_APP_CLUSTER');
+        $this->reverbDetails = ReverbDetail::viewReverbDetails($this->teamId,$this->location);
+        $this->reverbKey = $this->reverbDetails->key ?? env('REVERB_APP_KEY');
+        $this->reverbHost = $this->reverbDetails->host ?? env('REVERB_HOST', '127.0.0.1');
+        $this->reverbPort = $this->reverbDetails->port ?? env('REVERB_PORT', 8080);
+        $this->reverbScheme = $this->reverbDetails->scheme ?? env('REVERB_SCHEME', 'http');
     }
 
     }

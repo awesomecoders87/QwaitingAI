@@ -871,24 +871,157 @@ console.log('screenTune'+audioElement);
     {{-- Pusher / Livewire updates --}}
     <script src="{{ asset('/js/app/call.js?v=3.1.0.0') }}"></script>
     <script>
-        document.addEventListener('livewire:init', () => {
+        // IMMEDIATE TEST - This should show in console immediately
+        console.log('═══════════════════════════════════════');
+        console.log('🚀 DISPLAY SCREEN SCRIPT LOADED!');
+        console.log('═══════════════════════════════════════');
+        console.log('Pusher available:', typeof Pusher !== 'undefined');
+        console.log('Livewire available:', typeof Livewire !== 'undefined');
+        console.log('Reverb Key:', "{{ $reverbKey }}" ? 'SET' : 'MISSING');
+        console.log('═══════════════════════════════════════');
+        
+        // SIMPLIFIED: Initialize immediately when script loads
+        console.log('🔌 Display Screen Script loaded - Initializing Reverb...');
+        
+    // Check if Pusher is loaded first
+    if (typeof Pusher === 'undefined') {
+        console.error('❌ Pusher library not loaded! Waiting for it...');
+        // Wait a bit and try again
+        setTimeout(function() {
+            if (typeof Pusher !== 'undefined') {
+                console.log('✅ Pusher loaded, initializing now...');
+                initializeReverbDisplay();
+            } else {
+                console.error('❌ Pusher still not loaded after wait!');
+            }
+        }, 1000);
+    } else {
+        // Pusher is already loaded, initialize immediately
+        console.log('✅ Pusher already loaded');
+        initializeReverbDisplay();
+    }
 
+    // Also listen for Livewire init as backup
+    document.addEventListener('livewire:init', function() {
+        console.log('🔄 Livewire initialized - ensuring Reverb is connected');
+        if (typeof Pusher !== 'undefined' && !window.reverbDisplayInitialized) {
+            initializeReverbDisplay();
+        }
+    });
 
-            var pusher = new Pusher("{{ $pusherKey }}", {
-                cluster: "{{ $pusherCluster }}",
-                encrypted: true,
+        function initializeReverbDisplay() {
+            // Prevent multiple initializations
+            if (window.reverbDisplayInitialized) {
+                console.log('⚠️ Reverb already initialized, skipping...');
+                return;
+            }
+            
+            // Check if Pusher is loaded
+            if (typeof Pusher === 'undefined') {
+                console.error('❌ Pusher library not loaded! Check if pusher.min.js is loaded.');
+                return;
+            }
+
+            // Check if Reverb credentials are available
+            const reverbKey = "{{ $reverbKey }}";
+            const reverbHost = "{{ $reverbHost }}";
+            const reverbPort = {{ $reverbPort }};
+            const reverbScheme = "{{ $reverbScheme }}";
+            const teamId = {{ tenant('id') }};
+            const location = {{ $location }};
+
+            if (!reverbKey || reverbKey === '') {
+                console.error('❌ Reverb App Key is missing!');
+                return;
+            }
+
+            const wsUrl = `${reverbScheme}://${reverbHost}:${reverbPort}`;
+            console.log('═══════════════════════════════════════');
+            console.log('🔌 REVERB CONNECTION (DISPLAY SCREEN)');
+            console.log('═══════════════════════════════════════');
+            console.log('📍 Server URL:', wsUrl);
+            console.log('🔑 App Key:', reverbKey ? reverbKey.substring(0, 10) + '...' : 'MISSING!');
+            console.log('🌐 Host:', reverbHost);
+            console.log('🔌 Port:', reverbPort);
+            console.log('🔒 Scheme:', reverbScheme);
+            console.log('🔗 WebSocket URL:', `ws://${reverbHost}:${reverbPort}/app/${reverbKey}`);
+            console.log('═══════════════════════════════════════');
+
+            var pusher = new Pusher(reverbKey, {
+                cluster: '', // Required by Pusher library, but empty for Reverb
+                wsHost: reverbHost,
+                wsPort: reverbPort,
+                wssPort: reverbPort,
+                forceTLS: reverbScheme === 'https',
+                enabledTransports: ['ws', 'wss'],
+                encrypted: false, // Reverb doesn't need encryption for local
+                disableStats: true,
+                authEndpoint: '/broadcasting/auth' // Reverb auth endpoint
             });
 
-            var queueProgress = pusher.subscribe("queue-display.{{ tenant('id') }}.{{$location}}");
+            // Enable Pusher logging for debugging
+            Pusher.logToConsole = true;
+
+            pusher.connection.bind('connecting', function() {
+                console.log('🔄 Connecting to Reverb server (display screen)...');
+            });
+
+            pusher.connection.bind('connected', function() {
+                window.reverbDisplayInitialized = true;
+                console.log('═══════════════════════════════════════');
+                console.log('✅ REVERB CONNECTED (DISPLAY SCREEN)!');
+                console.log('📍 Connected to:', wsUrl);
+                console.log('═══════════════════════════════════════');
+            });
+
+            pusher.connection.bind('error', function(err) {
+                console.error('═══════════════════════════════════════');
+                console.error('❌ REVERB CONNECTION ERROR (DISPLAY)!');
+                console.error('📍 Failed URL:', wsUrl);
+                console.error('💥 Error:', err);
+                console.error('💡 Make sure Reverb server is running: php artisan reverb:start');
+                console.error('═══════════════════════════════════════');
+            });
+
+            pusher.connection.bind('disconnected', function() {
+                console.warn('⚠️ Reverb disconnected from display screen');
+            });
+
+            pusher.connection.bind('state_change', function(states) {
+                console.log('🔄 Reverb connection state:', states.current);
+            });
+
+            var queueProgress = pusher.subscribe("queue-display." + teamId + "." + location);
+            
+            queueProgress.bind('pusher:subscription_succeeded', function() {
+                console.log('✅ Successfully subscribed to queue-display channel');
+            });
+            
+            queueProgress.bind('pusher:subscription_error', function(status) {
+                console.error('❌ Failed to subscribe to queue-display channel:', status);
+            });
+            
             queueProgress.bind('queue-display', function(data) {
-                Livewire.dispatch('display-update', {
-                    event: data
-                });
+                console.log('═══════════════════════════════════════');
+                console.log('📺 QUEUE-DISPLAY EVENT RECEIVED!');
+                console.log('═══════════════════════════════════════');
+                console.log('📦 Full event data:', data);
+                console.log('📦 Queue data:', data.queue);
+                console.log('📦 Queue ID:', data.queue?.id);
+                console.log('📦 Queue Status:', data.queue?.status);
+                console.log('═══════════════════════════════════════');
+                
+                if (window.Livewire) {
+                    console.log('🔄 Dispatching to Livewire...');
+                    Livewire.dispatch('display-update', {
+                        event: data
+                    });
+                    console.log('✅ Dispatched to Livewire');
+                } else {
+                    console.error('❌ Livewire not available');
+                }
             });
-
-
-
-        });
+        }
 
 //   document.addEventListener('livewire:init', () => {
 //     Livewire.hook('request', ({ fail, respond, payload, succeed, resolve, reject, options }) => {

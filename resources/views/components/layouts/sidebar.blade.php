@@ -606,7 +606,7 @@
 
                     </li>
                     @endcan
-                    @if(Auth::user()->hasAnyPermission(['Booking Setting', 'Call Screen Setting','Color Settings','Display Settings','Pusher Settings','Logo Update','Ticket Screen Setting','QR Code Setting','Feedback Setting','Message Template Edit','Location','Form Field Read','Term and Condition','Category Read']))
+                    @if(Auth::user()->hasAnyPermission(['Booking Setting', 'Call Screen Setting','Color Settings','Display Settings','Reverb Settings','Logo Update','Ticket Screen Setting','QR Code Setting','Feedback Setting','Message Template Edit','Location','Form Field Read','Term and Condition','Category Read']))
                     <li>
                         <p data-tooltip="Settings" @click.prevent="selected = (selected === 'Settings' ? '':'Settings')" class="menu-item group"
                             :class=" (selected === 'Settings') || (page === 'settings') ? 'menu-item-active' : 'menu-item-inactive dark:text-gray-300'">
@@ -715,11 +715,11 @@
                                     </a>
                                 </li>
                                 @endcan
-                                @can('Pusher Settings')
+                                @can('Reverb Settings')
                                 <li>
-                                    <a href="{{ route('tenant.pusher-settings') }}"
-                                        class="menu-dropdown-item group {{ request()->routeIs('tenant.pusher-settings') ? 'menu-dropdown-item-active' : 'menu-dropdown-item-inactive dark:text-gray-300' }}">
-                                        {{ __('sidebar.Pusher Settings') }}
+                                    <a href="{{ route('tenant.reverb-settings') }}"
+                                        class="menu-dropdown-item group {{ request()->routeIs('tenant.reverb-settings') ? 'menu-dropdown-item-active' : 'menu-dropdown-item-inactive dark:text-gray-300' }}">
+                                        {{ __('sidebar.Reverb Settings') }}
                                     </a>
                                 </li>
                                 @endcan

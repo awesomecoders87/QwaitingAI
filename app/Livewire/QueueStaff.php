@@ -33,6 +33,7 @@ use Livewire\Rules\Numeric;
 use Carbon\Carbon;
 use Livewire\Attributes\On;
 use App\Events\QueueCreated;
+use App\Events\QueueDisplay;
 use App\Events\DesktopNotification;
 use App\Models\FormField;
 use Illuminate\Support\Facades\Auth;
@@ -767,6 +768,7 @@ public function checkStaffAvailability($staffId)
             $queueStorage =  QueueStorage::storeQueue(array_merge($storeData, ['queue_id' => $queueCreated->id]));
            
             QueueCreated::dispatch($queueStorage);
+            QueueDisplay::dispatch($queueStorage);
 
             //    $this->counterID =  QueueStorage::assignCounterToQueue( $queueStorage->id ,$this->location);
             //         $queueStorage->counter_id = $this->counterID;

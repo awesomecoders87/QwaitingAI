@@ -85,8 +85,12 @@
       <script>
 
 
-        var pusher = new Pusher("{{ $pusherKey }}", {
-        cluster: "{{ $pusherCluster }}",
+        var pusher = new Pusher("{{ $reverbKey }}", {
+        wsHost: "{{ $reverbHost }}",
+        wsPort: {{ $reverbPort }},
+        wssPort: {{ $reverbPort }},
+        forceTLS: "{{ $reverbScheme }}" === 'https',
+        enabledTransports: ['ws', 'wss'],
         encrypted: true
     });
 

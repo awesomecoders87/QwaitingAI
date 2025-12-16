@@ -4,7 +4,7 @@ namespace App\Livewire;
 
 use Livewire\Component;
 use App\Models\ {
-    Category,Queue, SiteDetail, FeedbackSetting, GenerateQrCode, Level, QueueStorage,AccountSetting,PusherDetail,Location};
+    Category,Queue, SiteDetail, FeedbackSetting, GenerateQrCode, Level, QueueStorage,AccountSetting,ReverbDetail,Location};
 use Livewire\Attributes\On;
 use Illuminate\Support\Facades\Session;
 use SimpleSoftwareIO\QrCode\Facades\QrCode;

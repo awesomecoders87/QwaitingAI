@@ -12,7 +12,7 @@ use App\Models\{
     Level,
     QueueStorage,
     AccountSetting,
-    PusherDetail,
+    ReverbDetail,
     Counter
 };
 use Livewire\Attributes\On;
@@ -63,11 +63,11 @@ class TicketVisit extends Component
     public $generatUrl;
     public $location;
     public $siteData;
-    public $pusherKey, $pusherCluster;
+    public $reverbKey, $reverbHost, $reverbPort, $reverbScheme;
     public $translations;
     public $joinCall = false;
     public $locale;
-    public $pusherDetails;
+    public $reverbDetails;
 
     public function getListeners()
     {
@@ -129,9 +129,11 @@ class TicketVisit extends Component
 
         $this->enableleaveQueue = ($checkRecord && $checkRecord['cancel_booking_cus'] == 1) ? true : false;
 
-        $this->pusherDetails = PusherDetail::viewPusherDetails($this->teamId, $this->location);
-        $this->pusherKey = $this->pusherDetails->key ?? env('PUSHER_APP_KEY');
-        $this->pusherCluster = $this->pusherDetails->options_cluster ?? env('PUSHER_APP_CLUSTER');
+        $this->reverbDetails = ReverbDetail::viewReverbDetails($this->teamId, $this->location);
+        $this->reverbKey = $this->reverbDetails->key ?? env('REVERB_APP_KEY');
+        $this->reverbHost = $this->reverbDetails->host ?? env('REVERB_HOST', '127.0.0.1');
+        $this->reverbPort = $this->reverbDetails->port ?? env('REVERB_PORT', 8080);
+        $this->reverbScheme = $this->reverbDetails->scheme ?? env('REVERB_SCHEME', 'http');
         $this->selectedCategoryId = $this->queueStorage->category_id;
         $this->secondChildId = $this->queueStorage->sub_category_id ?? '';
         $this->thirdChildId = $this->queueStorage->child_category_id ?? '';

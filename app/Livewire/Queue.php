@@ -42,6 +42,7 @@ use Livewire\Rules\Numeric;
 use Carbon\Carbon;
 use Livewire\Attributes\On;
 use App\Events\QueueCreated;
+use App\Events\QueueDisplay;
 use App\Events\DesktopNotification;
 use App\Models\FormField;
 use App\Services\SalesforceService;
@@ -1266,6 +1267,7 @@ class Queue extends Component
 
             QueueNotification::dispatch($queueStorage);
             QueueCreated::dispatch($queueStorage);
+            QueueDisplay::dispatch($queueStorage);
 
             //$this->isMobile is true for mobile url then redirect to visit page ,otherwise preview ticket show on queue page
             if (!$this->isMobile && $this->siteDetails->is_redirect_print_page == SiteDetail::STATUS_NO) {
@@ -1919,6 +1921,7 @@ class Queue extends Component
             }
             $this->resetForm();
             QueueCreated::dispatch($queueStorage);
+            QueueDisplay::dispatch($queueStorage);
 
 
 

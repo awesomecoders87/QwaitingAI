@@ -28,6 +28,7 @@ use App\Livewire\Main;
 use App\Livewire\MainBooking;
 use App\Livewire\MessageTemplate;
 use App\Livewire\WhatsappTemplate;
+use App\Livewire\ReverbSettings;
 use App\Livewire\PusherSettings;
 use App\Livewire\Queue;
 use App\Livewire\QueueStaff;
@@ -278,7 +279,8 @@ Route::middleware([
         Route::get('add-counter', AddCounter::class)->name('add-counter');
         Route::get('edit-counter/{counterId}', EditCounter::class)->name('edit-counter');
         Route::get('call-screen-settings', CallScreenSettings::class)->name('call-screen-settings');
-        Route::get('pusher-settings', PusherSettings::class)->name('pusher-settings');
+		Route::get('reverb-settings', ReverbSettings::class)->name('reverb-settings');
+       // Route::get('pusher-settings', PusherSettings::class)->name('pusher-settings');
 
         Route::get('/staff', StaffListComponent::class)->name('staff.list');
         Route::get('/staff/create', StaffManagementComponent::class)->name('staff.create');
