@@ -1374,7 +1374,7 @@ if ($request->time) {
             'available_times' => $availableStartTimes
         ], 409);
     }
-}
+} 
 
 
     // SUCCESS — Service, Date, and Requested Time are Available
