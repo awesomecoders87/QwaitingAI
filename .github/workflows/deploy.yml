@@ -38,7 +38,7 @@ jobs:
         mkdir -p storage/logs
 
     - name: 📦 Install Dependencies
-     # run: composer install --prefer-dist --no-progress
+     run: composer install --prefer-dist --no-progress
 
 
     - name: 🔍 Check SSH Secrets (Safe)
