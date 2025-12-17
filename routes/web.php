@@ -36,6 +36,16 @@ Route::prefix('superadmin')->name('superadmin.')->group(function () {
         Route::get('/login', [App\Http\Controllers\SuperAdmin\SuperAdminAuthController::class, 'showLoginForm'])
             ->name('login');
         Route::post('/login', [App\Http\Controllers\SuperAdmin\SuperAdminAuthController::class, 'login']);
+        
+        // Password reset routes
+        Route::get('/password/forgot', [App\Http\Controllers\SuperAdmin\SuperAdminAuthController::class, 'showForgotPasswordForm'])
+            ->name('password.request');
+        Route::post('/password/email', [App\Http\Controllers\SuperAdmin\SuperAdminAuthController::class, 'sendPasswordResetLink'])
+            ->name('password.email');
+        Route::get('/password/reset/{token}', [App\Http\Controllers\SuperAdmin\SuperAdminAuthController::class, 'showResetForm'])
+            ->name('password.reset');
+        Route::post('/password/reset', [App\Http\Controllers\SuperAdmin\SuperAdminAuthController::class, 'resetPassword'])
+            ->name('password.reset.update');
     });
 
     // Authenticated routes (dashboard)
@@ -56,6 +66,8 @@ Route::prefix('superadmin')->name('superadmin.')->group(function () {
         // Vendors routes
         Route::get('/vendors', [App\Http\Controllers\SuperAdmin\VendorsController::class, 'index'])
             ->name('vendors.index');
+        Route::get('/vendors/export', [App\Http\Controllers\SuperAdmin\VendorsController::class, 'export'])
+            ->name('vendors.export');
         Route::get('/vendors/create', [App\Http\Controllers\SuperAdmin\VendorsController::class, 'create'])
             ->name('vendors.create');
         Route::post('/vendors', [App\Http\Controllers\SuperAdmin\VendorsController::class, 'store'])

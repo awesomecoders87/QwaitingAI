@@ -15,12 +15,38 @@
                     <span class="text-sm text-gray-600">Total: {{ $domains->total() }} domains</span>
                 @endif
             </div>
-            <a href="{{ route('superadmin.vendors.create') }}" class="inline-flex items-center px-4 py-2 bg-indigo-600 border border-transparent rounded-lg font-semibold text-sm text-white uppercase tracking-widest hover:bg-indigo-700 focus:bg-indigo-700 active:bg-indigo-900 focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:ring-offset-2 transition ease-in-out duration-150 shadow-sm">
-                <svg class="w-5 h-5 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4"></path>
-                </svg>
-                Create New Vendor
-            </a>
+            <div class="flex items-center gap-3">
+                <!-- Export Button -->
+                <div class="relative inline-block text-left">
+                    <button type="button" class="inline-flex items-center px-4 py-2 bg-green-600 border border-transparent rounded-lg font-semibold text-sm text-white uppercase tracking-widest hover:bg-green-700 focus:bg-green-700 active:bg-green-900 focus:outline-none focus:ring-2 focus:ring-green-500 focus:ring-offset-2 transition ease-in-out duration-150 shadow-sm" id="export-menu-button" onclick="toggleExportMenu()">
+                        <svg class="w-5 h-5 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 10v6m0 0l-3-3m3 3l3-3m2 8H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"></path>
+                        </svg>
+                        Export
+                        <svg class="ml-2 -mr-1 h-4 w-4" fill="currentColor" viewBox="0 0 20 20">
+                            <path fill-rule="evenodd" d="M5.293 7.293a1 1 0 011.414 0L10 10.586l3.293-3.293a1 1 0 111.414 1.414l-4 4a1 1 0 01-1.414 0l-4-4a1 1 0 010-1.414z" clip-rule="evenodd"></path>
+                        </svg>
+                    </button>
+                    <div id="export-menu" class="hidden absolute right-0 mt-2 w-48 rounded-md shadow-lg bg-white ring-1 ring-black ring-opacity-5 z-50">
+                        <div class="py-1" role="menu">
+                            <a href="{{ route('superadmin.vendors.export', request()->query()) }}" class="block px-4 py-2 text-sm text-gray-700 hover:bg-gray-100" role="menuitem">
+                                <div class="flex items-center">
+                                    <svg class="w-4 h-4 mr-2 text-green-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 10v6m0 0l-3-3m3 3l3-3m2 8H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"></path>
+                                    </svg>
+                                    Export to Excel
+                                </div>
+                            </a>
+                        </div>
+                    </div>
+                </div>
+                <a href="{{ route('superadmin.vendors.create') }}" class="inline-flex items-center px-4 py-2 bg-indigo-600 border border-transparent rounded-lg font-semibold text-sm text-white uppercase tracking-widest hover:bg-indigo-700 focus:bg-indigo-700 active:bg-indigo-900 focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:ring-offset-2 transition ease-in-out duration-150 shadow-sm">
+                    <svg class="w-5 h-5 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4"></path>
+                    </svg>
+                    Create New Vendor
+                </a>
+            </div>
         </div>
 
         <!-- Search and Date Filters -->
@@ -63,7 +89,7 @@
             <label class="block text-sm font-medium text-gray-700 mb-1">Status</label>
             <select id="status_filter" name="status"
                 class="w-full px-3 py-2 border rounded-lg focus:ring-indigo-500">
-                <option value="all" {{ $currentStatus === 'all' ? 'selected' : '' }}>All Statuses</option>
+                <option value="all" {{ $currentStatus === 'all' ? 'selected' : '' }}>All</option>
                 <option value="active" {{ $currentStatus === 'active' ? 'selected' : '' }}>Active</option>
                 <option value="expiring_soon" {{ $currentStatus === 'expiring_soon' ? 'selected' : '' }}>Expiring Soon</option>
                 <option value="expired" {{ $currentStatus === 'expired' ? 'selected' : '' }}>Expired</option>
@@ -169,7 +195,7 @@
                     <thead class="bg-gray-50">
                         <tr>
                             <th scope="col" class="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider whitespace-nowrap">
-                                ID
+                                SR No
                             </th>
                             <th scope="col" class="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider whitespace-nowrap">
                                 Domain
@@ -207,7 +233,7 @@
                         </tr>
                     </thead>
                     <tbody class="bg-white divide-y divide-gray-200">
-                        @foreach($domains as $domain)
+                        @foreach($domains as $index => $domain)
                         @php
                             $expiryDate = $domain->expired ? \Carbon\Carbon::parse($domain->expired) : null;
                             $isExpired = $expiryDate && $expiryDate->isPast();
@@ -224,10 +250,15 @@
                             } else {
                                 $statusKey = 'active';
                             }
+                            
+                            // Calculate serial number based on pagination
+                            $currentPage = $domains->currentPage();
+                            $perPage = $domains->perPage();
+                            $serialNumber = ($currentPage - 1) * $perPage + $index + 1;
                         @endphp
                         <tr class="hover:bg-gray-50" data-domain-id="{{ $domain->id }}" data-status="{{ $statusKey }}">
                             <td class="px-4 py-3 whitespace-nowrap text-sm font-medium text-gray-900">
-                                {{ $domain->id }}
+                                {{ $serialNumber }}
                             </td>
                             <td class="px-4 py-3 whitespace-nowrap text-sm font-medium text-gray-900">
                                 <div class="text-sm font-medium text-gray-900 max-w-xs truncate" title="{{ $domain->domain }}">{{ $domain->domain }}</div>
@@ -927,5 +958,32 @@ function updateClearButton(searchQuery) {
         }
     }
 }
+
+function toggleExportMenu() {
+    const menu = document.getElementById('export-menu');
+    const isHidden = menu.classList.contains('hidden');
+    
+    // Close all other dropdowns
+    document.querySelectorAll('[id^="dropdown-menu-"]').forEach(el => {
+        el.classList.add('hidden');
+    });
+    
+    // Toggle export menu
+    if (isHidden) {
+        menu.classList.remove('hidden');
+    } else {
+        menu.classList.add('hidden');
+    }
+}
+
+// Close export menu when clicking outside
+document.addEventListener('click', function(event) {
+    const exportMenu = document.getElementById('export-menu');
+    const exportButton = document.getElementById('export-menu-button');
+    
+    if (exportMenu && exportButton && !exportButton.contains(event.target) && !exportMenu.contains(event.target)) {
+        exportMenu.classList.add('hidden');
+    }
+});
 </script>
 @endsection

@@ -3,6 +3,7 @@
 namespace App\Http\Controllers\SuperAdmin;
 
 use App\Http\Controllers\Controller;
+use App\Exports\VendorsExport;
 use App\Models\Domain;
 use App\Models\User;
 use App\Models\Tenant;
@@ -16,6 +17,7 @@ use Illuminate\Support\Str;
 use Illuminate\View\View;
 use App\Mail\TenantCreated;
 use Illuminate\Support\Facades\Crypt;
+use Maatwebsite\Excel\Facades\Excel;
 
 class VendorsController extends Controller
 {
@@ -429,5 +431,96 @@ class VendorsController extends Controller
             'auto_login_url' => $autoLoginUrl,
             'user_id' => $adminUser->id
         ]);
+    }
+
+    /**
+     * Export vendors to Excel.
+     */
+    public function export(Request $request)
+    {
+        $now = Carbon::now();
+        $status = $request->get('status', 'all');
+        $search = $request->get('search', '');
+        $startDate = $request->get('start_date', '');
+        $endDate = $request->get('end_date', '');
+        
+        // Clean up date parameters - remove if empty or just whitespace
+        if (empty(trim($startDate))) {
+            $startDate = null;
+        }
+        if (empty(trim($endDate))) {
+            $endDate = null;
+        }
+
+        $query = Domain::with(['team', 'adminUser']);
+
+        if ($status !== 'all') {
+            $query->whereHas('team');
+        }
+
+        // Filter by status
+        if ($status === 'active') {
+            // Active: no expired date OR expired date is more than 7 days in the future
+            $query->where(function($q) use ($now) {
+                $q->whereNull('expired')
+                    ->orWhere('expired', '>', $now->copy()->addDays(7));
+            });
+        } elseif ($status === 'expired') {
+            // Expired: expired date exists and is in the past
+            $query->whereNotNull('expired')
+                ->where('expired', '<=', $now);
+        } elseif ($status === 'expiring_soon') {
+            // Expiring Soon: expired date exists and is within the next 7 days or expired within the last week
+            $query->whereNotNull('expired')
+                ->where(function($q) use ($now) {
+                    // Expires within the next 7 days
+                    $q->whereBetween('expired', [$now, $now->copy()->addDays(7)])
+                      // OR expired within the last week (1 week ago to now)
+                      ->orWhereBetween('expired', [$now->copy()->subDays(7), $now]);
+                });
+        } elseif ($status === 'trial') {
+            // Trial: trial_ends_at exists and is greater than today
+            $query->whereNotNull('trial_ends_at')
+                ->where('trial_ends_at', '>', $now);
+        }
+
+        // Search functionality - search by domain, tenant ID, tenant name, or owner name
+        if (!empty($search)) {
+            $query->where(function($q) use ($search) {
+                $q->where('domain', 'like', '%' . $search . '%')
+                    ->orWhere('team_id', 'like', '%' . $search . '%')
+                    ->orWhereHas('team', function($teamQuery) use ($search) {
+                        $teamQuery->whereRaw("JSON_EXTRACT(data, '$.name') LIKE ?", ['%' . $search . '%']);
+                    })
+                    ->orWhereHas('adminUser', function($userQuery) use ($search) {
+                        $userQuery->where('name', 'like', '%' . $search . '%')
+                            ->orWhere('email', 'like', '%' . $search . '%')
+                            ->orWhere('phone', 'like', '%' . $search . '%')
+                            ->orWhere('address', 'like', '%' . $search . '%');
+                    });
+            });
+        }
+
+        // Date range filtering - only apply if both dates are provided and valid
+        if (!empty($startDate) && !empty($endDate)) {
+            // Both dates provided - include full end day
+            $start = Carbon::parse($startDate)->startOfDay();
+            $end = Carbon::parse($endDate)->endOfDay();
+            $query->whereBetween('created_at', [$start, $end]);
+        } elseif (!empty($startDate)) {
+            // Only start date provided
+            $start = Carbon::parse($startDate)->startOfDay();
+            $query->where('created_at', '>=', $start);
+        } elseif (!empty($endDate)) {
+            // Only end date provided - include full end day
+            $end = Carbon::parse($endDate)->endOfDay();
+            $query->where('created_at', '<=', $end);
+        }
+
+        $domains = $query->orderBy('created_at', 'desc')->get();
+
+        $filename = 'vendors-export-' . date('Y-m-d-His') . '.xlsx';
+        
+        return Excel::download(new VendorsExport($domains), $filename);
     }
 }
