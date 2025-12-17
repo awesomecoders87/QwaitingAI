@@ -37,9 +37,6 @@ jobs:
         mkdir -p storage/framework/cache
         mkdir -p storage/logs
 
-    - name: 📦 Install Dependencies
-     # run: composer install --prefer-dist --no-progress
-
     - name: 🔍 Check SSH Secrets (Safe)
       run: |
         if [ -z "${{ secrets.SSH_HOST }}" ]; then echo "SSH_HOST is EMPTY"; else echo "SSH_HOST is SET"; fi
