@@ -6,7 +6,7 @@
 @section('content')
 <div class="space-y-6">
     <!-- Statistics Cards -->
-    <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+    <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">gdfgfdgdfgdfgf
         <!-- Total Vendors Card -->
         <div class="bg-white rounded-lg shadow-sm p-6 border border-gray-200 hover:shadow-md transition-shadow">
             <div class="flex items-center justify-between">
