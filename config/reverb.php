@@ -34,7 +34,7 @@ return [
             'path' => env('REVERB_SERVER_PATH', ''),
             'hostname' => env('REVERB_HOST', '127.0.0.1'),
             'options' => [
-                'tls' => [],
+                'tls' => []
             ],
             'max_request_size' => env('REVERB_MAX_REQUEST_SIZE', 10_000),
             'scaling' => [
