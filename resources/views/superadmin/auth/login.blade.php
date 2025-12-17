@@ -1,7 +1,7 @@
 <!DOCTYPE html>
 <html lang="{{ str_replace('_', '-', app()->getLocale()) }}">
 <head>
-    <meta charset="utf-8">
+    <meta charset="utf-8"> 
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=5.0">
     <meta name="csrf-token" content="{{ csrf_token() }}">
     <title>SuperAdmin Login - {{ config('app.name', 'Laravel') }}</title>
@@ -21,7 +21,7 @@
                     </div>
                     
                     <!-- Welcome Title -->
-                    <h1 class="text-4xl font-bold text-gray-900 mb-4">Welcome to QWaitingaaaaaaaaaaaaaa</h1>
+                    <h1 class="text-4xl font-bold text-gray-900 mb-4">Welcome to QWaitin</h1>
                     
                     <!-- Description -->
                     <p class="text-lg text-gray-600 mb-10">Efficient queue management for seamless customer experiences.</p>
