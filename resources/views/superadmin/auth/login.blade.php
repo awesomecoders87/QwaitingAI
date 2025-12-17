@@ -21,7 +21,7 @@
                     </div>
                     
                     <!-- Welcome Title -->
-                    <h1 class="text-4xl font-bold text-gray-900 mb-4">Welcome to QWaiting</h1>
+                    <h1 class="text-4xl font-bold text-gray-900 mb-4">Welcome to QWaitingaaaaaaaaaaaaaa</h1>
                     
                     <!-- Description -->
                     <p class="text-lg text-gray-600 mb-10">Efficient queue management for seamless customer experiences.</p>
