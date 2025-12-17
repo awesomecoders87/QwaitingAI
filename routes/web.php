@@ -62,7 +62,23 @@ Route::prefix('superadmin')->name('superadmin.')->group(function () {
             ->name('profile.update');
         Route::put('/password', [App\Http\Controllers\SuperAdmin\SuperAdminProfileController::class, 'updatePassword'])
             ->name('password.update');
-        
+		
+		// Package routes
+        Route::get('/packages', [App\Http\Controllers\SuperAdmin\PackageController::class, 'index'])->name('packages.index');
+        Route::get('/packages/create', [App\Http\Controllers\SuperAdmin\PackageController::class, 'create'])->name('packages.create');
+        Route::post('/packages', [App\Http\Controllers\SuperAdmin\PackageController::class, 'store'])->name('packages.store');
+        Route::get('/packages/{id}/edit', [App\Http\Controllers\SuperAdmin\PackageController::class, 'edit'])->name('packages.edit');
+        Route::put('/packages/{id}', [App\Http\Controllers\SuperAdmin\PackageController::class, 'update'])->name('packages.update');
+        Route::delete('/packages/{id}', [App\Http\Controllers\SuperAdmin\PackageController::class, 'destroy'])->name('packages.destroy');	
+			
+        // SMS Plan routes
+        Route::get('/sms-plans', [App\Http\Controllers\SuperAdmin\SmsPlanController::class, 'index'])->name('sms-plans.index');
+        Route::get('/sms-plans/create', [App\Http\Controllers\SuperAdmin\SmsPlanController::class, 'create'])->name('sms-plans.create');
+        Route::post('/sms-plans', [App\Http\Controllers\SuperAdmin\SmsPlanController::class, 'store'])->name('sms-plans.store');
+        Route::get('/sms-plans/{id}/edit', [App\Http\Controllers\SuperAdmin\SmsPlanController::class, 'edit'])->name('sms-plans.edit');
+        Route::put('/sms-plans/{id}', [App\Http\Controllers\SuperAdmin\SmsPlanController::class, 'update'])->name('sms-plans.update');
+        Route::delete('/sms-plans/{id}', [App\Http\Controllers\SuperAdmin\SmsPlanController::class, 'destroy'])->name('sms-plans.destroy');
+		
         // Vendors routes
         Route::get('/vendors', [App\Http\Controllers\SuperAdmin\VendorsController::class, 'index'])
             ->name('vendors.index');

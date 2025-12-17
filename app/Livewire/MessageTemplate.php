@@ -22,6 +22,7 @@ class MessageTemplate extends Component
         'new_booking_sms_message' => ['name' => 'New Booking SMS'],
         'reschedule_booking_sms' => ['name' => 'Reschedule Booking SMS'],
         'cancel_booking_sms' => ['name' => 'Cancel Booking SMS'],
+        'stripe_sms_message' => ['name' => 'Stripe SMS Message'],
     ];
 
     public string $selectedTemplate = 'ticket_generation_message';

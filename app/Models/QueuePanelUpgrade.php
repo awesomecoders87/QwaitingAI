@@ -50,6 +50,11 @@ class QueuePanelUpgrade extends Model
         Stripe::setApiKey(config('services.stripe.secret'));
 
         try {
+            if ($this->type === 'sms_plan') {
+                $charge = \Stripe\Charge::retrieve($this->subcription_id);
+                return $charge->receipt_url ?? null;
+            }
+
             // Retrieve subscription and latest invoice
             $subscription = Subscription::retrieve($this->subcription_id);
             $invoice = Invoice::retrieve($subscription->latest_invoice);

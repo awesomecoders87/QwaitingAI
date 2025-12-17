@@ -65,7 +65,9 @@ class User extends Authenticatable
         'is_admin',
         'saleforce_user_id',
         'must_change_password',
-        'login_datetime'
+        'login_datetime',
+		'is_superadmin',
+        'sms_credits_balance',
     ];
 
 

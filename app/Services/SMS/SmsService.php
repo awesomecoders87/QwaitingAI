@@ -5,12 +5,14 @@ namespace App\Services\SMS;
 use App\Models\SmsAPI;
 use App\Models\SmsReport; // Import the model for logging
 use Illuminate\Support\Facades\Log;
+use Illuminate\Support\Facades\Http;
 use Twilio\Rest\Client;
 use Illuminate\Support\Facades\Session;
 use Illuminate\Support\Facades\Auth;
 
 class SmsService
 {
+    public static $lastMessageDetailId = null;
 
     protected $apiType;
     protected $apiUrl;
@@ -66,7 +68,7 @@ class SmsService
         }
     }
 
-    public function sendSms(string $to, string $message, $team = null, $type = null,$logs=[],$templateId=null)
+    public function sendSms(string $to, string $message, $team = null, $type = null,$logs=[],$templateId=null, $messageDetailId = null)
     {
 
         $userid = '';
@@ -82,7 +84,7 @@ class SmsService
         try {
             switch ($this->apiType) {
                 case 'twillio':
-                    return $this->sendSmsViaTwilio($to, $message);
+                    return $this->sendSmsViaTwilio($to, $message, $messageDetailId);
                 case 'oneway':
                     return $this->sendViaOneWay($to, $message);
                 case 'msg91':
@@ -113,7 +115,7 @@ class SmsService
         }
     }
 
-    protected function sendSmsViaTwilio(string $to, string $message): bool
+    protected function sendSmsViaTwilio(string $to, string $message, $messageDetailId = null): bool
     {
 
         $userid = '';
@@ -141,7 +143,7 @@ class SmsService
 
         try {
             $client = new Client($credentials['account_sid'], $credentials['auth_token']);
-            $client->messages->create('+' . $to, [
+            $twilioMessage = $client->messages->create('+' . $to, [
                 'from' => $credentials['from'],
                 'body' => $message,
             ]);
@@ -156,6 +158,24 @@ class SmsService
                 'channel' => 'sms',
                 'type' => $this->gettype,
             ]);
+
+            // Dispatch Job to calculate and deduct cost asynchronously
+            try {
+                $messageSid = $twilioMessage->sid;
+                
+                // Dispatch with a small delay to give Twilio time to generate the price
+				if($messageDetailId){
+					\App\Jobs\ProcessTwilioCost::dispatch($messageSid, $userid, $credentials, $messageDetailId)
+                    ->delay(now()->addSeconds(5));
+				}
+                
+                // // Clear the static property
+                // self::$lastMessageDetailId = null;
+                
+                Log::info("Dispatched ProcessTwilioCost job for SID: {$messageSid}, MessageDetail ID: {$messageDetailId}");
+            } catch (\Exception $e) {
+                Log::error("Failed to dispatch cost processing job: " . $e->getMessage());
+            }
 
             return true;
         } catch (RestException $e) {

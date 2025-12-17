@@ -63,7 +63,6 @@ class SmsAPI extends Model
         foreach ($smsRecords as $smsRecord) {
             $template = '';
             $templateName = '';
-            $enableTemplate = 0;
 
             // Fetch correct template model
             $getTemplate = $smsRecord->is_sms == 1
@@ -74,57 +73,46 @@ Log::info("getTemplate: " . json_encode($getTemplate));
                 if ($title == 'ticket created' && $getTemplate->ticket_generation_message_status == SmtpDetails::ENABLE) {
                     $template = $getTemplate->ticket_generation_message ?: $title;
                     $templateName = $getTemplate->ticket_generation_message_template;
-                    $enableTemplate = 1;
                 } elseif ($title == 'booking confirmed' && $getTemplate->new_booking_sms_message_status == SmtpDetails::ENABLE && $smsRecord->is_sms == 1) {
                     $template = $getTemplate->new_booking_sms_message ?? $title;
                     $templateName = $getTemplate->new_booking_sms_message_template;
-                    $enableTemplate = 1;
                     Log::info("template 1: ");
                 }  elseif ($title == 'booking confirmed' && $getTemplate->new_booking_sms_status == SmtpDetails::ENABLE && $smsRecord->is_sms != 1) {
                     $template = $getTemplate->new_booking_sms ?: $title;
                     $templateName = $getTemplate->new_booking_sms_template;
-                    $enableTemplate = 1;
                     Log::info("template 1 whstaspp: ");
                 } elseif ($title == 'call' && $getTemplate->next_call_message_status == SmtpDetails::ENABLE) {
                     $template = $getTemplate->next_call_message ?: $title;
                     $templateName = $getTemplate->next_call_message_template;
-                    $enableTemplate = 1;
                 } elseif ($title == 'rating survey' && $getTemplate->feedback_sms_message_status == SmtpDetails::ENABLE) {
                     $template = $getTemplate->feedback_sms_message ?: $title;
                     $templateName = $getTemplate->feedback_sms_message_template;
-                    $enableTemplate = 1;
                 }
                 elseif ($title == 'call skip' && $getTemplate->skip_call_message_status == SmtpDetails::ENABLE) {
                     $template = $getTemplate->skip_call_message ?: $title;
                     $templateName = $getTemplate->skip_call_message_template;
-                    $enableTemplate = 1;
                 }
                 elseif ($title == 'recall' && $getTemplate->recall_message_status == SmtpDetails::ENABLE) {
                     $template = $getTemplate->recall_message ?: $title;
                     $templateName = $getTemplate->recall_message_template;
-                    $enableTemplate = 1;
                 }
                 elseif ($title == 'booking rescheduled' && $getTemplate->reschedule_booking_sms_status == SmtpDetails::ENABLE) {
                     $template = $getTemplate->reschedule_booking_sms ?: $title;
                     $templateName = $getTemplate->reschedule_booking_sms_template;
-                    $enableTemplate = 1;
                 } elseif ($title == 'booking cancelled' && $getTemplate->cancel_booking_sms_status == SmtpDetails::ENABLE) {
                     $template = $getTemplate->cancel_booking_sms ?: $title;
                     $templateName = $getTemplate->cancel_booking_sms_template;
-                    $enableTemplate = 1;
                 } elseif ($title == 'reminder' && $getTemplate->reminder_message_status == SmtpDetails::ENABLE) {
                     $template = $getTemplate->reminder_message ?: $title;
                     $templateName = $getTemplate->reminder_message_template;
-                    $enableTemplate = 1;
+                } elseif ($title == 'payment_success' && $getTemplate->stripe_sms_message_status == SmtpDetails::ENABLE) {
+                    $template = $getTemplate->stripe_sms_message ?: $title;
+                    $templateName = $getTemplate->stripe_sms_message_template;
                 }
             }
-            if($enableTemplate == 0){
-             Log::info("teamid: " . $teamId." template title: " . $title." template not enabled. token".$smsRecord->token);
-                return;
-            }
-            Log::info("teamid: " . $teamId." template title: " . $title);
-            Log::info("template first sms: " . $template);
-            Log::info("templateName first sms: " . $templateName);
+Log::info("template title: " . $title);
+Log::info("template first sms: " . $template);
+Log::info("templateName first sms: " . $templateName);
 
             $receiverNumber = $data['phone_code'] . $data['phone'];
 
@@ -148,98 +136,54 @@ Log::info("getTemplate: " . json_encode($getTemplate));
                 $message_type =MessageDetail::TRIGGERED_TYPE;
 
             }
-            $tenantname = tenant('name') ?? 'QWaiting test';
+
             try {
                 // Send via appropriate channel
                 if ($smsRecord->is_sms == 1) {
-                    // if($smsRecord->sms_api_url == 'https://dam-trust.api.petraonline.com/api/v1/utilities/mass_sms'){
-                    if($smsRecord->sms_api_url == 'https://queue-management.api.petraonline.com/api/v1/utilities/mass_sms'){
-                        
-                            $result = self::sendSmsPetraonline(
-                            $receiverNumber,
-                            $smsRecord->token,
-                            $formattedMessage,
-                            'Ticket Notification',
-                            $tenantname
-                        );
+                    // Log before sending
 
-                        if ($result['success']) {
-                            // Success - save success log in DB
+                    $templateId='';
+                    $smsService = new SmsService();
+                    Log::info("template: " . json_encode($template));
+                    Log::info("templateName: " . json_encode($templateName));
+                    Log::info("is_template: " . $smsRecord->is_template);
+                    if($getTemplate->enable_template_name == 1 && !empty($template) && !empty($templateName) &&  $smsRecord->is_template == 1){
 
-                            $logData = [
-                                        'team_id' => $finalTeamId,
-                                        'location_id' => $locationId,
-                                        'user_id' => $logData['user_id'] ?? null,
-                                        'customer_id' => $logData['customer_id'] ?? null,
-                                        'booking_id' => $logData['booking_id'] ?? null,
-                                        'queue_id' =>  $logData['queue_id'] ?? null,
-                                        'queue_storage_id' =>  $logData['queue_storage_id'] ?? null,
-                                        'contact' => $receiverNumber,
-                                        'type' => $message_type,
-                                        'event_name' => $logdata['event_name'] ?? $title,
-                                        'message' => $formattedMessage ,
-                                        'status' => 'sent' ,
-                                        'response_status' => json_encode($result),
-                                        'segment' => self::calculateSmsSegments($formattedMessage)
-                                    ];
-                                } else {
-                                    // Failure - log error for debugging
-                                
-                                    $logData = [
-                                                        'team_id' => $finalTeamId,
-                                                        'location_id' => $locationId,
-                                                        'user_id' => $logData['user_id'] ?? null,
-                                                        'customer_id' => $logData['customer_id'] ?? null,
-                                                        'booking_id' => $logData['booking_id'] ?? null,
-                                                        'queue_id' =>  $logData['queue_id'] ?? null,
-                                                        'queue_storage_id' =>  $logData['queue_storage_id'] ?? null,
-                                                        'contact' => $receiverNumber,
-                                                        'type' => $message_type,
-                                                        'event_name' => $logdata['event_name'] ?? $title,
-                                                        'message' => $formattedMessage ,
-                                                        'status' => 'failed' ,
-                                                        'response_status' => json_encode($result),
-                                                        'segment' => self::calculateSmsSegments($formattedMessage)
-                                                    ];
-                                }
-            }else{
-            // Log before sending
+                        $templateId = $templateName;
+                        Log::info("templateId: " .$templateName);
+                    }
 
-                                $templateId='';
-                                $smsService = new SmsService();
-                                Log::info("template: " . json_encode($template));
-                                Log::info("templateName: " . json_encode($templateName));
-                                Log::info("is_template: " . $smsRecord->is_template);
-                                if($getTemplate->enable_template_name == 1 && !empty($template) && !empty($templateName) &&  $smsRecord->is_template == 1){
-
-                                    $templateId = $templateName;
-                                    Log::info("templateId: " .$templateName);
-                                }
-
-                                $response = $smsService->sendSms($receiverNumber, $formattedMessage, $finalTeamId,null,[],$templateId);
-                                $logData = [
-                                    'team_id' => $finalTeamId,
-                                    'location_id' => $locationId,
-                                    'user_id' => $logData['user_id'] ?? null,
-                                    'customer_id' => $logData['customer_id'] ?? null,
-                                    'booking_id' => $logData['booking_id'] ?? null,
-                                    'queue_id' =>  $logData['queue_id'] ?? null,
-                                    'queue_storage_id' =>  $logData['queue_storage_id'] ?? null,
-                                    'contact' => $receiverNumber,
-                                    'type' => $message_type,
-                                    'event_name' => $logdata['event_name'] ?? $title,
-                                    'message' => $formattedMessage ,
-                                    'status' => 'sent' ,
-                                    'response_status' => json_encode($response),
-                                    'segment' => self::calculateSmsSegments($formattedMessage)
-                                ];
+                    // $response = $smsService->sendSms($receiverNumber, $formattedMessage, $finalTeamId,null,[],$templateId);
                     
-                  }
+                    $logData = [
+                        'team_id' => $finalTeamId,
+                        'location_id' => $locationId,
+                        'user_id' => $logData['user_id'] ?? null,
+                        'customer_id' => $logData['customer_id'] ?? null,
+                        'booking_id' => $logData['booking_id'] ?? null,
+                        'queue_id' =>  $logData['queue_id'] ?? null,
+                        'queue_storage_id' =>  $logData['queue_storage_id'] ?? null,
+                        'contact' => $receiverNumber,
+                        'type' => $message_type,
+                        'event_name' => $logdata['event_name'] ?? null,
+                        'message' => $formattedMessage,
+                        'status' => 'pending', // Will be updated to 'sent' after successful send
+                        'response_status' => null,
+                        'segment' => self::calculateSmsSegments($formattedMessage),
+                    ];
 
+                    $messageDetail = MessageDetail::create($logData);
+                    
+                    // Now send SMS with MessageDetail ID
+                    $response = $smsService->sendSms($receiverNumber, $formattedMessage, $finalTeamId, null, [], $templateId, $messageDetail->id);
 
-                    MessageDetail::create($logData);
-                 
-                   
+                    // Log::info("response sms: " . json_encode($response));
+                    if ($messageDetail) {
+                        $messageDetail->update([
+                            'status' => 'sent',
+                            'response_status' => json_encode($response)
+                        ]);
+                    }
                 }
 
                 if ($smsRecord->is_whatsapp == 1) {
@@ -332,11 +276,11 @@ Log::info("getTemplate: " . json_encode($getTemplate));
             'user_id'          => $logData['user_id'] ?? null,
             'customer_id'      => $logData['customer_id'] ?? null,
             'queue_id'         => $logData['queue_id'] ?? null,
-            'booking_id' => $logData['booking_id'] ?? null,
+              'booking_id' => $logData['booking_id'] ?? null,
             'queue_storage_id' => $logData['queue_storage_id'] ?? null,
             'contact'          => $receiverNumber,
             'type'             => $message_type,
-            'event_name'       => $logData['event_name'] ?? $title,
+            'event_name'       => $logData['event_name'] ?? null,
             'channel'          => 'whatsapp',
             'message'          => $formattedMessage,
             'segment'          => self::calculateSmsSegments($formattedMessage),
@@ -354,7 +298,7 @@ Log::info("getTemplate: " . json_encode($getTemplate));
               'booking_id' => $logData['booking_id'] ?? null,
             'contact'          => $receiverNumber,
             'type'             => $message_type,
-            'event_name'       => $logData['event_name'] ?? $title,
+            'event_name'       => $logData['event_name'] ?? null,
             'channel'          => 'whatsapp',
             'failed_reason'    => $response['message'] ?? 'Unknown error',
             'status'           => 'failed',
@@ -375,7 +319,7 @@ Log::info("getTemplate: " . json_encode($getTemplate));
           'booking_id' => $logData['booking_id'] ?? null,
         'contact'          => $receiverNumber,
         'type'             => $message_type,
-        'event_name'       => $logData['event_name'] ?? $title,
+        'event_name'       => $logData['event_name'] ?? null,
         'channel'          => 'whatsapp',
         'failed_reason'    => $e->getMessage(),
         'status'           => 'failed',
@@ -408,7 +352,7 @@ Log::info("getTemplate: " . json_encode($getTemplate));
                         'contact' => $receiverNumber,
                         'type' => $message_type,
                           'booking_id' => $logData['booking_id'] ?? null,
-                        'event_name' => $logdata['event_name'] ?? $title,
+                        'event_name' => $logdata['event_name'] ?? null,
                         'channel' => 'whatsapp',
                         'message' => $formattedMessage,
                         'segment' => self::calculateSmsSegments($formattedMessage)
@@ -443,7 +387,7 @@ Log::info("getTemplate: " . json_encode($getTemplate));
                     'contact' => $receiverNumber,
                       'booking_id' => $logData['booking_id'] ?? null,
                     'type' => $message_type,
-                    'event_name' => $logdata['event_name'] ?? $title,
+                    'event_name' => $logdata['event_name'] ?? null,
                     'channel' => $smsRecord->is_sms == 1 ? 'sms' : 'whatsapp',
                     'failed_reason' => $e->getMessage(),
                 ];
@@ -707,6 +651,14 @@ Log::info("getTemplate: " . json_encode($getTemplate));
         $data['booking_id'] = (string)($data['refID'] ?? ($data['booking_id'] ?? 'Test'));
         $data['customer_name'] = (string)($data['name'] ?? 'Test');
         $data['waiting_time'] = (string)($data['waiting_time'] ?? 0);
+        $data['user_name'] = (string)($data['user_name'] ?? 'Test');
+        $data['user_email'] = (string)($data['user_email'] ?? 'Test');
+        $data['user_id'] = (string)($data['user_id'] ?? 'Test');
+        $data['amount'] = (string)($data['amount'] ?? '0');
+        $data['payment_id'] = (string)($data['payment_id'] ?? 'Test');
+        $data['payment_date'] = (string)($data['payment_date'] ?? 'Test');
+        $data['wallet_balance'] = (string)($data['wallet_balance'] ?? '0');
+        $data['app_name'] = (string)($data['app_name'] ?? $data['panel_name'] ?? 'Test');
 
         $values = [];
 
@@ -938,93 +890,4 @@ Log::info("getTemplate: " . json_encode($getTemplate));
 
     return $response->json();
 }
-
-    /**
-     * Send SMS using Petraonline API
-     *
-     * @param string $recipient Phone number in international format (e.g., 919876543210)
-     * @param string $key API key for authentication
-     * @param string $messageBody The message content to send
-     * @param string $description Optional description for the message (default: 'Ticket Notification')
-     * @param string $sender Sender ID (default: 'QWAITNG')
-     * @return array [
-     *     'success' => bool,
-     *     'message' => string,
-     *     'data' => array|null
-     * ]
-     */
- public static function sendSmsPetraonline(
-    $recipient,
-    $key,
-    $messageBody,
-    $description = 'Ticket Notification',
-    $sender = 'Qwaiting'
-) {
-    if (empty($key)) {
-        return [
-            'success' => false,
-            'message' => 'API key is missing.',
-        ];
-    }
-
-    $url = 'https://queue-management.api.petraonline.com/api/v1/utilities/mass_sms';
-
-    try {
-        $response = Http::withHeaders([
-                'ApiKey' => $key,
-            ])
-            ->asMultipart()
-            ->post($url, [
-                [
-                    'name' => 'Description',
-                    'contents' => $description,
-                ],
-                [
-                    'name' => 'Recipients',
-                    'contents' => $recipient,
-                ],
-                [
-                    'name' => 'Body',
-                    'contents' => $messageBody,
-                ],
-                [
-                    'name' => 'Sender',
-                    'contents' => $sender,
-                ],
-            ]);
-
-        $status = $response->status();
-        $data = $response->json();
-
-        Log::info('SMS API Response', [
-            'recipient' => $recipient,
-            'status_code' => $status,
-            'response' => $data,
-        ]);
-
-        if ($response->successful()) {
-            return [
-                'success' => true,
-                'message' => $data['message'] ?? 'SMS sent successfully.',
-            ];
-        }
-
-        return [
-            'success' => false,
-            'message' => $data['message'] ?? 'SMS API returned error: ' . $status,
-        ];
-
-    } catch (\Throwable $e) {
-        Log::error('SMS sending failed: ' . $e->getMessage(), [
-            'recipient' => $recipient,
-        ]);
-
-        return [
-            'success' => false,
-            'message' => $e->getMessage(),
-        ];
-    }
-}
-
-
 }

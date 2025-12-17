@@ -49,7 +49,10 @@ class MessageTemplate extends Model
         'reschedule_booking_sms_template',
         'new_booking_sms_message_template',
         'skip_call_message_template',
-        'recall_message_template'
+        'recall_message_template',
+        'stripe_sms_message',
+        'stripe_sms_message_status',
+        'stripe_sms_message_template',
     ];
 
     public function team()
@@ -73,6 +76,9 @@ class MessageTemplate extends Model
         'reschedule_booking_sms' => '',
         'cancel_booking_sms' => '',
         'long_waiting_queues_notification_to_admin' => '',
+        'stripe_sms_message' => "Payment successful! Your wallet has been credited with {{ amount }}.
+Current balance: {{ wallet_balance }}.
+Thank you for using {{ app_name }}.",
         // status fields default values
         'ticket_generation_message_status' => true,
         'reminder_message_status' => true,
@@ -84,6 +90,7 @@ class MessageTemplate extends Model
         'reschedule_booking_sms_status' => false,
         'cancel_booking_sms_status' => false,
         'long_waiting_queues_notification_to_admin_status' => false,
+        'stripe_sms_message_status' => true,
     ];
 
     try {

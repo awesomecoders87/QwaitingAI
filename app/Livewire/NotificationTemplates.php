@@ -24,6 +24,7 @@ class NotificationTemplates extends Component
         'booking_reschedule' => ['name' => 'Booking Reschedule Notifications'],
         'booking_cancel' => ['name' => 'Booking Cancel Notifications'],
         'reminder' => ['name' => 'Reminder Notifications'],
+        'stripe_sms' => ['name' => 'Stripe Credit SMS Notification'],
     ];
 
     public $selectedTemplate = 'ticket';

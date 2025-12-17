@@ -27,6 +27,7 @@ class SmsTransactionsReport extends Component
     public $toSelectedDate;
     public $datetimeFormat;
     public $searchTerm = '';
+    public $smsCreditsBalance = 0;
 
     protected $updatesQueryString = ['fromSelectedDate', 'toSelectedDate'];
 
@@ -38,6 +39,11 @@ class SmsTransactionsReport extends Component
         $this->fromSelectedDate = $this->fromSelectedDate ?? null;
         $this->toSelectedDate = $this->toSelectedDate ?? null;
         $this->datetimeFormat = AccountSetting::showDateTimeFormat();
+        
+        // Get current user's SMS credits balance
+        if (auth()->check() && auth()->user()->is_admin) {
+            $this->smsCreditsBalance = auth()->user()->sms_credits_balance ?? 0;
+        }
     }
 
     public function updatingFromSelectedDate()
@@ -88,34 +94,33 @@ class SmsTransactionsReport extends Component
     }
 
     public function getSMSDetails()
-	{
-		$query = MessageDetail::with(['team', 'location']) // <-- Eager load relationships
-			->where('team_id', $this->teamId)
-			->where('location_id', $this->locationId)
-			->where('channel', '!=', 'email');
+    {
+        $query = MessageDetail::where('team_id', $this->teamId)
+            ->where('location_id', $this->locationId)
+            ->where('channel', '!=', 'email');
 
-		if (!empty($this->fromSelectedDate)) {
-			$query->whereDate('created_at', '>=', $this->fromSelectedDate);
-		}
+        if (!empty($this->fromSelectedDate)) {
+            $query->whereDate('created_at', '>=', $this->fromSelectedDate);
+        }
 
-		if (!empty($this->toSelectedDate)) {
-			$query->whereDate('created_at', '<=', $this->toSelectedDate);
-		}
+        if (!empty($this->toSelectedDate)) {
+            $query->whereDate('created_at', '<=', $this->toSelectedDate);
+        }
 
-		if (!empty($this->searchTerm)) {
-			$query->where(function ($q) {
-				$q->where('message', 'like', '%' . $this->searchTerm . '%')
-				  ->orWhere('contact', 'like', '%' . $this->searchTerm . '%')
-				  ->orWhere('channel', 'like', '%' . $this->searchTerm . '%')
-				  ->orWhere('event_name', 'like', '%' . $this->searchTerm . '%')
-				  ->orWhere('status', 'like', '%' . $this->searchTerm . '%');
-			});
-		}
+        if (!empty($this->searchTerm)) {
+            $query->where(function ($q) {
+                $q->where('message', 'like', '%' . $this->searchTerm . '%')
+                    ->orWhere('contact', 'like', '%' . $this->searchTerm . '%')
+                    ->orWhere('channel', 'like', '%' . $this->searchTerm . '%')
+                    ->orWhere('event_name', 'like', '%' . $this->searchTerm . '%')
+                    ->orWhere('status', 'like', '%' . $this->searchTerm . '%');
+            });
+        }
 
-		$data = $query->orderBy('created_at', 'desc')->get();
+        $data = $query->orderBy('created_at', 'desc')->get();
 
-		return $data;
-	}
+        return $data;
+    }
 
     public function exportCsv()
     {

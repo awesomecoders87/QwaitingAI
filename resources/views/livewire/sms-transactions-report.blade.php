@@ -1,5 +1,11 @@
 <div class="p-6">
-    <h2 class="text-xl font-semibold dark:text-white/90 mb-4">{{ __('report.SMS Transactions') }}</h2>
+    <div class="flex justify-between items-center mb-4">
+        <h2 class="text-xl font-semibold dark:text-white/90">{{ __('report.SMS Transactions') }}</h2>
+        <div class="text-right">
+            <p class="text-sm text-gray-600 dark:text-gray-400">{{ __('SMS Credits Balance') }}</p>
+            <p class="text-2xl font-bold text-brand-600 dark:text-brand-400">${{ number_format($smsCreditsBalance, 4) }}</p>
+        </div>
+    </div>
     <div class="grid grid-cols-2 items-center space-x-4 mb-4 py-2 w-lg">
         <div>
         <label for="fromDate">From</label>
@@ -37,47 +43,31 @@
  
 <div class="p-4 md:p-4 rounded-lg border border-gray-200 bg-white dark:border-gray-800 dark:bg-white/[0.03] shadow">   
 <div class="overflow-x-auto max-w-fulll"> 
-    <table class="w-full ti-custom-table ti-custom-table-hover">
-        <colgroup>
-            <col class="w-48">
-            <col class="w-32">
-            <col class="w-24">
-            <col class="w-32">
-            <col class="min-w-[200px] max-w-[300px]">
-            <col class="w-24">
-        </colgroup>
-        <thead class="bg-gray-50 dark:bg-gray-800">
+    <table class="table-auto w-full ti-custom-table ti-custom-table-hover">
+        <thead>
             <tr>
-                <th class="p-2 text-left">{{ __('report.Date') }}</th>
-                <th class="p-2 text-left">{{ __('report.contact') }}</th>
-                <th class="p-2 text-left">{{ __('report.Channel') }}</th>
-                <th class="p-2 text-left">{{ __('report.Event Name') }}</th>
-                <th class="p-2 text-left">{{ __('report.Message') }}</th>
-                <th class="p-2 text-left">{{ __('report.Status') }}</th>
+                <th class=" p-2">{{ __('report.Date') }}</th>
+                <th class=" p-2">{{ __('report.contact') }}</th>
+                <th class=" p-2">{{ __('report.Channel') }}</th>
+                <th class=" p-2">{{ __('report.Event Name') }}</th>
+                <th class=" p-2">{{ __('report.Status') }}</th>
+                <th class=" p-2">{{ __('SMS Sent Cost') }}</th>
             </tr>
         </thead>
         <tbody>
                <?php  $datetimeFormat = App\Models\AccountSetting::showDateTimeFormat(); ?>
             @forelse($smsdetails as $log)
                 <tr>
-                    <td class="p-2 align-top">{{ $log->created_at->format($datetimeFormat) }}</td>
-                    <td class="p-2 align-top">{{ $log->contact }}</td>
-                    <td class="p-2 align-top">{{ $log->channel }}</td>
-                    <td class="p-2 align-top">{{ $log->event_name }}</td>
-                    <td class="p-2 align-top">
-                        <div class="break-words max-h-24 overflow-y-auto pr-2">
-                            {!! nl2br(e($log->message)) !!}
-                        </div>
-                    </td>
-                    <td class="p-2 align-top">
-                        <span class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium {{ $log->status === 'sent' ? 'bg-green-100 text-green-800' : ($log->status === 'failed' ? 'bg-red-100 text-red-800' : 'bg-yellow-100 text-yellow-800') }}">
-                            {{ ucfirst($log->status) }}
-                        </span>
-                    </td>
+                    <td class=" p-2">{{ $log->created_at->format($datetimeFormat) }}</td>
+                    <td class=" p-2">{{ $log->contact }}</td>
+                    <td class=" p-2">{{ $log->channel }}</td>
+                    <td class=" p-2">{{ $log->event_name }}</td>
+                    <td class=" p-2">{{ $log->status }}</td>
+                    <td class=" p-2">${{ number_format($log->sms_sent_cost ?? 0, 4) }} USD</td>
                 </tr>
             @empty
             <tr>
-                            <td colspan="7" class="text-center py-6">
+                            <td colspan="6" class="text-center py-6">
                                <p class="text-center"><strong>{{ __('report.No records found.') }}</strong></p>
                             </td>
                         </tr>

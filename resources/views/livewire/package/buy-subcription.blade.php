@@ -22,6 +22,14 @@
                 {{ $activeTab === 'invoice' ? 'active-tab text-white' : 'bg-gray-100 text-black' }}">
                        All Invoices
                     </a></li>
+
+                    @if(auth()->user() && auth()->user()->is_admin)
+                        <li><a href="javascript:void(0)" wire:click="setActiveTab('sms')"
+                                class="px-4 py-2 rounded-md font-medium inline-block
+                        {{ $activeTab === 'sms' ? 'active-tab text-white' : 'bg-gray-100 text-black' }}">
+                               SMS
+                        </a></li>
+                    @endif
             </ul>
         </div>
     </div>
@@ -265,9 +273,15 @@
                         <td class="px-6 py-4 text-indigo-600 font-medium">{{ $invoice->inv_num ?? ''}}</td>
                         <td class="px-6 py-4">{{ Carbon\Carbon::parse($invoice->date)->format($datetimeFormat) }}</td>
                         <td class="px-6 py-4">{{ $invoice?->package?->name ?? ''}}</td>
-                        <td class="px-6 py-4">{{ $invoice?->package?->currency ?? ''}} {{ $invoice?->price ?? ''}}</td>
+                        <td class="px-6 py-4">${{ $invoice?->package?->currency ?? ''}} {{ $invoice?->price ?? ''}}</td>
                        <td class="px-6 py-4 text-sm font-semibold {{ $invoice->subscription?->stripe_status === 'active' ? 'text-green-600' : 'text-red-600' }}">
-    {{ ucfirst($invoice->subscription->stripe_status ?? 'Unknown') }}
+    @if($invoice->subscription?->stripe_status === 'active' || $invoice->status === 'completed')
+        <button wire:click="openInvoiceModal('{{ $invoice->id }}')" class="hover:underline cursor-pointer">
+            {{ ucfirst($invoice->subscription->stripe_status ?? $invoice->status ?? 'Unknown') }}
+        </button>
+    @else
+        {{ ucfirst($invoice->subscription->stripe_status ?? 'Unknown') }}
+    @endif
 </td>
                         <td class="px-6 py-4">
                              <button wire:click="downloadInvoice('{{ $invoice->id }}')" wire:loading.attr="disabled" class="text-blue-600 hover:underline">Download</button>
@@ -282,6 +296,192 @@
 </div>
 
     @endif
+
+    @if ($activeTab === 'sms')
+        <!-- SMS & Plan Tab Content -->
+        <div class="space-y-6">
+            <!-- Current Balance -->
+            <div class="bg-gradient-to-r from-blue-500 to-purple-600 rounded-2xl p-6 text-white shadow-lg">
+                <p class="text-sm opacity-90 mb-2">Current Balance</p>
+                <h2 class="text-4xl font-bold">${{ number_format($currentSmsBalance,4) }}</h2>
+                {{-- <p class="text-sm opacity-90 mt-1">SMS Credits Available</p> --}}
+                <p class="text-sm opacity-90 mt-1">Available Balance</p>
+            </div>
+
+            <!-- SMS Credits Packages -->
+            <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+                <!-- Buy SMS Credits Section -->
+                <div class="bg-white rounded-2xl p-6 shadow-md dark:bg-white/[0.03] dark:border dark:border-gray-800">
+                    <h3 class="text-xl font-bold mb-4 text-gray-800 dark:text-white">Buy SMS Credits</h3>
+                    <div class="space-y-3">
+                        @foreach($smsPlans as $plan)
+                            <div wire:click="selectSmsPlan({{ $plan->id }})" 
+                                class="relative border rounded-xl p-4 cursor-pointer transition-all hover:shadow-md
+                                {{ $selectedSmsPlanId == $plan->id ? 'border-blue-500 bg-blue-50 dark:bg-blue-900/20' : 'border-gray-200 dark:border-gray-700' }}">
+                                
+                                @if(isset($plan->is_popular) && $plan->is_popular)
+                                    <span class="absolute -top-2 right-4 bg-blue-500 text-white text-xs px-3 py-1 rounded-full font-semibold">POPULAR</span>
+                                @endif
+                                
+                                <div class="flex justify-between items-center">
+                                    <div>
+                                        {{-- <p class="font-bold text-lg text-gray-800 dark:text-white">{{ number_format($plan->credits) }} Credits</p> --}}
+                                        <p class="font-bold text-lg text-gray-800 dark:text-white">{{ $plan->name ?? 'SMS Plan' }}</p>
+                                        <p class="text-sm text-gray-500 dark:text-gray-400">{{ $plan->description ?? '' }}</p>
+                                    </div>
+                                    <div class="text-right">
+                                        <!-- <p class="text-2xl font-bold text-blue-600 dark:text-blue-400">MO${{ $plan->price }}</p> -->
+                                        <p class="text-2xl font-bold text-blue-600 dark:text-blue-400">{{ App\Models\Currency::where('currency_code',$plan->currency_code)->value('currency_symbol'); }}{{ number_format($plan->price, 0) }}</p>
+
+                                    </div>
+                                </div>
+                            </div>
+                        @endforeach
+                    </div>
+                </div>
+
+                <!-- Payment Details Section -->
+                <div class="bg-white rounded-2xl p-6 shadow-md dark:bg-white/[0.03] dark:border dark:border-gray-800">
+                    <h3 class="text-xl font-bold mb-4 text-gray-800 dark:text-white">Payment Details</h3>
+                    
+                    @if($selectedSmsPlan)
+                        <div class="mb-4 p-4 bg-blue-50 dark:bg-blue-900/20 rounded-lg">
+                            <p class="text-sm text-gray-600 dark:text-gray-300">Selected Package</p>
+                            {{-- <p class="text-lg font-bold text-gray-800 dark:text-white">{{ number_format($selectedSmsPlan->credits) }} Credits</p> --}}
+                            <p class="text-lg font-bold text-gray-800 dark:text-white">{{ $selectedSmsPlan->name ?? 'SMS Plan' }}</p>
+                            <p class="text-2xl font-bold text-blue-600 dark:text-blue-400">${{ $selectedSmsPlan->price }}</p>
+                        </div>
+                    @endif
+
+                    <div>
+                        <form id="sms-payment-form" x-data x-init="setTimeout(() => { if (window.mountSmsStripeCard) window.mountSmsStripeCard(); }, 100)">
+                            <div class="space-y-4">
+                                <div>
+                                    <label class="block text-sm font-medium mb-2 dark:text-white">Cardholder Name</label>
+                                    <input type="text" id="sms-card-holder-name" class="w-full border border-gray-300 p-3 rounded-lg dark:bg-gray-700 dark:border-gray-600 dark:text-white focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                                        placeholder="John Doe">
+                                </div>
+
+                                <div wire:ignore>
+                                    <label class="block text-sm font-medium mb-2 dark:text-white">Card Number</label>
+                                    <div id="sms-card-number" class="w-full border border-gray-300 p-3 rounded-lg dark:bg-gray-700 dark:border-gray-600 min-h-[44px]"></div>
+                                </div>
+
+                                <div class="grid grid-cols-2 gap-4">
+                                    <div wire:ignore>
+                                        <label class="block text-sm font-medium mb-2 dark:text-white">Expiry Date</label>
+                                        <div id="sms-card-expiry" class="w-full border border-gray-300 p-3 rounded-lg dark:bg-gray-700 dark:border-gray-600 min-h-[44px]"></div>
+                                    </div>
+                                    <div wire:ignore>
+                                        <label class="block text-sm font-medium mb-2 dark:text-white">CVC</label>
+                                        <div id="sms-card-cvc" class="w-full border border-gray-300 p-3 rounded-lg dark:bg-gray-700 dark:border-gray-600 min-h-[44px]"></div>
+                                    </div>
+                                </div>
+
+                                <div id="sms-card-errors" class="text-sm text-red-600 mt-2 dark:text-red-400"></div>
+
+                                <button type="button"
+                                    onclick="smsPayButtonHandler()"
+                                    id="sms-pay-button"
+                                    class="w-full bg-blue-600 hover:bg-blue-700 text-white font-bold py-3 px-4 rounded-lg transition-colors flex items-center justify-center"
+                                    @if(!$selectedSmsPlan) disabled style="opacity:0.6;cursor:not-allowed;" @endif>
+                                    <span class="sms-button-text">Pay ${{ $selectedSmsPlan->price ?? '0' }}</span>
+                                    <svg id="sms-pay-loader" class="ml-2 h-5 w-5 text-white animate-spin hidden"
+                                        xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+                                        <circle class="opacity-25" cx="12" cy="12" r="10"
+                                            stroke="currentColor" stroke-width="4"></circle>
+                                        <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8v8z"></path>
+                                    </svg>
+                                </button>
+                            </div>
+                        </form>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Invoice History -->
+            <div class="bg-white rounded-2xl p-6 shadow-md dark:bg-white/[0.03] dark:border dark:border-gray-800">
+                <h3 class="text-xl font-bold mb-4 text-gray-800 dark:text-white">Invoice History</h3>
+                <div class="space-y-3">
+                    @php
+                        $smsInvoices = $allInvoices->where('type', 'sms_plan');
+                    @endphp
+                    
+                    @forelse($smsInvoices as $invoice)
+
+                        <div wire:click="openInvoiceModal('{{ $invoice->id }}')" class="flex justify-between items-center p-4 border border-gray-200 dark:border-gray-700 rounded-lg hover:bg-gray-50 dark:hover:bg-gray-800/50 transition-colors cursor-pointer">
+                            <div>
+                                <p class="font-semibold text-gray-800 dark:text-white">{{ $invoice->inv_num }}</p>
+                                {{-- <p class="text-sm text-gray-500 dark:text-gray-400">{{ $invoice->subscription->quantity ?? '0' }} Credits</p> --}}
+                                <p class="text-xs text-gray-400 dark:text-gray-500">{{ Carbon\Carbon::parse($invoice->date)->format($datetimeFormat) }}</p>
+                            </div>
+                            <div class="text-right">
+                                <button class="px-4 py-2 bg-green-100 text-green-700 rounded-full text-sm font-semibold hover:bg-green-200 transition-colors">
+                                    Completed
+                                </button>
+                                <p class="text-lg font-bold text-gray-800 dark:text-white mt-1">${{ $invoice->price }}</p>
+                            </div>
+                        </div>
+                    @empty
+                        <p class="text-center text-gray-500 dark:text-gray-400 py-8">No SMS credit purchases yet</p>
+                    @endforelse
+                </div>
+            </div>
+        </div>
+    @endif
+
+    <!-- Invoice Modal -->
+    @if($showInvoiceModal)
+        <div class="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50" wire:click="closeInvoiceModal">
+            <div class="bg-white dark:bg-gray-800 rounded-2xl p-8 max-w-md w-full mx-4 shadow-2xl" wire:click.stop>
+                <div class="text-center mb-6">
+                    <h3 class="text-2xl font-bold text-gray-800 dark:text-white mb-2">SMS Solutions Inc.</h3>
+                    <p class="text-sm text-gray-600 dark:text-gray-400">123 Business Avenue</p>
+                    <p class="text-sm text-gray-600 dark:text-gray-400">San Francisco, CA</p>
+                    <p class="text-sm text-gray-600 dark:text-gray-400">+1 (555) 123-4567</p>
+                </div>
+
+                <div class="border-t border-b border-gray-200 dark:border-gray-700 py-4 mb-6">
+                    <h4 class="text-xl font-bold text-gray-800 dark:text-white mb-4">Invoice #{{ $invoiceData['invoice_number'] ?? '' }}</h4>
+                    
+                    <table class="w-full text-sm">
+                        <thead>
+                            <tr class="border-b border-gray-200 dark:border-gray-700">
+                                <th class="text-left py-2 text-gray-600 dark:text-gray-400">Description</th>
+                                <!-- <th class="text-right py-2 text-gray-600 dark:text-gray-400">Qty</th> -->
+                                <!-- <th class="text-right py-2 text-gray-600 dark:text-gray-400">Price</th> -->
+                                <th class="text-right py-2 text-gray-600 dark:text-gray-400">Amount</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            <tr>
+                                <td class="py-3 text-gray-800 dark:text-white">{{ $invoiceData['package_name'] ?? '' }}</td>
+                                <!-- <td class="text-right text-gray-800 dark:text-white">{{ number_format($invoiceData['quantity'] ?? 1) }}</td> -->
+                                <td class="text-right text-gray-800 dark:text-white">${{ number_format($invoiceData['price'] ?? 0, 2) }}</td>
+                                <!-- <td class="text-right text-gray-800 dark:text-white">${{ number_format($invoiceData['total'] ?? 0, 2) }}</td> -->
+                            </tr>
+                        </tbody>
+                    </table>
+                </div>
+
+                <div class="flex justify-between items-center mb-6">
+                    <span class="text-lg font-bold text-gray-800 dark:text-white">Total:</span>
+                    <span class="text-2xl font-bold text-blue-600 dark:text-blue-400">${{ number_format($invoiceData['total'] ?? 0, 2) }}</span>
+                </div>
+
+                <div class="flex gap-3">
+                    <button wire:click="closeInvoiceModal" 
+                        class="flex-1 bg-gray-200 hover:bg-gray-300 dark:bg-gray-700 dark:hover:bg-gray-600 text-gray-800 dark:text-white font-semibold py-3 px-4 rounded-lg transition-colors">
+                        Close
+                    </button>
+                    <button wire:click="downloadInvoice('{{ $invoiceData['id'] ?? '' }}')" wire:loading.attr="disabled" class="flex-1 bg-gray-800 hover:bg-gray-900 dark:bg-white dark:hover:bg-gray-100 text-white dark:text-gray-800 font-semibold py-3 px-4 rounded-lg transition-colors">
+                        Download Invoice
+                    </button>
+                </div>
+            </div>
+        </div>
+    @endif
+    
     <script src="https://js.stripe.com/v3/"></script>
     <script>
         let stripe, card;
@@ -342,7 +542,160 @@
 
             window.stripeSubmitHandler = stripeSubmitHandler;
         });
+
+        // SMS Payment Form Handling
+        let smsCardNumber, smsCardExpiry, smsCardCvc;
+        let smsElementsMounted = false;
+
+        function unmountSmsStripeElements() {
+            if (smsCardNumber) {
+                try { smsCardNumber.unmount(); } catch(e) {}
+                smsCardNumber = null;
+            }
+            if (smsCardExpiry) {
+                try { smsCardExpiry.unmount(); } catch(e) {}
+                smsCardExpiry = null;
+            }
+            if (smsCardCvc) {
+                try { smsCardCvc.unmount(); } catch(e) {}
+                smsCardCvc = null;
+            }
+            smsElementsMounted = false;
+        }
+
+        window.mountSmsStripeCard = function() {
+            const cardNumberContainer = document.getElementById("sms-card-number");
+            const cardExpiryContainer = document.getElementById("sms-card-expiry");
+            const cardCvcContainer = document.getElementById("sms-card-cvc");
+            
+            // Check if containers exist
+            if (!cardNumberContainer || !cardExpiryContainer || !cardCvcContainer) {
+                console.log('SMS card containers not found');
+                return;
+            }
+            
+            // Always unmount any existing elements first
+            unmountSmsStripeElements();
+
+            try {
+                if (!stripe) {
+                    stripe = Stripe("{{ config('services.stripe.key') }}");
+                }
+                const elements = stripe.elements();
+                
+                // Create separate elements with styling
+                const style = {
+                    base: {
+                        fontSize: '16px',
+                        color: '#32325d',
+                        fontFamily: '-apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif',
+                        '::placeholder': {
+                            color: '#aab7c4',
+                        },
+                        padding: '10px 12px',
+                    },
+                    invalid: {
+                        color: '#fa755a',
+                        iconColor: '#fa755a'
+                    },
+                };
+                
+                smsCardNumber = elements.create("cardNumber", { 
+                    style: style,
+                    showIcon: true
+                });
+                smsCardExpiry = elements.create("cardExpiry", { style: style });
+                smsCardCvc = elements.create("cardCvc", { style: style });
+                
+                // Mount elements
+                smsCardNumber.mount("#sms-card-number");
+                smsCardExpiry.mount("#sms-card-expiry");
+                smsCardCvc.mount("#sms-card-cvc");
+                
+                smsElementsMounted = true;
+                console.log('SMS Stripe elements mounted successfully');
+            } catch (error) {
+                console.error('Error mounting SMS Stripe elements:', error);
+            }
+        }
+
+        function smsStripeSubmitHandler() {
+            const cardHolderName = document.getElementById("sms-card-holder-name");
+            const errorDisplay = document.getElementById("sms-card-errors");
+            const loader = document.getElementById('sms-pay-loader');
+            const buttonText = document.querySelector('.sms-button-text');
+            
+            if (!smsCardNumber) {
+                errorDisplay.textContent = "Card elements not loaded. Please refresh the page.";
+                return;
+            }
+            
+            // Show loader
+            loader.classList.remove('hidden');
+            buttonText.classList.add('hidden');
+
+            errorDisplay.textContent = "";
+
+            stripe.createToken(smsCardNumber, {
+                name: cardHolderName.value,
+            }).then(({ token, error }) => {
+                if (error) {
+                    errorDisplay.textContent = error.message;
+                    // Hide loader on error
+                    loader.classList.add('hidden');
+                    buttonText.classList.remove('hidden');
+                } else {
+                    Livewire.dispatch("smsStripeTokenReceived", {
+                        stripeToken: token.id,
+                        cardName: cardHolderName.value,
+                    });
+                }
+            });
+        }
+
+        // Always force unmount and remount SMS Stripe Elements when SMS tab is entered
+        Livewire.hook("message.processed", (message, component) => {
+            // Detect if SMS tab is active
+            const smsTabActive = document.querySelector('[wire\:click="setActiveTab(\'sms\')"]')?.classList.contains('active-tab') ||
+                (typeof window.Livewire !== 'undefined' && window.Livewire.find(component.id)?.activeTab === 'sms');
+            if (typeof unmountSmsStripeElements === 'function') {
+                unmountSmsStripeElements();
+            }
+            setTimeout(() => {
+                if (smsTabActive && window.mountSmsStripeCard && document.querySelector('#sms-card-number')) {
+                    window.mountSmsStripeCard();
+                }
+            }, 200);
+        });
+
+        // Custom handler for Pay button
+        window.smsPayButtonHandler = function() {
+            var hasPlan = !!window.Livewire.find(document.querySelector('[wire\:id]')?.getAttribute('wire:id'))?.selectedSmsPlanId;
+            if (!hasPlan) {
+                var err = document.getElementById('sms-card-errors');
+                if (err) err.textContent = 'Please select an SMS plan before paying';
+                return;
+            }
+            smsStripeSubmitHandler();
+        }
+        window.smsStripeSubmitHandler = smsStripeSubmitHandler;
     </script>
+
+<!-- Move this script to the very end of the file to guarantee global scope and handler availability -->
+<script>
+    // Custom handler for Pay button
+    window.smsPayButtonHandler = function() {
+        var livewireComponent = window.Livewire.first();
+        var hasPlan = !!(livewireComponent && livewireComponent.selectedSmsPlanId);
+        if (!hasPlan) {
+            var err = document.getElementById('sms-card-errors');
+            if (err) err.textContent = 'Please select an SMS plan before paying';
+            return;
+        }
+        smsStripeSubmitHandler();
+    }
+    window.smsStripeSubmitHandler = smsStripeSubmitHandler;
+</script>
 
     <script>
         document.addEventListener('livewire:init', () => {
@@ -420,15 +773,15 @@
             });
         });
 
-        Livewire.on('saved', message => {
-            Swal.fire({
-                icon: 'success',
-                title: 'Success',
-                text: message[0],
-                confirmButtonColor: '#3085d6',
-                confirmButtonText: 'OK'
-            });
-        });
+        // Livewire.on('saved', message => {
+        //     Swal.fire({
+        //         icon: 'success',
+        //         title: 'Success',
+        //         text: message[0],
+        //         confirmButtonColor: '#3085d6',
+        //         confirmButtonText: 'OK'
+        //     });
+        // });
         });
 
 

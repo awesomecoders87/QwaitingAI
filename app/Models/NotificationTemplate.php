@@ -44,6 +44,9 @@ class NotificationTemplate extends Model
         'booking_confirmed_admin_notification',
         'booking_confirmed_admin_notification_subject',
         'booking_confirmed_admin_notification_status',
+        'stripe_sms_notification',
+        'stripe_sms_notification_subject',
+        'stripe_sms_notification_status',
     ];
 
     // Define any date casting if necessary
@@ -222,6 +225,29 @@ EOT,
                 'booking_confirmed_admin_notification_subject' => 'Booking Confirmed (Admin)',
                 'booking_confirmed_admin_notification' => null,
                 'booking_confirmed_admin_notification_status' => 1,
+                'stripe_sms_notification_subject' => 'Payment Successful',
+                'stripe_sms_notification' => <<<EOT
+Hello {{ user_name }},
+
+Thank you for your payment!
+
+Your prepaid wallet has been successfully credited.
+
+Payment Details:
+-----------------------
+Amount Paid      : {{ amount }}
+Payment ID       : {{ payment_id }}
+Payment Date     : {{ payment_date }}
+Current Balance  : {{ wallet_balance }}
+
+You can now continue sending SMS using your available balance.
+
+If you have any questions, please contact our support team.
+
+Best regards,
+{{ app_name }} Team
+EOT,
+                'stripe_sms_notification_status' => 1,
             ]
         ];
 

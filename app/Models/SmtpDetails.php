@@ -330,7 +330,6 @@ class SmtpDetails extends Model
 
     $fields = ['team_id']; // Default field
 
-
     if ($title === 'ticket created') {
         $fields = array_merge($fields, ['ticket_notification_status', 'ticket_notification_subject', 'ticket_notification']);
     } elseif ($title === 'call') {
@@ -362,7 +361,12 @@ class SmtpDetails extends Model
     }
     elseif ($title === 'virtual meeting') {
         $fields = array_merge($fields, ['virtual_meeting_notification_status', 'virtual_meeting_notification_subject', 'virtual_meeting_notification']);
+    } elseif ($title === 'payment_success') {
+        $fields = array_merge($fields, ['stripe_sms_notification_status', 'stripe_sms_notification_subject', 'stripe_sms_notification']);
     }
+    //  elseif ($title === 'payment_success') {
+    //     $fields = array_merge($fields, ['stripe_sms_notification_status', 'stripe_sms_notification_subject', 'stripe_sms_notification']);
+    // }
 
 
         // Retrieve the notification template for the specified team
@@ -376,57 +380,48 @@ class SmtpDetails extends Model
 
         $button =false;
         $titleName = '';
-        $enableTemplate = 0;
         if (isset($getTemplate)) {
             if ($title === 'ticket created' && $getTemplate->ticket_notification_status == SmtpDetails::ENABLE) {
                 // Update template and title if provided in the notification settings
                 $template = !empty($getTemplate->ticket_notification) ? $getTemplate->ticket_notification : $template;
                 $titleName = !empty($getTemplate->ticket_notification_subject) ? $getTemplate->ticket_notification_subject : $title;
-                $enableTemplate = 1;
             }
             elseif ($title === 'call' && $getTemplate->service_call_notification_status == SmtpDetails::ENABLE) {
                 // Update template and title if provided in the notification settings
                 $template = !empty($getTemplate->service_call_notification_status) ? $getTemplate->service_call_notification : $template;
                 $titleName = !empty($getTemplate->service_call_notification) ? $getTemplate->service_call_notification_subject : $title;
-                $enableTemplate = 1;
             }
             elseif ($title === 'recall' && $getTemplate->service_recall_notification_status == SmtpDetails::ENABLE) {
                 // Update template and title if provided in the notification settings
                 $template = !empty($getTemplate->service_recall_notification_status) ? $getTemplate->service_recall_notification : $template;
                 $titleName = !empty($getTemplate->service_recall_notification) ? $getTemplate->service_recall_notification_subject : $title;
-                $enableTemplate = 1;
             }
             elseif ($title === 'call skip' && $getTemplate->call_skip_notification_status == SmtpDetails::ENABLE) {
                 // Update template and title if provided in the notification settings
                 $template = !empty($getTemplate->call_skip_notification_subject) ? $getTemplate->call_skip_notification : $template;
                 $titleName = !empty($getTemplate->call_skip_notification) ? $getTemplate->call_skip_notification_subject : $title;
-                $enableTemplate = 1;
             }
             elseif ($title == 'rating survey' && $getTemplate->feedback_notification_status == SmtpDetails::ENABLE) {
                 // Update template and title if provided in the notification settings
                 $template = !empty($getTemplate->feedback_notification_subject) ? $getTemplate->feedback_notification : $template;
                 $titleName = !empty($getTemplate->feedback_notification) ? $getTemplate->feedback_notification_subject : $title;
-                $enableTemplate = 1;
             }
             elseif ($title == 'booking confirmed' && $getTemplate->booking_confirmed_notification_status == SmtpDetails::ENABLE) {
                 // Update template and title if provided in the notification settings
                 $template = !empty($getTemplate->booking_confirmed_notification) ? $getTemplate->booking_confirmed_notification : $template;
                 $titleName = !empty($getTemplate->booking_confirmed_notification_subject) ? $getTemplate->booking_confirmed_notification_subject : $title;
                 $button =true;
-                $enableTemplate = 1;
             }
             elseif ($title == 'booking rescheduled' && $getTemplate->booking_reschedule_notification_status == SmtpDetails::ENABLE) {
                 // Update template and title if provided in the notification settings
                 $template = !empty($getTemplate->booking_reschedule_notification) ? $getTemplate->booking_reschedule_notification : $template;
                 $titleName = !empty($getTemplate->booking_reschedule_notification_subject) ? $getTemplate->booking_reschedule_notification_subject : $title;
                 $button =true;
-                $enableTemplate = 1;
             }
             elseif ($title == 'booking cancelled' && $getTemplate->booking_cancel_notification_status == SmtpDetails::ENABLE) {
                 // Update template and title if provided in the notification settings
                 $template = !empty($getTemplate->booking_cancel_notification) ? $getTemplate->booking_cancel_notification : $template;
                 $titleName = !empty($getTemplate->booking_cancel_notification_subject) ? $getTemplate->booking_cancel_notification_subject : $title;
-                $enableTemplate = 1;
                 // $button =true;
             }
             elseif ($title == 'reminder' && $getTemplate->reminder_notification_status == SmtpDetails::ENABLE) {
@@ -434,103 +429,87 @@ class SmtpDetails extends Model
                 $template = !empty($getTemplate->reminder_notification) ? $getTemplate->reminder_notification : $template;
                 $titleName = !empty($getTemplate->reminder_notification_subject) ? $getTemplate->reminder_notification_subject : $title;
                 // $button =true;
-                $enableTemplate = 1;
             }
             elseif ($title == 'edit partner' && $getTemplate->edit_partner_notification_status == SmtpDetails::ENABLE) {
                 // Update template and title if provided in the notification settings
                 $template = !empty($getTemplate->edit_partner_notification) ? $getTemplate->edit_partner_notification : $template;
                 $titleName = !empty($getTemplate->edit_partner_notification_subject) ? $getTemplate->edit_partner_notification_subject : $title;
-                $enableTemplate = 1;
                 // $button =true;
             }
             elseif ($title == 'delete partner' && $getTemplate->delete_partner_notification_status == SmtpDetails::ENABLE) {
                 // Update template and title if provided in the notification settings
                 $template = !empty($getTemplate->delete_partner_notification) ? $getTemplate->delete_partner_notification : $template;
                 $titleName = !empty($getTemplate->delete_partner_notification_subject) ? $getTemplate->delete_partner_notification_subject : $title;
-                $enableTemplate = 1;
                 // $button =true;
             }
             elseif ($title == 'activate partner' && $getTemplate->activate_partner_notification_status == SmtpDetails::ENABLE) {
                 // Update template and title if provided in the notification settings
                 $template = !empty($getTemplate->activate_partner_notification) ? $getTemplate->activate_partner_notification : $template;
                 $titleName = !empty($getTemplate->activate_partner_notification_subject) ? $getTemplate->activate_partner_notification_subject : $title;
-                $enableTemplate = 1;
                 // $button =true;
             }
             elseif ($title == 'deactivate partner' && $getTemplate->dectivate_partner_notification_status == SmtpDetails::ENABLE) {
                 // Update template and title if provided in the notification settings
                 $template = !empty($getTemplate->deactivate_partner_notification) ? $getTemplate->deactivate_partner_notification : $template;
                 $titleName = !empty($getTemplate->deactivate_partner_notification_subject) ? $getTemplate->deactivate_partner_notification_subject : $title;
-                $enableTemplate = 1;
                 // $button =true;
             }
             elseif ($title == 'reset password' && $getTemplate->reset_password_notification_status == SmtpDetails::ENABLE) {
                 // Update template and title if provided in the notification settings
                 $template = !empty($getTemplate->reset_password_notification) ? $getTemplate->reset_password_notification : $template;
                 $titleName = !empty($getTemplate->reset_password_notification_subject) ? $getTemplate->reset_password_notification_subject : $title;
-                $enableTemplate = 1;
                 // $button =true;
             }
-              elseif ($title == 'virtual meeting' && $getTemplate->virtual_meeting_notification_status == SmtpDetails::ENABLE) {
+            elseif ($title == 'virtual meeting' && $getTemplate->virtual_meeting_notification_status == SmtpDetails::ENABLE) {
                 // Update template and title if provided in the notification settings
                 $template = !empty($getTemplate->virtual_meeting_notification) ? $getTemplate->virtual_meeting_notification : $template;
                 $titleName = !empty($getTemplate->virtual_meeting_notification_subject) ? $getTemplate->virtual_meeting_notification_subject : $title;
-                $enableTemplate = 1;
                 // $button =true;
+            } elseif ($title == 'payment_success' && $getTemplate->stripe_sms_notification_status == SmtpDetails::ENABLE) {
+                $template = !empty($getTemplate->stripe_sms_notification) ? $getTemplate->stripe_sms_notification : $template;
+                $titleName = !empty($getTemplate->stripe_sms_notification_subject) ? $getTemplate->stripe_sms_notification_subject : $title;
             }
         }
         $enableSlack = SlackSetting::where('team_id', $teamId)
             ->where('location_id', $data['locations_id'])
             ->value('status');
-        $slackTemplateDetail = $slackTemplate =$slackTemplateDetail = '';
+        $slackTemplateDetail = $slackTemplate = '';
         if($enableSlack){
            $slackTemplateDetail = SlackTemplate::where('team_id', $teamId)->where('location_id',$data['locations_id'])->first();
            \Log::info('slack template detail: ' . json_encode($slackTemplateDetail));
            if ($slackTemplateDetail) {
                 if ($title == 'ticket created' && $slackTemplateDetail->ticket_generation_message_status == SmtpDetails::ENABLE) {
                     $slackTemplate = $slackTemplateDetail->ticket_generation_message ?: $title;
-                    $slackTemplateDetail = 1;
                      \Log::info('test title ' . $title);
                      \Log::info('test slackTemplate ' . $slackTemplate);
                 } elseif ($title == 'booking confirmed' && $slackTemplateDetail->new_booking_sms_message_status == SmtpDetails::ENABLE) {
                     $slackTemplate = $slackTemplateDetail->new_booking_sms_message ?? $title;
-                    $slackTemplateDetail = 1;
 
                 }elseif ($title == 'call' && $slackTemplateDetail->next_call_message_status == SmtpDetails::ENABLE) {
                     $slackTemplate = $slackTemplateDetail->next_call_message ?: $title;
-                    $slackTemplateDetail = 1;
 
                 } elseif ($title == 'rating survey' && $slackTemplateDetail->feedback_sms_message_status == SmtpDetails::ENABLE) {
                     $slackTemplate = $slackTemplateDetail->feedback_sms_message ?: $title;
-                    $slackTemplateDetail = 1;
                 }
                 elseif ($title == 'call skip' && $slackTemplateDetail->skip_call_message_status == SmtpDetails::ENABLE) {
                     $slackTemplate = $slackTemplateDetail->skip_call_message ?: $title;
-                    $slackTemplateDetail = 1;
                 }
                 elseif ($title == 'recall' && $slackTemplateDetail->recall_message_status == SmtpDetails::ENABLE) {
                     $slackTemplate = $slackTemplateDetail->recall_message ?: $title;
-                    $slackTemplateDetail = 1;
 
                 }
                 elseif ($title == 'booking rescheduled' && $slackTemplateDetail->reschedule_booking_sms_status == SmtpDetails::ENABLE) {
                     $slackTemplate = $slackTemplateDetail->reschedule_booking_sms ?: $title;
-                    $slackTemplateDetail = 1;
                 } elseif ($title == 'booking cancelled' && $slackTemplateDetail->cancel_booking_sms_status == SmtpDetails::ENABLE) {
                     $slackTemplate = $slackTemplateDetail->cancel_booking_sms ?: $title;
-                    $slackTemplateDetail = 1;
                 } elseif ($title == 'reminder' && $slackTemplateDetail->reminder_message_status == SmtpDetails::ENABLE) {
                     $slackTemplate = $slackTemplateDetail->reminder_message ?: $title;
-                    $slackTemplateDetail = 1;
                 }
             }
         }
            \Log::info('title ' . $title);
            \Log::info('slack template: ' . $slackTemplate);
-           \Log::info('slack template detail: ' . $slackTemplateDetail);
-            if($slackTemplateDetail == 0 && $enableTemplate == 0){
-                return;
-            }
+
 
         // Prepare SMTP details
         $smtpDetails = [];
@@ -635,7 +614,7 @@ class SmtpDetails extends Model
             if (!empty($data['to_mail']) && filter_var($data['to_mail'], FILTER_VALIDATE_EMAIL)) {
 
 
-              if($enableSlack && $slackTemplateDetail) {
+              if($enableSlack) {
                   try {
                     $slack = new SlackService($teamId, $data['locations_id']);
                     $slackResponse = $slack->sendSms(
@@ -679,7 +658,7 @@ class SmtpDetails extends Model
                  $logData['failed_reason'] = '';
                  $logData['response_status'] = '';
                 \Log::info('second check: ' . $details->hostname.','.$details->encryption.','.$details->username.','.$details->password.','.$details->from_email.','.$details->from_name);
-                if(!empty($details->hostname) && !empty($details->port) &&  !empty($details->username) && !empty($details->password) && !empty($details->from_email) &&  !empty($details->from_name) && $enableTemplate){
+                if(!empty($details->hostname) && !empty($details->port) &&  !empty($details->username) && !empty($details->password) && !empty($details->from_email) &&  !empty($details->from_name)){
                     Config::set('mail.mailers.smtp.transport', 'smtp');
                     Config::set('mail.mailers.smtp.host', trim($details->hostname));
                     Config::set('mail.mailers.smtp.port', trim($details->port));
@@ -774,6 +753,14 @@ public static function replaceTemplatePlaceholders($template, $data,$teamId)
         '{{service_note}}',
         '{{staff_name}}',
         '{{meeting_link}}',
+        '{{ user_name }}',
+        '{{ user_email }}',
+        '{{ user_id }}',
+        '{{ amount }}',
+        '{{ payment_id }}',
+        '{{ payment_date }}',
+        '{{ wallet_balance }}',
+        '{{ app_name }}',
     ];
 
     $replacements = [
@@ -797,8 +784,16 @@ public static function replaceTemplatePlaceholders($template, $data,$teamId)
         $data['booking_link'] ?? '',      // {{booking_link}}
         $data['service_time'] ?? '',      
         $data['service_note'] ?? '',      
-         $data['staff_name'] ?? '',
-         $data['meeting_link'] ?? '',
+        $data['staff_name'] ?? '',
+        $data['meeting_link'] ?? '',
+        $data['user_name'] ?? '',
+        $data['user_email'] ?? '',
+        $data['user_id'] ?? '',
+        $data['amount'] ?? '',
+        $data['payment_id'] ?? '',
+        $data['payment_date'] ?? '',
+        $data['wallet_balance'] ?? '',
+        $data['app_name'] ?? $data['panel_name'] ?? '',
     ];
 
 

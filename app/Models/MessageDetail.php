@@ -30,7 +30,8 @@ class MessageDetail extends Model
         'event_name',
         'status',
         'failed_reason',
-        'response_status'
+        'response_status',
+        'sms_sent_cost',
     ];
 
     const CUSTOM_TYPE = 'custom';
@@ -176,15 +177,5 @@ class MessageDetail extends Model
                 'error' => $e->getMessage()
             ];
         }
-    }
-	
-	public function team()
-    {
-        return $this->belongsTo(Team::class, 'team_id'); // assumes foreign key is team_id
-    }
-
-    public function location()
-    {
-        return $this->belongsTo(Location::class, 'location_id'); // if you want location too
     }
 }
