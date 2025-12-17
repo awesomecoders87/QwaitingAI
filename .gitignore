@@ -36,7 +36,6 @@
 
 # Composer / vendor
 /vendor
-/vendor copy
 /auth.json
 
 # Misc

@@ -107,8 +107,7 @@
         <livewire:package.subscription-reminder />
         @include('components.layouts.sidebar')
         <livewire:public-links />
-		{{-- <livewire:welcome-popup /> --}}
-        <div class="relative flex flex-col flex-1 overflow-x-hidden overflow-y-auto bg-transparent dark:bg-gray-900">
+		<div class="relative flex flex-col flex-1 overflow-x-hidden overflow-y-auto bg-transparent dark:bg-gray-900">
             @include('components.layouts.header')
             <livewire:package.subscription-warning wire:poll.86400s />
             {{-- <livewire:setup-progress /> --}}
