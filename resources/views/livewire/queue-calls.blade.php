@@ -2421,17 +2421,32 @@
 
         // Initialize Reverb (uses Pusher protocol)
         // For Reverb, we need to provide cluster as empty string or use wsHost/wsPort
-        var pusher = new Pusher(reverbKey, {
-            cluster: '', // Required by Pusher library, but empty for Reverb
-            wsHost: reverbHost,
-            wsPort: reverbPort,
-            wssPort: reverbPort,
-            forceTLS: reverbScheme === 'https',
-            enabledTransports: ['ws', 'wss'],
-            encrypted: false, // Reverb doesn't need encryption for local
-            disableStats: true,
-            authEndpoint: '/broadcasting/auth' // Reverb auth endpoint
-        });
+		const isLocalhost =
+		reverbHost === '127.0.0.1' ||
+		reverbHost === 'localhost';
+
+		const useWSS = !isLocalhost && window.location.protocol === 'https:';
+
+		var pusher = new Pusher(reverbKey, {
+			wsHost: reverbHost,
+
+			...(useWSS
+				? {
+					wssPort: reverbPort,
+					forceTLS: true,
+					enabledTransports: ['wss'],
+				}
+				: {
+					wsPort: reverbPort,
+					forceTLS: false,
+					enabledTransports: ['ws'],
+				}
+			),
+
+			disableStats: true,
+			authEndpoint: '/broadcasting/auth',
+		});
+
 
         // Enable Pusher logging for debugging
         Pusher.logToConsole = true;
