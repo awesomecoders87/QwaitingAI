@@ -327,7 +327,7 @@ foreach($videoTemplates as $videoTemplate)
         // });
 Pusher.logToConsole = true;
         const tenantId = {{ tenant('id') }};
-        const location = {{ $location }};
+        const locationId = {{ $location }};
         
         var pusher = new Pusher("{{ $reverbKey }}", {
         cluster: '', // Required by Pusher library, but empty for Reverb
@@ -348,7 +348,7 @@ Pusher.logToConsole = true;
             });
         });
 
-        var queueProgress = pusher.subscribe("queue-display." + tenantId + "." + location);
+        var queueProgress = pusher.subscribe("queue-display." + tenantId + "." + locationId);
 
         queueProgress.bind('queue-display', function(data) {
             Livewire.dispatch('display-update', {

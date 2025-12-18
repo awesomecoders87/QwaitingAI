@@ -2402,7 +2402,7 @@
         const reverbPort = {{ $reverbPort }};
         const reverbScheme = "{{ $reverbScheme }}";
         const teamId = {{ $team_id }};
-        const location = {{ $location }};
+        const locationId = {{ $location }};
         const userId = {{ auth()->user()->id }};
 
         if (!reverbKey || reverbKey === '') {
@@ -2531,7 +2531,7 @@
         // =========================
         // 3️⃣ Queue Progress Update
         // =========================
-        var queueProgress = pusher.subscribe("queue-progress." + teamId + "." + location + "." + userId);
+        var queueProgress = pusher.subscribe("queue-progress." + teamId + "." + locationId + "." + userId);
         
         queueProgress.bind('pusher:subscription_succeeded', function() {
             console.log('✅ Successfully subscribed to queue-progress channel');
@@ -2550,7 +2550,7 @@
         // =========================
         // 4️⃣ Queue Transfer
         // =========================
-        var queuedtransfer = pusher.subscribe("queue-transfer." + teamId + "." + location);
+        var queuedtransfer = pusher.subscribe("queue-transfer." + teamId + "." + locationId);
 
         queuedtransfer.bind('queue-transfer', function(data) {
             Livewire.dispatch('transfer-queue', { event: data });

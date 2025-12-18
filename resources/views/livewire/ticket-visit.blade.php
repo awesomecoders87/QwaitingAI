@@ -312,18 +312,18 @@
     });
 
     const tenantId = {{ tenant('id') }};
-    const location = {{ $location }};
+    const locationId = {{ $location }};
     
     console.log('🤖 Visit Pusher connected to Reverb', {
         host: '{{ $reverbHost }}',
         port: {{ $reverbPort }},
         scheme: '{{ $reverbScheme }}',
         team: tenantId,
-        location: location
+        location: locationId
     });
 
 
-    var queueProgress = pusher.subscribe("queue-display." + tenantId + "." + location);
+    var queueProgress = pusher.subscribe("queue-display." + tenantId + "." + locationId);
 
     queueProgress.bind('queue-display', function(data) {
         Livewire.dispatch('visitor-update', {
@@ -331,7 +331,7 @@
         });
     });
 
-    var queueSuspension = pusher.subscribe("queue-suspension." + tenantId + "." + location);
+    var queueSuspension = pusher.subscribe("queue-suspension." + tenantId + "." + locationId);
 
     queueSuspension.bind('queue-suspension', function() {
         console.log('🔄 Visit page received queue-suspension event, reloading.');
