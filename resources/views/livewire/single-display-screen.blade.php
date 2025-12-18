@@ -377,6 +377,9 @@
         //     encrypted: true
         // });
 Pusher.logToConsole = true;
+        const tenantId = {{ tenant('id') }};
+        const locationId = {{ $location }};
+        
         var pusher = new Pusher("{{ $reverbKey }}", {
         cluster: '', // Required by Pusher library, but empty for Reverb
         wsHost: "{{ $reverbHost }}",
@@ -388,7 +391,7 @@ Pusher.logToConsole = true;
         disableStats: true
     });
 
-        // var queueCall = pusher.subscribe("queue-call.{{ tenant('id') }}");
+        // var queueCall = pusher.subscribe("queue-call." + tenantId);
 
         // queueCall.bind('queue-call', function(data) {
         //     Livewire.dispatch('display-update', {
@@ -396,7 +399,7 @@ Pusher.logToConsole = true;
         //     });
         // });
 
-        var queueProgress = pusher.subscribe("queue-display.{{ tenant('id') }}.{{$location}}");
+        var queueProgress = pusher.subscribe("queue-display." + tenantId + "." + locationId);
 
         queueProgress.bind('queue-display', function(data) {
             Livewire.dispatch('display-update', {
@@ -404,7 +407,7 @@ Pusher.logToConsole = true;
             });
         });
 
-        // var breakReason = pusher.subscribe("break-reason.{{ tenant('id') }}");
+        // var breakReason = pusher.subscribe("break-reason." + tenantId);
 
         // breakReason.bind('display-update', function(data) {});
     </script>

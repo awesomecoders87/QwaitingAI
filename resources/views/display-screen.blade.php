@@ -466,11 +466,14 @@
     }
 
     // Pusher
+    const tenantId = {{ tenant('id') }};
+    const locationId = {{ $location }};
+    
     var pusher = new Pusher("{{ $pusherKey }}", { cluster: "{{ $pusherCluster }}", encrypted: true });
-    var queueChannel = pusher.subscribe("queue-display.{{ tenant('id') }}.{{ $location }}");
+    var queueChannel = pusher.subscribe("queue-display." + tenantId + "." + locationId);
     queueChannel.bind('queue-display', function(data) { refreshQueues(); });
 
-    var queueAudio = pusher.subscribe("display-audio.{{ tenant('id') }}.{{ $location }}");
+    var queueAudio = pusher.subscribe("display-audio." + tenantId + "." + locationId);
         queueAudio.bind('display-audio', function(data) {
             playAudio();
            if({{ $currentTemplate->display_behavior  }} == 2){

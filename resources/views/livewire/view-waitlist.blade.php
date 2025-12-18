@@ -85,6 +85,9 @@
       <script>
 
 
+        const tenantId = {{ tenant('id') }};
+        const locationId = {{ $location }};
+        
         var pusher = new Pusher("{{ $reverbKey }}", {
         wsHost: "{{ $reverbHost }}",
         wsPort: {{ $reverbPort }},
@@ -95,17 +98,17 @@
     });
 
 
-        var queueProgress = pusher.subscribe("queue-display.{{ tenant('id') }}.{{$location}}");
+        var queueProgress = pusher.subscribe("queue-display." + tenantId + "." + locationId);
 
         queueProgress.bind('queue-display', function(data) {
 
-             location.reload();
+             window.location.reload();
             // Livewire.dispatch('display-update', {
             //     event: data
             // });
         });
 
-        var queuesuspension = pusher.subscribe("queue-suspension.{{ tenant('id') }}.{{$location}}");
+        var queuesuspension = pusher.subscribe("queue-suspension." + tenantId + "." + locationId);
 
 queuesuspension.bind('queue-suspension', function() {
    window.location.reload();
