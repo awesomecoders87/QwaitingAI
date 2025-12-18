@@ -1,8 +1,4 @@
 <div>
-<?php
-echo '<pre>';
-print_r($_SERVER);exit;
-?>
 
     @if(1== 1)
     <div class="block p-4">
