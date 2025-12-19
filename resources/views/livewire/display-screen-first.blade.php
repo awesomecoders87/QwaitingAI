@@ -487,8 +487,7 @@ document.addEventListener('livewire:init', () => {
 
     <script>
         document.addEventListener('livewire:init', () => {
-            const tenantId = {{ tenant('id') }};
-            const locationId = {{ $location }};
+
 
             var pusher = new Pusher("{{ $reverbKey }}", {
                 wsHost: "{{ $reverbHost }}",
@@ -499,7 +498,7 @@ document.addEventListener('livewire:init', () => {
                 encrypted: true,
             });
 
-            var queueProgress = pusher.subscribe("queue-display." + tenantId + "." + locationId);
+            var queueProgress = pusher.subscribe("queue-display.{{ tenant('id') }}.{{$location}}");
             queueProgress.bind('queue-display', function(data) {
                 Livewire.dispatch('display-update', {
                     event: data

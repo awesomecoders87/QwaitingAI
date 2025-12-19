@@ -2402,8 +2402,6 @@
         const reverbPort = {{ $reverbPort }};
         const reverbScheme = "{{ $reverbScheme }}";
         const teamId = {{ $team_id }};
-        const locationId = {{ $location }};
-        const userId = {{ auth()->user()->id }};
 
         if (!reverbKey || reverbKey === '') {
             console.error('❌ Reverb App Key is missing!');
@@ -2502,70 +2500,6 @@
                 console.error('❌ Livewire not available');
             }
         });
-
-        // =========================
-        // 2️⃣ Queue Desktop Notification
-        // =========================
-        var queueNotification = pusher.subscribe("queue-notification." + teamId);
-        
-        queueNotification.bind('pusher:subscription_succeeded', function() {
-            console.log('✅ Successfully subscribed to queue-notification channel');
-        });
-        
-        queueNotification.bind('pusher:subscription_error', function(status) {
-            console.error('❌ Failed to subscribe to queue-notification channel:', status);
-        });
-
-        queueNotification.bind('queue-notification', function (data) {
-            console.log('📢 Queue notification received:', data);
-
-            // Dispatch to Livewire after a small delay
-            setTimeout(() => {
-                Livewire.dispatch('show-desktop-notification', { event: data });
-                if(teamId != 214){
-                    playAudio();
-                }
-            }, 1000);
-        });
-
-        // =========================
-        // 3️⃣ Queue Progress Update
-        // =========================
-        var queueProgress = pusher.subscribe("queue-progress." + teamId + "." + locationId + "." + userId);
-        
-        queueProgress.bind('pusher:subscription_succeeded', function() {
-            console.log('✅ Successfully subscribed to queue-progress channel');
-        });
-        
-        queueProgress.bind('pusher:subscription_error', function(status) {
-            console.error('❌ Failed to subscribe to queue-progress channel:', status);
-        });
-
-        queueProgress.bind('queue-progress', function (data) {
-            console.log('⏩ Queue progress update:', data);
-
-            Livewire.dispatch('next-queue', { event: data });
-        });
-
-        // =========================
-        // 4️⃣ Queue Transfer
-        // =========================
-        var queuedtransfer = pusher.subscribe("queue-transfer." + teamId + "." + locationId);
-
-        queuedtransfer.bind('queue-transfer', function(data) {
-            Livewire.dispatch('transfer-queue', { event: data });
-        });
-
-        // =========================
-        // 5️⃣ Break Reason
-        // =========================
-        var breakReason = pusher.subscribe("break-reason." + userId);
-
-        breakReason.bind('break-reason', function(data) {
-            Livewire.dispatch('break-request', {
-                event: data
-            });
-        });
     }
 
 //   var queueAudio = pusher.subscribe("display-audio.{{ $team_id }}.{{ $location }}");
@@ -2583,6 +2517,68 @@
 //             }
 //         }
 //     });
+
+
+    // =========================
+    // 2️⃣ Queue Desktop Notification
+    // =========================
+    var queueNotification = pusher.subscribe("queue-notification.{{ $team_id }}");
+    
+    queueNotification.bind('pusher:subscription_succeeded', function() {
+        console.log('✅ Successfully subscribed to queue-notification channel');
+    });
+    
+    queueNotification.bind('pusher:subscription_error', function(status) {
+        console.error('❌ Failed to subscribe to queue-notification channel:', status);
+    });
+
+    queueNotification.bind('queue-notification', function (data) {
+        console.log('📢 Queue notification received:', data);
+
+        // Dispatch to Livewire after a small delay
+        setTimeout(() => {
+            Livewire.dispatch('show-desktop-notification', { event: data });
+            if({{ $team_id }} !=214){
+                playAudio();
+            }
+        }, 1000);
+    });
+
+
+    // =========================
+    // 3️⃣ Queue Progress Update
+    // =========================
+    var queueProgress = pusher.subscribe("queue-progress.{{ $team_id }}.{{ $location }}.{{ auth()->user()->id }}");
+    
+    queueProgress.bind('pusher:subscription_succeeded', function() {
+        console.log('✅ Successfully subscribed to queue-progress channel');
+    });
+    
+    queueProgress.bind('pusher:subscription_error', function(status) {
+        console.error('❌ Failed to subscribe to queue-progress channel:', status);
+    });
+
+    queueProgress.bind('queue-progress', function (data) {
+        console.log('⏩ Queue progress update:', data);
+
+        Livewire.dispatch('next-queue', { event: data });
+    });
+
+       var queuedtransfer = pusher.subscribe("queue-transfer.{{ $team_id }}.{{$location}}");
+
+        queuedtransfer.bind('queue-transfer', function(data) {
+// console.log(JSON.stringify(data));
+
+            Livewire.dispatch('transfer-queue', { event: data });
+        });
+
+    var breakReason = pusher.subscribe("break-reason.{{ auth()->user()->id }}");
+
+    breakReason.bind('break-reason', function(data) {
+        Livewire.dispatch('break-request', {
+            event: data
+        });
+    });
 </script>
 
 <script>

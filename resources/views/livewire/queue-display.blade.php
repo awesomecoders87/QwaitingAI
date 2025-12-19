@@ -326,9 +326,6 @@ foreach($videoTemplates as $videoTemplate)
         //     encrypted: true
         // });
 Pusher.logToConsole = true;
-        const tenantId = {{ tenant('id') }};
-        const locationId = {{ $location }};
-        
         var pusher = new Pusher("{{ $reverbKey }}", {
         cluster: '', // Required by Pusher library, but empty for Reverb
         wsHost: "{{ $reverbHost }}",
@@ -340,7 +337,7 @@ Pusher.logToConsole = true;
         disableStats: true
     });
 
-        var queueCall = pusher.subscribe("queue-call." + tenantId);
+        var queueCall = pusher.subscribe("queue-call.{{ tenant('id') }}");
 
         queueCall.bind('queue-call', function(data) {
             Livewire.dispatch('display-update', {
@@ -348,7 +345,7 @@ Pusher.logToConsole = true;
             });
         });
 
-        var queueProgress = pusher.subscribe("queue-display." + tenantId + "." + locationId);
+        var queueProgress = pusher.subscribe("queue-display.{{ tenant('id') }}.{{$location}}");
 
         queueProgress.bind('queue-display', function(data) {
             Livewire.dispatch('display-update', {
@@ -356,7 +353,7 @@ Pusher.logToConsole = true;
             });
         });
 
-        // var breakReason = pusher.subscribe("break-reason." + tenantId);
+        // var breakReason = pusher.subscribe("break-reason.{{ tenant('id') }}");
 
         // breakReason.bind('display-update', function(data) {});
     </script>

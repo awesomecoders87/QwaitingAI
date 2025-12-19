@@ -251,9 +251,6 @@ window.addEventListener('beforeunload', function () {
     </script>
 
     <script>
-        const tenantId = {{ tenant('id') }};
-        const queueLocationId = {{ $queueStorage->locations_id }};
-        const queueStorageId = {{ $queueStorage->id }};
 
         var pusher = new Pusher("{{ $reverbKey }}", {
         wsHost: "{{ $reverbHost }}",
@@ -264,7 +261,7 @@ window.addEventListener('beforeunload', function () {
         encrypted: true
         });
 
-        var queueVirtual = pusher.subscribe("queue-virtual." + tenantId + "." + queueLocationId + "." + queueStorageId);
+        var queueVirtual = pusher.subscribe("queue-virtual.{{ tenant('id') }}.{{$queueStorage->locations_id}}.{{$queueStorage->id}}");
 
         queueVirtual.bind('queue-virtual', function(data) {
             window.location.href = "{{ $ticketLink }}";

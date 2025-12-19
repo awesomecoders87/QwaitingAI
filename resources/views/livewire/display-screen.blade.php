@@ -928,7 +928,7 @@ console.log('screenTune'+audioElement);
             const reverbPort = {{ $reverbPort }};
             const reverbScheme = "{{ $reverbScheme }}";
             const teamId = {{ tenant('id') }};
-            const locationId = {{ $location }};
+            const location = {{ $location }};
 
             if (!reverbKey || reverbKey === '') {
                 console.error('❌ Reverb App Key is missing!');
@@ -991,7 +991,7 @@ console.log('screenTune'+audioElement);
                 console.log('🔄 Reverb connection state:', states.current);
             });
 
-            var queueProgress = pusher.subscribe("queue-display." + teamId + "." + locationId);
+            var queueProgress = pusher.subscribe("queue-display." + teamId + "." + location);
             
             queueProgress.bind('pusher:subscription_succeeded', function() {
                 console.log('✅ Successfully subscribed to queue-display channel');
