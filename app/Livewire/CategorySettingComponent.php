@@ -42,6 +42,11 @@ class CategorySettingComponent extends Component
 
     public function mount($level =null,$categoryId =null){
 
+        // Get categoryId from query parameter if not provided in route
+        if(is_null($categoryId)){
+            $categoryId = request()->query('categoryId');
+        }
+
         if(is_null($level) || is_null($categoryId)){
            abort(404);
         }
@@ -51,6 +56,10 @@ class CategorySettingComponent extends Component
 
         $this->teamId = tenant('id'); // Get the current tenant ID
         $this->locationId = Session::get('selectedLocation');
+        
+        // Load the category record
+        $this->record = Category::find($categoryId);
+        
         $this->type = AccountSetting::CATEGORY_SLOT;
         $this->accountsetting = AccountSetting::where( 'team_id', $this->teamId )
         ->where( 'location_id', $this->locationId )

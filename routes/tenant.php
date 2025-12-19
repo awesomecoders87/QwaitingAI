@@ -294,9 +294,10 @@ Route::middleware([
         Route::get('/notification-templates', NotificationTemplates::class)->name('notification-templates');
         Route::get('/category-management', CategoryManagement::class)->name('category-management');
         Route::get('/category/{level}/setting', CategorySettingComponent::class)->name('category.setting');
+        Route::get('/category/{level}/setting/edit', CategorySettingComponent::class)->name('category.setting.edit');
         Route::get('/category/{level}/create', CategoryCreateComponent::class)->name('category.create');
         Route::get('/category/{level}/edit/{categoryId}', CategoryCreateComponent::class)->name('category.edit');
-        Route::get('/category/{level}/setting/{categoryId}', CategorySettingComponent::class)->name('category.setting');
+        Route::get('/category/{level}/setting/{categoryId}', CategorySettingComponent::class)->name('category.setting')->where('categoryId', '[0-9]+');
         Route::get('/qr-code', QrCode::class)->name('qr-code');
         Route::get('/email-settings', EmailSettings::class)->name('email-settings');
         Route::get('/sms-api', SmsApi::class)->name('sms-api');
