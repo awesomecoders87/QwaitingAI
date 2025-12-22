@@ -2420,20 +2420,20 @@
         console.log('🔌 Port:', reverbPort);
         console.log('🔒 Scheme:', reverbScheme);
         console.log('═══════════════════════════════════════');
-		
+
         // Initialize Reverb (uses Pusher protocol)
         // For Reverb, we need to provide cluster as empty string or use wsHost/wsPort
         var pusher = new Pusher(reverbKey, {
-			cluster: '',
-			wsHost: reverbHost,
-			wsPort: 80,        // optional fallback
-			wssPort: 443,
-			forceTLS: true,
-			enabledTransports: ['ws','wss'],
-			encrypted: true,
-			disableStats: true,
-			authEndpoint: '/broadcasting/auth'
-		});
+            cluster: '', // Required by Pusher library, but empty for Reverb
+            wsHost: reverbHost,
+            wsPort: reverbPort,
+            wssPort: reverbPort,
+            forceTLS: reverbScheme === 'https',
+            enabledTransports: ['ws', 'wss'],
+            encrypted: false, // Reverb doesn't need encryption for local
+            disableStats: true,
+            authEndpoint: '/broadcasting/auth' // Reverb auth endpoint
+        });
 
         // Enable Pusher logging for debugging
         Pusher.logToConsole = true;
