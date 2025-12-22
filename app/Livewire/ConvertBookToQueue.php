@@ -148,11 +148,11 @@ class ConvertBookToQueue extends Component
         $currentDay = Carbon::now($userTimezone)->format('l');
         $currentTime = Carbon::now($userTimezone)->format('h:i A');
 
-        return $this->isWithinTimeSlot(null, AccountSetting::STAFF_SLOT, $currentDate, $currentDay, $currentTime,$staffId);
+        return $this->isWithinTimeSlot(AccountSetting::STAFF_SLOT, $currentDate, $currentDay, $currentTime, null, $staffId);
 
     }
 
-     private function isWithinTimeSlot($categoryId=null, $slotType, $currentDate, $currentDay, $currentTime,$userId=null)
+     private function isWithinTimeSlot($slotType, $currentDate, $currentDay, $currentTime, $categoryId=null, $userId=null)
     {
         // Check if the waitlist limit allows further processing
         if (!$this->checkLimit($currentDate, $currentDay, $currentTime)) {

@@ -335,7 +335,7 @@ public function checkStaffAvailability($staffId)
         $currentDay = Carbon::now($userTimezone)->format('l');
         $currentTime = Carbon::now($userTimezone)->format('h:i A');
 
-        return $this->isWithinTimeSlot(null, AccountSetting::STAFF_SLOT, $currentDate, $currentDay, $currentTime,$staffId);
+        return $this->isWithinTimeSlot(AccountSetting::STAFF_SLOT, $currentDate, $currentDay, $currentTime, null, $staffId);
      
     }
     
@@ -1331,21 +1331,21 @@ public function checkStaffAvailability($staffId)
     
             if (!$categoryId) return false;
             
-            return $this->isWithinTimeSlot($categoryId, AccountSetting::CATEGORY_SLOT, $currentDate, $currentDay, $currentTime);
+            return $this->isWithinTimeSlot(AccountSetting::CATEGORY_SLOT, $currentDate, $currentDay, $currentTime, $categoryId);
         }
         
         if ($categoryLevelEnable === 'ticket') {
-            return $this->isWithinTimeSlot(null, AccountSetting::TICKET_SLOT, $currentDate, $currentDay, $currentTime);
+            return $this->isWithinTimeSlot(AccountSetting::TICKET_SLOT, $currentDate, $currentDay, $currentTime);
         }
         
-        return $this->isWithinTimeSlot(null, AccountSetting::LOCATION_SLOT, $currentDate, $currentDay, $currentTime);
+        return $this->isWithinTimeSlot(AccountSetting::LOCATION_SLOT, $currentDate, $currentDay, $currentTime);
     }else{
-        return $this->isWithinTimeSlot(null, AccountSetting::LOCATION_SLOT, $currentDate, $currentDay, $currentTime);
+        return $this->isWithinTimeSlot(AccountSetting::LOCATION_SLOT, $currentDate, $currentDay, $currentTime);
 
     }
     }
 
-   private function isWithinTimeSlot($categoryId=null, $slotType, $currentDate, $currentDay, $currentTime,$userId=null)
+   private function isWithinTimeSlot($slotType, $currentDate, $currentDay, $currentTime, $categoryId=null, $userId=null)
     {
         // Check if the waitlist limit allows further processing
         if (!$this->checkLimit($currentDate, $currentDay, $currentTime)) {
