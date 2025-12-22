@@ -2420,7 +2420,7 @@
         console.log('🔌 Port:', reverbPort);
         console.log('🔒 Scheme:', reverbScheme);
         console.log('═══════════════════════════════════════');
-alert(1)
+		
         // Initialize Reverb (uses Pusher protocol)
         // For Reverb, we need to provide cluster as empty string or use wsHost/wsPort
         var pusher = new Pusher(reverbKey, {
