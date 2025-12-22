@@ -2052,6 +2052,7 @@ class ApiController extends Controller
                 'email'        => 'required|email',
                 'phone'        => 'required',
                 'phone_code'   => 'required',
+				'additional_info' => 'nullable|array',
             ]);
 
             $slug = Str::slug($validated['domain']);
@@ -2076,7 +2077,7 @@ class ApiController extends Controller
             ]);
 
             // Create Domain
-            $tenant->domains()->create(['domain' => $domainName]);
+            $tenant->domains()->create(['domain' => $domainName,'expired'=>now()->addDays(14), 'trial_ends_at' =>now()->addDays(14)]);
 
             // Create Admin User
             $user = User::create([
@@ -2103,6 +2104,7 @@ class ApiController extends Controller
                 'is_login'          => 1,
                 'login_datetime'=>now(),
                 'is_active'         => 1,
+				'additional_info'   => $validated['additional_info'] ?? null,
             ]);
 
             // Assign Role
