@@ -336,7 +336,7 @@ Pusher.logToConsole = true;
         wssPort: {{ $reverbPort }},
         forceTLS: "{{ $reverbScheme }}" === 'https',
         enabledTransports: ['ws', 'wss'],
-        encrypted: false, // Reverb doesn't need encryption for local
+        encrypted: true, // Reverb doesn't need encryption for local
         disableStats: true
     });
 
