@@ -573,6 +573,10 @@ Route::get('/bright-test', function () {
 });
 
 
+Route::get('/queue-management-dashboard', function () {
+   return view('queue-management-dashboard');
+});
+
 Route::get('/heartbeat', fn() => response()->noContent());
 
 // Route::get('/salesforce/users', [SalesforceController::class, 'users']);
