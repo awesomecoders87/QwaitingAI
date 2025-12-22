@@ -577,6 +577,10 @@ Route::get('/queue-management-dashboard', function () {
    return view('queue-management-dashboard');
 });
 
+Route::get('/admin-pricing-module', function () {
+   return view('admin-pricing-module');
+});
+
 Route::get('/heartbeat', fn() => response()->noContent());
 
 // Route::get('/salesforce/users', [SalesforceController::class, 'users']);
