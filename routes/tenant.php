@@ -581,6 +581,10 @@ Route::get('/admin-pricing-module', function () {
    return view('admin-pricing-module');
 });
 
+Route::get('/admin-pricing-module-v2', function () {
+   return view('admin-pricing-module-v2');
+});
+
 Route::get('/heartbeat', fn() => response()->noContent());
 
 // Route::get('/salesforce/users', [SalesforceController::class, 'users']);
