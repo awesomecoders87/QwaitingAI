@@ -1,5 +1,5 @@
 <!doctype html>
-<html lang="en" class="h-full">
+<html lang="en" class="h-screen overflow-hidden">
  <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
@@ -19,10 +19,10 @@
     .timeline-item::before {
       content: '';
       position: absolute;
-      left: 11px;
-      top: 28px;
-      bottom: -12px;
-      width: 3px;
+      left: 9px;
+      top: 20px;
+      bottom: -8px;
+      width: 2px;
       background: linear-gradient(to bottom, #e0e7ff, #fae8ff);
     }
     
@@ -93,14 +93,25 @@
       0%, 100% { opacity: 1; }
       50% { opacity: 0.8; }
     }
+
+    #activity-panel {
+      transition: width 0.3s ease, min-width 0.3s ease;
+      overflow: hidden;
+    }
+
+    #activity-panel.collapsed {
+      width: 48px !important;
+      min-width: 48px !important;
+    }
+
+    #toggle-activity-log svg {
+      transition: transform 0.3s ease;
+    }
   </style>
-  <style>@view-transition { navigation: auto; }</style>
-  <script src="/_sdk/data_sdk.js" type="text/javascript"></script>
-  <script src="/_sdk/element_sdk.js" type="text/javascript"></script>
  </head>
- <body class="h-full w-full" style="background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);">
+<body class="h-screen w-full overflow-hidden" style="background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);">
   <div class="flex flex-col h-full w-full">
-   <div class="flex flex-1 overflow-hidden min-h-0"><!-- Left Sidebar -->
+   <div class="flex flex-1 min-h-0 overflow-hidden" style="max-height: calc(100vh - 72px);"><!-- Left Sidebar -->
     <div class="w-20" style="background: linear-gradient(180deg, rgba(139, 92, 246, 0.95) 0%, rgba(109, 40, 217, 0.95) 100%); backdrop-filter: blur(10px);">
      <div class="flex flex-col items-center py-6 space-y-2 h-full">
       <div class="w-12 h-12 bg-white rounded-2xl flex items-center justify-center mb-6 shadow-lg">
@@ -122,7 +133,7 @@
        </svg></button>
      </div>
     </div><!-- Left Panel - Queue List -->
-    <div class="w-80 glass-effect border-r" style="border-color: rgba(139, 92, 246, 0.1);">
+    <div id="left-panel" class="w-80 glass-effect border-r transition-all duration-300" style="border-color: rgba(139, 92, 246, 0.1);">
      <div class="flex flex-col h-full">
       <div class="p-6 border-b" style="border-color: rgba(139, 92, 246, 0.1);">
        <h1 id="system-title" class="text-xl font-bold text-gray-900">Queue Management System</h1>
@@ -150,10 +161,26 @@
         </div>
        </div><!-- Waiting Queue -->
        <div>
-        <div class="flex items-center justify-between mb-3">
-         <h2 class="text-xs font-bold text-gray-500 uppercase tracking-wider">Waiting Queue</h2><span class="px-2.5 py-1 bg-purple-100 text-purple-700 text-xs font-bold rounded-full">6 visitors</span>
-        </div><!-- Filter Dropdowns -->
-        <div class="mb-4 space-y-3"><select id="queue-filter" class="w-full px-3 py-2 border-2 border-purple-200 rounded-xl text-sm font-bold text-gray-900 focus:ring-2 focus:ring-purple-500 focus:border-purple-500 transition-all bg-white"> <option value="all">All</option> <option value="walk-in">Walk-in</option> <option value="appointment">Appointment</option> </select> <select id="service-filter" class="w-full px-3 py-2 border-2 border-purple-200 rounded-xl text-sm font-bold text-gray-900 focus:ring-2 focus:ring-purple-500 focus:border-purple-500 transition-all bg-white"> <option value="all">All Services</option> <option value="general">General Consultation</option> <option value="medical">Medical Check</option> <option value="lab">Lab Results</option> <option value="prescription">Prescription</option> <option value="followup">Follow-up</option> </select>
+        <div class="mb-4">
+         <div class="flex items-center justify-between mb-3">
+          <h2 class="text-xs font-bold text-gray-500 uppercase tracking-wider">Waiting Queue</h2>
+          <span class="px-2.5 py-1.5 bg-purple-100 text-purple-700 text-xs font-bold rounded-full">6 visitors</span>
+         </div>
+         <div class="space-y-2">
+          <select id="queue-filter" class="w-full px-3 py-2.5 border-2 border-purple-200 rounded-xl text-sm font-semibold text-gray-700 focus:ring-2 focus:ring-purple-500 focus:border-purple-500 transition-all bg-white hover:border-purple-300">
+           <option value="all">All Visitors</option>
+           <option value="walk-in">Walk-in</option>
+           <option value="appointment">Appointment</option>
+          </select>
+          <select id="service-filter" class="w-full px-3 py-2.5 border-2 border-purple-200 rounded-xl text-sm font-semibold text-gray-700 focus:ring-2 focus:ring-purple-500 focus:border-purple-500 transition-all bg-white hover:border-purple-300">
+           <option value="all">All Services</option>
+           <option value="general">General Consultation</option>
+           <option value="medical">Medical Check</option>
+           <option value="lab">Lab Results</option>
+           <option value="prescription">Prescription</option>
+           <option value="followup">Follow-up</option>
+          </select>
+         </div>
         </div>
         <div class="space-y-3">
          <div class="visitor-card bg-white rounded-2xl p-4 cursor-pointer shadow-md">
@@ -201,54 +228,50 @@
         </div>
        </div>
       </div>
-      <div class="p-6 border-t" style="border-color: rgba(139, 92, 246, 0.1);"><button class="w-full text-white font-bold py-3.5 px-4 rounded-xl transition-all flex items-center justify-center shadow-lg hover:shadow-xl" style="background: linear-gradient(135deg, #8b5cf6, #7c3aed);">
-        <svg class="w-5 h-5 mr-2" fill="none" stroke="currentColor" viewbox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M12 6v6m0 0v6m0-6h6m-6 0H6" />
-        </svg> Add New Visitor </button>
-      </div>
      </div>
     </div><!-- Middle Panel - Visitor Details -->
-    <div class="flex-1 flex flex-col overflow-auto" style="background: rgba(249, 250, 251, 0.5);">
-     <div class="glass-effect border-b p-6" style="border-color: rgba(139, 92, 246, 0.1);">
+    <div id="middle-panel" class="flex-1 flex flex-col min-h-0 transition-all duration-300" style="background: rgba(249, 250, 251, 0.5); max-height: calc(100vh - 72px);">
+     <div class="glass-effect border-b p-5 flex-shrink-0" style="border-color: rgba(139, 92, 246, 0.1);">
       <div class="flex items-center justify-between">
        <div>
-        <h1 id="detail-name" class="text-3xl font-bold text-gray-900">Sarah Johnson</h1>
-        <div class="flex items-center gap-3 mt-3"><span class="px-4 py-1.5 text-white text-sm font-bold rounded-xl" style="background: linear-gradient(135deg, #10b981, #059669);">● Serving now</span> <span class="px-3 py-1.5 bg-gray-100 text-gray-700 text-sm font-semibold rounded-lg">1h 2m</span>
+        <h1 id="detail-name" class="text-2xl font-bold text-gray-900">Sarah Johnson</h1>
+        <div class="flex items-center gap-2 mt-2"><span class="px-3 py-1 text-white text-sm font-bold rounded-lg" style="background: linear-gradient(135deg, #10b981, #059669);">● Serving now</span> <span class="px-2.5 py-1 bg-gray-100 text-gray-700 text-sm font-semibold rounded-lg">1h 2m</span>
         </div>
        </div><button class="p-3 hover:bg-gray-100 rounded-xl transition-all">
         <svg class="w-6 h-6 text-gray-600" fill="none" stroke="currentColor" viewbox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 5v.01M12 12v.01M12 19v.01M12 6a1 1 0 110-2 1 1 0 010 2zm0 7a1 1 0 110-2 1 1 0 010 2zm0 7a1 1 0 110-2 1 1 0 010 2z" />
         </svg></button>
       </div>
      </div>
-     <div class="flex-1 p-6 overflow-auto">
-      <div class="max-w-3xl mx-auto">
-       <div class="bg-white rounded-2xl shadow-lg p-8">
-        <h2 class="text-lg font-bold text-gray-900 mb-6 flex items-center gap-2">
+     <div class="flex-1 overflow-auto" style="min-height: 0; max-height: calc(100vh - 200px);">
+      <div class="p-6">
+       <div class="max-w-3xl mx-auto bg-white rounded-xl shadow-lg p-6">
+        <h2 class="text-lg font-bold text-gray-900 mb-5 flex items-center gap-2">
          <svg class="w-5 h-5" style="color: #8b5cf6;" fill="none" stroke="currentColor" viewbox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z" />
          </svg> Visitor Information</h2>
-        <form class="space-y-5">
-         <div class="grid grid-cols-2 gap-5">
-          <div><label class="block text-sm font-bold text-gray-700 mb-2">First name</label> <input type="text" value="Sarah" class="w-full px-4 py-3 border-2 border-gray-200 rounded-xl text-gray-900 focus:ring-2 focus:ring-purple-500 focus:border-purple-500 transition-all font-medium">
+        <form class="space-y-4">
+         <div class="grid grid-cols-2 gap-4">
+          <div><label class="block text-sm font-bold text-gray-700 mb-2">First name</label> <input type="text" value="Sarah" class="w-full px-4 py-2.5 border-2 border-gray-200 rounded-xl text-sm text-gray-900 focus:ring-2 focus:ring-purple-500 focus:border-purple-500 transition-all font-medium">
           </div>
-          <div><label class="block text-sm font-bold text-gray-700 mb-2">Last name</label> <input type="text" value="Johnson" class="w-full px-4 py-3 border-2 border-gray-200 rounded-xl text-gray-900 focus:ring-2 focus:ring-purple-500 focus:border-purple-500 transition-all font-medium">
+          <div><label class="block text-sm font-bold text-gray-700 mb-2">Last name</label> <input type="text" value="Johnson" class="w-full px-4 py-2.5 border-2 border-gray-200 rounded-xl text-sm text-gray-900 focus:ring-2 focus:ring-purple-500 focus:border-purple-500 transition-all font-medium">
           </div>
          </div>
-         <div><label class="block text-sm font-bold text-gray-700 mb-2">Email address</label> <input type="email" value="sarah.johnson@email.com" class="w-full px-4 py-3 border-2 border-gray-200 rounded-xl text-gray-900 focus:ring-2 focus:ring-purple-500 focus:border-purple-500 transition-all font-medium">
+         <div><label class="block text-sm font-bold text-gray-700 mb-2">Email address</label> <input type="email" value="sarah.johnson@email.com" class="w-full px-4 py-2.5 border-2 border-gray-200 rounded-xl text-sm text-gray-900 focus:ring-2 focus:ring-purple-500 focus:border-purple-500 transition-all font-medium">
          </div>
-         <div><label class="block text-sm font-bold text-gray-700 mb-2">Phone number</label> <input type="tel" value="+1 (555) 123-4567" class="w-full px-4 py-3 border-2 border-gray-200 rounded-xl text-gray-900 focus:ring-2 focus:ring-purple-500 focus:border-purple-500 transition-all font-medium">
+         <div><label class="block text-sm font-bold text-gray-700 mb-2">Phone number</label> <input type="tel" value="+1 (555) 123-4567" class="w-full px-4 py-2.5 border-2 border-gray-200 rounded-xl text-sm text-gray-900 focus:ring-2 focus:ring-purple-500 focus:border-purple-500 transition-all font-medium">
          </div>
-         <div class="grid grid-cols-2 gap-5">
-          <div><label class="block text-sm font-bold text-gray-700 mb-2">Preferred Language</label> <select class="w-full px-4 py-3 border-2 border-gray-200 rounded-xl text-gray-900 focus:ring-2 focus:ring-purple-500 focus:border-purple-500 transition-all bg-white font-medium"> <option>English</option> <option>Spanish</option> <option>French</option> <option>German</option> <option>Chinese</option> </select>
+         <div class="grid grid-cols-2 gap-4">
+          <div><label class="block text-sm font-bold text-gray-700 mb-2">Preferred Language</label> <select class="w-full px-4 py-2.5 border-2 border-gray-200 rounded-xl text-sm text-gray-900 focus:ring-2 focus:ring-purple-500 focus:border-purple-500 transition-all bg-white font-medium"> <option>English</option> <option>Spanish</option> <option>French</option> <option>German</option> <option>Chinese</option> </select>
           </div>
-          <div><label class="block text-sm font-bold text-gray-700 mb-2">Service Type</label> <select id="service-select" class="w-full px-4 py-3 border-2 border-gray-200 rounded-xl text-gray-900 focus:ring-2 focus:ring-purple-500 focus:border-purple-500 transition-all bg-white font-medium"> <option>General Consultation</option> <option>Medical Check</option> <option>Lab Results</option> <option>Prescription</option> <option>Follow-up</option> </select>
+          <div><label class="block text-sm font-bold text-gray-700 mb-2">Service Type</label> <select id="service-select" class="w-full px-4 py-2.5 border-2 border-gray-200 rounded-xl text-sm text-gray-900 focus:ring-2 focus:ring-purple-500 focus:border-purple-500 transition-all bg-white font-medium"> <option>General Consultation</option> <option>Medical Check</option> <option>Lab Results</option> <option>Prescription</option> <option>Follow-up</option> </select>
           </div>
          </div>
         </form>
        </div>
       </div>
      </div>
-     <div class="glass-effect border-t p-6" style="border-color: rgba(139, 92, 246, 0.1);">
-      <div class="max-w-3xl mx-auto space-y-3">
-       <div class="flex items-center gap-3"><button id="finish-btn" class="flex-1 text-white font-bold py-4 px-6 rounded-xl transition-all shadow-lg hover:shadow-xl" style="background: linear-gradient(135deg, #8b5cf6, #7c3aed);"> Complete Service </button> <button id="call-next-btn" class="flex-1 bg-white border-2 border-purple-200 hover:border-purple-300 text-gray-700 font-bold py-4 px-6 rounded-xl transition-all shadow-md hover:shadow-lg"> Next Visitor </button>
+     <div class="glass-effect border-t p-4 flex-shrink-0" style="border-color: rgba(139, 92, 246, 0.1);">
+      <div class="max-w-3xl mx-auto">
+       <div class="flex items-center gap-3"><button id="finish-btn" class="flex-1 text-white font-bold py-3 px-6 rounded-xl transition-all shadow-lg hover:shadow-xl text-sm" style="background: linear-gradient(135deg, #8b5cf6, #7c3aed);"> Complete Service </button> <button id="call-next-btn" class="flex-1 bg-white border-2 border-purple-200 hover:border-purple-300 text-gray-700 font-bold py-3 px-6 rounded-xl transition-all shadow-md hover:shadow-lg text-sm"> Next Visitor </button>
         <div class="relative"><button id="more-menu-btn" class="p-4 bg-white border-2 border-gray-200 hover:border-gray-300 rounded-xl transition-all shadow-md hover:shadow-lg">
           <svg class="w-5 h-5 text-gray-600" fill="none" stroke="currentColor" viewbox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 12h.01M12 12h.01M19 12h.01M6 12a1 1 0 11-2 0 1 1 0 012 0zm7 0a1 1 0 11-2 0 1 1 0 012 0zm7 0a1 1 0 11-2 0 1 1 0 012 0z" />
           </svg></button>
@@ -271,75 +294,83 @@
       </div>
      </div>
     </div><!-- Right Panel - Activity Timeline -->
-    <div class="w-80 glass-effect border-l flex flex-col overflow-auto" style="border-color: rgba(139, 92, 246, 0.1);">
-     <div class="p-6 border-b" style="border-color: rgba(139, 92, 246, 0.1);">
+    <div id="activity-panel" class="w-80 glass-effect border-l flex flex-col overflow-hidden transition-all duration-300" style="border-color: rgba(139, 92, 246, 0.1);">
+     <div class="p-4 border-b flex-shrink-0" style="border-color: rgba(139, 92, 246, 0.1);">
       <div class="flex items-center justify-between">
-       <h2 class="text-lg font-bold text-gray-900 flex items-center gap-2">
-        <svg class="w-5 h-5" style="color: #8b5cf6;" fill="none" stroke="currentColor" viewbox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" />
-        </svg> Activity Log</h2><span class="px-3 py-1.5 bg-purple-100 text-purple-700 text-xs font-bold rounded-lg">1h 2m</span>
+       <h2 class="text-base font-bold text-gray-900 flex items-center gap-2">
+        <svg class="w-4 h-4" style="color: #8b5cf6;" fill="none" stroke="currentColor" viewbox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" />
+        </svg> Activity Log</h2>
+       <div class="flex items-center gap-2">
+        <span class="px-2 py-1 bg-purple-100 text-purple-700 text-xs font-bold rounded-lg">1h 2m</span>
+        <button id="toggle-activity-log" class="p-1.5 hover:bg-gray-100 rounded-lg transition-all" title="Toggle Activity Log">
+         <svg class="w-4 h-4 text-gray-600 transition-transform duration-300" fill="none" stroke="currentColor" viewbox="0 0 24 24">
+          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7"/>
+         </svg>
+        </button>
+       </div>
       </div>
      </div>
-     <div class="flex-1 overflow-auto p-6">
-      <div class="space-y-6">
-       <div class="timeline-item relative pl-10">
-        <div class="absolute left-0 top-1 w-6 h-6 rounded-full border-4 border-white shadow-lg" style="background: linear-gradient(135deg, #8b5cf6, #7c3aed);"></div>
-        <div class="text-sm">
+     <div id="activity-content" class="flex-1 overflow-auto p-4">
+      <div class="space-y-4">
+       <div class="timeline-item relative pl-8">
+        <div class="absolute left-0 top-0.5 w-5 h-5 rounded-full border-3 border-white shadow" style="background: linear-gradient(135deg, #8b5cf6, #7c3aed);"></div>
+        <div class="text-xs">
          <p class="font-bold text-gray-900">Called by Clerk</p>
-         <p class="text-gray-600 mt-1">Emily Davis initiated service</p>
-         <p class="text-gray-400 text-xs mt-2 font-semibold">10:23 AM</p>
+         <p class="text-gray-600 mt-0.5 text-xs">Emily Davis initiated service</p>
+         <p class="text-gray-400 text-xs mt-1 font-semibold">10:23 AM</p>
         </div>
        </div>
-       <div class="timeline-item relative pl-10">
-        <div class="absolute left-0 top-1 w-6 h-6 rounded-full border-4 border-white shadow-lg" style="background: linear-gradient(135deg, #06b6d4, #0891b2);"></div>
-        <div class="text-sm">
+       <div class="timeline-item relative pl-8">
+        <div class="absolute left-0 top-0.5 w-5 h-5 rounded-full border-3 border-white shadow" style="background: linear-gradient(135deg, #06b6d4, #0891b2);"></div>
+        <div class="text-xs">
          <p class="font-bold text-gray-900">SMS Sent - Called</p>
-         <p class="text-gray-600 mt-1">Notification sent to +1 (555) 123-4567</p>
-         <p class="text-gray-500 text-xs mt-2 bg-gray-50 rounded-lg p-2 font-medium">"Your turn! Please proceed to Desk 3 now."</p>
-         <p class="text-gray-400 text-xs mt-2 font-semibold">10:23 AM</p>
+         <p class="text-gray-600 mt-0.5">Notification sent to +1 (555) 123-4567</p>
+         <p class="text-gray-500 text-xs mt-1 bg-gray-50 rounded-lg p-1.5 font-medium">"Your turn! Please proceed to Desk 3 now."</p>
+         <p class="text-gray-400 text-xs mt-1 font-semibold">10:23 AM</p>
         </div>
        </div>
-       <div class="timeline-item relative pl-10">
-        <div class="absolute left-0 top-1 w-6 h-6 rounded-full border-4 border-white shadow-lg" style="background: linear-gradient(135deg, #3b82f6, #2563eb);"></div>
-        <div class="text-sm">
+       <div class="timeline-item relative pl-8">
+        <div class="absolute left-0 top-0.5 w-5 h-5 rounded-full border-3 border-white shadow" style="background: linear-gradient(135deg, #3b82f6, #2563eb);"></div>
+        <div class="text-xs">
          <p class="font-bold text-gray-900">Desk Assignment</p>
-         <p class="text-gray-600 mt-1">Auto-assigned to Desk 3</p>
-         <p class="text-gray-400 text-xs mt-2 font-semibold">10:22 AM</p>
+         <p class="text-gray-600 mt-0.5">Auto-assigned to Desk 3</p>
+         <p class="text-gray-400 text-xs mt-1 font-semibold">10:22 AM</p>
         </div>
        </div>
-       <div class="timeline-item relative pl-10">
-        <div class="absolute left-0 top-1 w-6 h-6 rounded-full border-4 border-white shadow-lg" style="background: linear-gradient(135deg, #10b981, #059669);"></div>
-        <div class="text-sm">
+       <div class="timeline-item relative pl-8">
+        <div class="absolute left-0 top-0.5 w-5 h-5 rounded-full border-3 border-white shadow" style="background: linear-gradient(135deg, #10b981, #059669);"></div>
+        <div class="text-xs">
          <p class="font-bold text-gray-900">Check-in Complete</p>
-         <p class="text-gray-600 mt-1">Self-service kiosk registration</p>
-         <p class="text-gray-400 text-xs mt-2 font-semibold">9:21 AM</p>
+         <p class="text-gray-600 mt-0.5">Self-service kiosk registration</p>
+         <p class="text-gray-400 text-xs mt-1 font-semibold">9:21 AM</p>
         </div>
        </div>
-       <div class="timeline-item relative pl-10">
-        <div class="absolute left-0 top-1 w-6 h-6 rounded-full border-4 border-white shadow-lg" style="background: linear-gradient(135deg, #06b6d4, #0891b2);"></div>
-        <div class="text-sm">
+       <div class="timeline-item relative pl-8">
+        <div class="absolute left-0 top-0.5 w-5 h-5 rounded-full border-3 border-white shadow" style="background: linear-gradient(135deg, #06b6d4, #0891b2);"></div>
+        <div class="text-xs">
          <p class="font-bold text-gray-900">SMS Sent - Queue Created</p>
-         <p class="text-gray-600 mt-1">Confirmation sent to +1 (555) 123-4567</p>
-         <p class="text-gray-500 text-xs mt-2 bg-gray-50 rounded-lg p-2 font-medium">"Queue A025 confirmed. You are 8th in line. Estimated wait: 35 min."</p>
-         <p class="text-gray-400 text-xs mt-2 font-semibold">9:21 AM</p>
+         <p class="text-gray-600 mt-0.5">Confirmation sent to +1 (555) 123-4567</p>
+         <p class="text-gray-500 text-xs mt-1 bg-gray-50 rounded-lg p-1.5 font-medium">"Queue A025 confirmed. You are 8th in line. Estimated wait: 35 min."</p>
+         <p class="text-gray-400 text-xs mt-1 font-semibold">9:21 AM</p>
         </div>
        </div>
-       <div class="timeline-item relative pl-10">
-        <div class="absolute left-0 top-1 w-6 h-6 rounded-full border-4 border-white shadow-lg" style="background: linear-gradient(135deg, #ec4899, #db2777);"></div>
-        <div class="text-sm">
+       <div class="timeline-item relative pl-8">
+        <div class="absolute left-0 top-0.5 w-5 h-5 rounded-full border-3 border-white shadow" style="background: linear-gradient(135deg, #ec4899, #db2777);"></div>
+        <div class="text-xs">
          <p class="font-bold text-gray-900">Appointment Booked</p>
-         <p class="text-gray-600 mt-1">Online scheduling system</p>
-         <p class="text-gray-400 text-xs mt-2 font-semibold">Yesterday, 3:45 PM</p>
+         <p class="text-gray-600 mt-0.5">Online scheduling system</p>
+         <p class="text-gray-400 text-xs mt-1 font-semibold">Yesterday, 3:45 PM</p>
         </div>
        </div>
       </div>
      </div>
     </div>
    </div>
-  </div><!-- Bottom Status Bar -->
-  <div class="border-t" style="border-color: rgba(139, 92, 246, 0.2); background: rgba(255, 255, 255, 0.6); backdrop-filter: blur(10px);">
-   <div class="flex"><!-- Extended Sidebar Space -->
+  <!-- Bottom Status Bar -->
+  <div class="border-t flex-shrink-0" style="border-color: rgba(139, 92, 246, 0.2); background: rgba(255, 255, 255, 0.9); backdrop-filter: blur(10px); min-height: 72px; max-height: 72px;">
+   <div class="flex h-full"><!-- Extended Sidebar Space -->
     <div class="w-20" style="background: linear-gradient(180deg, rgba(139, 92, 246, 0.95) 0%, rgba(109, 40, 217, 0.95) 100%);"></div><!-- Stats Content -->
-    <div class="flex-1 px-6 py-3">
+    <div class="flex-1 px-6 flex items-center">
      <div class="flex items-center justify-center gap-8 max-w-4xl mx-auto"><!-- Served Queues -->
       <div id="served-card" class="flex items-center gap-3 cursor-pointer hover:scale-105 transition-all group">
        <div class="w-10 h-10 rounded-lg flex items-center justify-center" style="background: linear-gradient(135deg, #10b981, #059669);">
@@ -638,6 +669,40 @@
         closeModalFunc();
       }
     });
+
+    // Activity Log Toggle
+    const activityPanel = document.getElementById('activity-panel');
+    const activityContent = document.getElementById('activity-content');
+    const toggleButton = document.getElementById('toggle-activity-log');
+    const activityHeader = activityPanel.querySelector('.p-4.border-b');
+    const leftPanel = document.getElementById('left-panel');
+    let isActivityLogOpen = true;
+
+    toggleButton.addEventListener('click', () => {
+      isActivityLogOpen = !isActivityLogOpen;
+      
+      if (isActivityLogOpen) {
+        // Open the Activity Log panel
+        activityPanel.style.width = '20rem'; // w-80 = 20rem
+        activityPanel.style.minWidth = '20rem';
+        activityContent.classList.remove('hidden');
+        activityHeader.querySelector('h2').classList.remove('hidden');
+        activityHeader.querySelector('span').classList.remove('hidden');
+        toggleButton.querySelector('svg').style.transform = 'rotate(0deg)';
+        // Reset left panel to normal size
+        leftPanel.style.width = '20rem'; // w-80
+      } else {
+        // Close the Activity Log panel
+        activityPanel.style.width = '48px'; // Just show the toggle button
+        activityPanel.style.minWidth = '48px';
+        activityContent.classList.add('hidden');
+        activityHeader.querySelector('h2').classList.add('hidden');
+        activityHeader.querySelector('span').classList.add('hidden');
+        toggleButton.querySelector('svg').style.transform = 'rotate(180deg)';
+        // Expand left panel to use the extra space
+        leftPanel.style.width = '28rem'; // Expand from 20rem to 28rem (extra 8rem)
+      }
+    });
   </script>
- <script>(function(){function c(){var b=a.contentDocument||a.contentWindow.document;if(b){var d=b.createElement('script');d.innerHTML="window.__CF$cv$params={r:'9b1f1b3f27ad594e',t:'MTc2NjQwMTEzMS4wMDAwMDA='};var a=document.createElement('script');a.nonce='';a.src='/cdn-cgi/challenge-platform/scripts/jsd/main.js';document.getElementsByTagName('head')[0].appendChild(a);";b.getElementsByTagName('head')[0].appendChild(d)}}if(document.body){var a=document.createElement('iframe');a.height=1;a.width=1;a.style.position='absolute';a.style.top=0;a.style.left=0;a.style.border='none';a.style.visibility='hidden';document.body.appendChild(a);if('loading'!==document.readyState)c();else if(window.addEventListener)document.addEventListener('DOMContentLoaded',c);else{var e=document.onreadystatechange||function(){};document.onreadystatechange=function(b){e(b);'loading'!==document.readyState&&(document.onreadystatechange=e,c())}}}})();</script></body>
+</body>
 </html>
