@@ -94,6 +94,21 @@
       50% { opacity: 0.8; }
     }
 
+    @keyframes fade-in {
+      from {
+        opacity: 0;
+        transform: translateY(-20px);
+      }
+      to {
+        opacity: 1;
+        transform: translateY(0);
+      }
+    }
+
+    .animate-fade-in {
+      animation: fade-in 0.3s ease-out;
+    }
+
     #activity-panel {
       transition: width 0.3s ease, min-width 0.3s ease;
       overflow: hidden;
@@ -429,53 +444,77 @@
      </div>
      <div class="glass-effect border-t p-4 flex-shrink-0" style="border-color: rgba(139, 92, 246, 0.1);">
       <div class="max-w-3xl mx-auto">
-       <div class="flex items-center gap-2 flex-wrap justify-center">
+       <div class="flex items-center gap-3 flex-wrap justify-center">
         <!-- Complete Button -->
-        <button id="finish-btn" class="flex items-center gap-2 px-4 py-2.5 bg-white border-2 border-purple-200 hover:border-purple-400 hover:bg-purple-50 text-gray-700 font-semibold rounded-xl transition-all shadow-md hover:shadow-lg text-sm">
-          <svg class="w-4 h-4 text-purple-600" fill="none" stroke="currentColor" viewbox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
-          </svg> Complete
+        <button id="finish-btn" class="flex flex-col items-center gap-1.5 px-4 py-3 bg-purple-50 hover:bg-purple-100 rounded-2xl transition-all text-sm hover:scale-110 transform group">
+          <div class="w-11 h-11 rounded-full flex items-center justify-center bg-gradient-to-br from-purple-500 to-purple-600 shadow-md group-hover:shadow-lg transition-all">
+            <svg class="w-6 h-6 text-white" fill="none" stroke="currentColor" viewbox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
+            </svg>
+          </div>
+          <span class="font-bold text-purple-700">Complete</span>
         </button>
         
         <!-- Next Button -->
-        <button id="call-next-btn" class="flex items-center gap-2 px-4 py-2.5 bg-white border-2 border-indigo-200 hover:border-indigo-400 hover:bg-indigo-50 text-gray-700 font-semibold rounded-xl transition-all shadow-md hover:shadow-lg text-sm">
-          <svg class="w-4 h-4 text-indigo-600" fill="none" stroke="currentColor" viewbox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 9l3 3m0 0l-3 3m3-3H8m13 0a9 9 0 11-18 0 9 9 0 0118 0z" />
-          </svg> Next
+        <button id="call-next-btn" class="flex flex-col items-center gap-1.5 px-4 py-3 bg-indigo-50 hover:bg-indigo-100 rounded-2xl transition-all text-sm hover:scale-110 transform group">
+          <div class="w-11 h-11 rounded-full flex items-center justify-center bg-gradient-to-br from-indigo-500 to-indigo-600 shadow-md group-hover:shadow-lg transition-all">
+            <svg class="w-6 h-6 text-white" fill="none" stroke="currentColor" viewbox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M13 9l3 3m0 0l-3 3m3-3H8m13 0a9 9 0 11-18 0 9 9 0 0118 0z" />
+            </svg>
+          </div>
+          <span class="font-bold text-indigo-700">Next</span>
         </button>
         
         <!-- Hold Button -->
-        <button id="hold-btn" class="flex items-center gap-2 px-4 py-2.5 bg-white border-2 border-orange-200 hover:border-orange-400 hover:bg-orange-50 text-gray-700 font-semibold rounded-xl transition-all shadow-md hover:shadow-lg text-sm">
-          <svg class="w-4 h-4 text-orange-600" fill="none" stroke="currentColor" viewbox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10 9v6m4-6v6m7-3a9 9 0 11-18 0 9 9 0 0118 0z" />
-          </svg> Hold
+        <button id="hold-btn" class="flex flex-col items-center gap-1.5 px-4 py-3 bg-orange-50 hover:bg-orange-100 rounded-2xl transition-all text-sm hover:scale-110 transform group">
+          <div class="w-11 h-11 rounded-full flex items-center justify-center bg-gradient-to-br from-orange-500 to-orange-600 shadow-md group-hover:shadow-lg transition-all">
+            <svg class="w-6 h-6 text-white" fill="none" stroke="currentColor" viewbox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M10 9v6m4-6v6m7-3a9 9 0 11-18 0 9 9 0 0118 0z" />
+            </svg>
+          </div>
+          <span class="font-bold text-orange-700">Hold</span>
         </button>
         
         <!-- Skip Button -->
-        <button id="skip-btn" class="flex items-center gap-2 px-4 py-2.5 bg-white border-2 border-blue-200 hover:border-blue-400 hover:bg-blue-50 text-gray-700 font-semibold rounded-xl transition-all shadow-md hover:shadow-lg text-sm">
-          <svg class="w-4 h-4 text-blue-600" fill="none" stroke="currentColor" viewbox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 5l7 7-7 7M5 5l7 7-7 7" />
-          </svg> Skip
+        <button id="skip-btn" class="flex flex-col items-center gap-1.5 px-4 py-3 bg-blue-50 hover:bg-blue-100 rounded-2xl transition-all text-sm hover:scale-110 transform group">
+          <div class="w-11 h-11 rounded-full flex items-center justify-center bg-gradient-to-br from-blue-500 to-blue-600 shadow-md group-hover:shadow-lg transition-all">
+            <svg class="w-6 h-6 text-white" fill="none" stroke="currentColor" viewbox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M13 5l7 7-7 7M5 5l7 7-7 7" />
+            </svg>
+          </div>
+          <span class="font-bold text-blue-700">Skip</span>
         </button>
         
         <!-- Transfer Button -->
-        <button id="transfer-btn" class="flex items-center gap-2 px-4 py-2.5 bg-white border-2 border-purple-200 hover:border-purple-400 hover:bg-purple-50 text-gray-700 font-semibold rounded-xl transition-all shadow-md hover:shadow-lg text-sm">
-          <svg class="w-4 h-4 text-purple-600" fill="none" stroke="currentColor" viewbox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 7h12m0 0l-4-4m4 4l-4 4m0 6H4m0 0l4 4m-4-4l4-4" />
-          </svg> Transfer
+        <button id="transfer-btn" class="flex flex-col items-center gap-1.5 px-4 py-3 bg-fuchsia-50 hover:bg-fuchsia-100 rounded-2xl transition-all text-sm hover:scale-110 transform group">
+          <div class="w-11 h-11 rounded-full flex items-center justify-center bg-gradient-to-br from-fuchsia-500 to-fuchsia-600 shadow-md group-hover:shadow-lg transition-all">
+            <svg class="w-6 h-6 text-white" fill="none" stroke="currentColor" viewbox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M8 7h12m0 0l-4-4m4 4l-4 4m0 6H4m0 0l4 4m-4-4l4-4" />
+            </svg>
+          </div>
+          <span class="font-bold text-fuchsia-700">Transfer</span>
         </button>
         
         <!-- Cancel Button -->
-        <button id="cancel-btn" class="flex items-center gap-2 px-4 py-2.5 bg-white border-2 border-red-200 hover:border-red-400 hover:bg-red-50 text-gray-700 font-semibold rounded-xl transition-all shadow-md hover:shadow-lg text-sm">
-          <svg class="w-4 h-4 text-red-600" fill="none" stroke="currentColor" viewbox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12" />
-          </svg> Cancel
+        <button id="cancel-btn" class="flex flex-col items-center gap-1.5 px-4 py-3 bg-red-50 hover:bg-red-100 rounded-2xl transition-all text-sm hover:scale-110 transform group">
+          <div class="w-11 h-11 rounded-full flex items-center justify-center bg-gradient-to-br from-red-500 to-red-600 shadow-md group-hover:shadow-lg transition-all">
+            <svg class="w-6 h-6 text-white" fill="none" stroke="currentColor" viewbox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M6 18L18 6M6 6l12 12" />
+            </svg>
+          </div>
+          <span class="font-bold text-red-700">Cancel</span>
         </button>
         
         <!-- Recall Button -->
-        <button id="recall-btn" class="flex items-center gap-2 px-4 py-2.5 bg-white border-2 border-green-200 hover:border-green-400 hover:bg-green-50 text-gray-700 font-semibold rounded-xl transition-all shadow-md hover:shadow-lg text-sm">
-          <svg class="w-4 h-4 text-green-600" fill="none" stroke="currentColor" viewbox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 5a2 2 0 012-2h3.28a1 1 0 01.948.684l1.498 4.493a1 1 0 01-.502 1.21l-2.257 1.13a11.042 11.042 0 005.516 5.516l1.13-2.257a1 1 0 011.21-.502l4.493 1.498a1 1 0 01.684.949V19a2 2 0 01-2 2h-1C9.716 21 3 14.284 3 6V5z" />
-          </svg> Recall
+        <button id="recall-btn" class="flex flex-col items-center gap-1.5 px-4 py-3 bg-green-50 hover:bg-green-100 rounded-2xl transition-all text-sm hover:scale-110 transform group">
+          <div class="w-11 h-11 rounded-full flex items-center justify-center bg-gradient-to-br from-green-500 to-green-600 shadow-md group-hover:shadow-lg transition-all">
+            <svg class="w-6 h-6 text-white" fill="none" stroke="currentColor" viewbox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M3 5a2 2 0 012-2h3.28a1 1 0 01.948.684l1.498 4.493a1 1 0 01-.502 1.21l-2.257 1.13a11.042 11.042 0 005.516 5.516l1.13-2.257a1 1 0 011.21-.502l4.493 1.498a1 1 0 01.684.949V19a2 2 0 01-2 2h-1C9.716 21 3 14.284 3 6V5z" />
+            </svg>
+          </div>
+          <span class="font-bold text-green-700">Recall</span>
         </button>
         
         <!-- Move Back Button -->
-        <button id="moveback-btn" class="flex items-center gap-2 px-4 py-2.5 bg-white border-2 border-gray-300 hover:border-gray-400 hover:bg-gray-50 text-gray-700 font-semibold rounded-xl transition-all shadow-md hover:shadow-lg text-sm">
-          <svg class="w-4 h-4 text-gray-600" fill="none" stroke="currentColor" viewbox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M11 15l-3-3m0 0l3-3m-3 3h8M3 12a9 9 0 1118 0 9 9 0 01-18 0z" />
-          </svg> Move Back
+        <button id="moveback-btn" class="flex flex-col items-center gap-1.5 px-4 py-3 bg-slate-50 hover:bg-slate-100 rounded-2xl transition-all text-sm hover:scale-110 transform group">
+          <div class="w-11 h-11 rounded-full flex items-center justify-center bg-gradient-to-br from-slate-500 to-slate-600 shadow-md group-hover:shadow-lg transition-all">
+            <svg class="w-6 h-6 text-white" fill="none" stroke="currentColor" viewbox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M11 15l-3-3m0 0l3-3m-3 3h8M3 12a9 9 0 1118 0 9 9 0 01-18 0z" />
+            </svg>
+          </div>
+          <span class="font-bold text-slate-700">Move Back</span>
         </button>
        </div>
       </div>
@@ -740,7 +779,7 @@
      </div>
     </div>
    </div>
-  </div><!-- Modal Overlay -->
+  </div>  <!-- Queue Modal Overlay -->
   <div id="queue-modal" class="hidden fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50" style="backdrop-filter: blur(4px);">
    <div class="bg-white rounded-2xl shadow-2xl w-full max-w-2xl mx-4 max-h-[80%] flex flex-col"><!-- Modal Header -->
     <div class="flex items-center justify-between p-6 border-b border-gray-200">
@@ -754,6 +793,44 @@
     <div class="flex-1 overflow-auto p-6">
      <div id="modal-content" class="space-y-3"><!-- Queue items will be inserted here -->
      </div>
+    </div>
+   </div>
+  </div>
+
+  <!-- Confirmation Modal -->
+  <div id="confirmation-modal" class="hidden fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50" style="backdrop-filter: blur(4px);">
+   <div class="bg-white rounded-2xl shadow-2xl w-full max-w-md mx-4 animate-fade-in">
+    <!-- Modal Header -->
+    <div class="p-6 border-b border-gray-100">
+     <div class="flex items-center gap-4">
+      <div class="w-12 h-12 rounded-full flex items-center justify-center" id="confirm-icon-container">
+       <svg class="w-7 h-7" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"/>
+       </svg>
+      </div>
+      <div class="flex-1">
+       <h3 id="confirm-title" class="text-xl font-bold text-gray-900">Complete Service</h3>
+       <p id="confirm-subtitle" class="text-sm text-gray-500 mt-0.5">Confirm the action below</p>
+      </div>
+     </div>
+    </div>
+    
+    <!-- Modal Body -->
+    <div class="p-6">
+     <p id="confirm-message" class="text-gray-700 text-base leading-relaxed"></p>
+     <div id="confirm-details" class="mt-4 p-4 bg-gray-50 rounded-xl">
+      <!-- Details will be inserted here -->
+     </div>
+    </div>
+    
+    <!-- Modal Footer -->
+    <div class="p-6 border-t border-gray-100 flex gap-3">
+     <button id="confirm-cancel-btn" class="flex-1 px-6 py-3 bg-gray-100 hover:bg-gray-200 text-gray-700 font-bold rounded-xl transition-all">
+      Cancel
+     </button>
+     <button id="confirm-ok-btn" class="flex-1 px-6 py-3 text-white font-bold rounded-xl transition-all shadow-md hover:shadow-lg">
+      Confirm
+     </button>
     </div>
    </div>
   </div>
@@ -1111,11 +1188,196 @@
       }
     }
 
+    // Store visitor data per desk
+    const deskData = {
+      desk1: null,
+      desk2: null,
+      desk3: null,
+      desk4: null,
+      desk5: null
+    };
+    
+    let currentActiveDeskBeforeSwitch = 'desk3'; // Track the desk before switching
+    
+    // Get current desk
+    function getCurrentDesk() {
+      return document.getElementById('desk-select').value;
+    }
+    
+    // Save current visitor to desk
+    function saveVisitorToDesk(deskId = null) {
+      const currentDesk = deskId || currentActiveDeskBeforeSwitch;
+      const currentName = document.getElementById('detail-name').textContent;
+      
+      if (currentName && currentName !== 'No Visitor') {
+        // Get all visitor data
+        const inputs = document.querySelectorAll('input[type="text"]');
+        const emailInput = document.querySelector('input[type="email"]');
+        const phoneInput = document.querySelector('input[type="tel"]');
+        const serviceDisplay = document.querySelector('.p-4.bg-gradient-to-r.from-purple-50.to-pink-50');
+        
+        deskData[currentDesk] = {
+          name: currentName,
+          token: document.querySelector('.text-2xl.font-bold.text-gray-900 + .px-3').textContent,
+          firstName: inputs[0] ? inputs[0].value : '',
+          lastName: inputs[1] ? inputs[1].value : '',
+          email: emailInput ? emailInput.value : '',
+          phone: phoneInput ? phoneInput.value : '',
+          serviceHTML: serviceDisplay ? serviceDisplay.innerHTML : '',
+          timestamp: Date.now()
+        };
+      }
+    }
+    
+    // Load visitor for selected desk
+    function loadVisitorForDesk(deskId) {
+      const visitorData = deskData[deskId];
+      
+      if (visitorData) {
+        // Show the visitor form
+        const visitorForm = document.querySelector('.max-w-3xl.mx-auto.bg-white.rounded-xl.shadow-lg.p-6');
+        if (visitorForm) {
+          visitorForm.style.display = 'block';
+        }
+        
+        // Remove "no visitor" message
+        const noVisitorMsg = document.getElementById('no-visitor-message');
+        if (noVisitorMsg) {
+          noVisitorMsg.remove();
+        }
+        
+        // Populate header
+        document.getElementById('detail-name').textContent = visitorData.name;
+        document.querySelector('.text-2xl.font-bold.text-gray-900 + .px-3').textContent = visitorData.token;
+        
+        // Update status badge
+        const statusBadge = document.querySelector('.px-3.py-1.text-white.text-sm.font-bold.rounded-lg');
+        if (statusBadge) {
+          statusBadge.style.background = 'linear-gradient(135deg, #10b981, #059669)';
+          statusBadge.innerHTML = '● Serving now';
+        }
+        
+        // Populate form fields
+        const inputs = document.querySelectorAll('input[type="text"]');
+        if (inputs[0]) inputs[0].value = visitorData.firstName;
+        if (inputs[1]) inputs[1].value = visitorData.lastName;
+        
+        const emailInput = document.querySelector('input[type="email"]');
+        if (emailInput) emailInput.value = visitorData.email;
+        
+        const phoneInput = document.querySelector('input[type="tel"]');
+        if (phoneInput) phoneInput.value = visitorData.phone;
+        
+        // Restore service display
+        const serviceDisplay = document.querySelector('.p-4.bg-gradient-to-r.from-purple-50.to-pink-50');
+        if (serviceDisplay && visitorData.serviceHTML) {
+          serviceDisplay.innerHTML = visitorData.serviceHTML;
+        }
+        
+        // Update right panel details
+        const detailsTab = document.getElementById('tab-details');
+        if (detailsTab) {
+          // Remove empty state
+          const emptyState = detailsTab.querySelector('#details-empty-state');
+          if (emptyState) emptyState.remove();
+          
+          // Show all detail rows
+          const detailRows = detailsTab.querySelectorAll('.detail-row');
+          detailRows.forEach(row => row.style.display = '');
+          
+          // Update fields
+          const nameField = detailsTab.querySelector('.detail-row:nth-child(2) .text-sm.font-bold');
+          if (nameField) nameField.textContent = visitorData.name;
+          
+          const tokenField = detailsTab.querySelector('.detail-row:nth-child(1) .text-sm.font-bold');
+          if (tokenField) tokenField.textContent = visitorData.token;
+          
+          const phoneField = detailsTab.querySelector('.detail-row:nth-child(4) .text-sm.text-gray-900');
+          if (phoneField) phoneField.textContent = visitorData.phone;
+          
+          const emailField = detailsTab.querySelector('.detail-row:nth-child(5) .text-sm.text-gray-900');
+          if (emailField) emailField.textContent = visitorData.email;
+          
+          const statusField = detailsTab.querySelector('.detail-row:nth-child(3) span');
+          if (statusField) {
+            statusField.style.background = 'linear-gradient(135deg, #10b981, #059669)';
+            statusField.textContent = '● Serving now';
+          }
+          
+          // Update assigned desk
+          const assignedField = detailsTab.querySelector('.detail-row:nth-child(7) .text-sm.text-gray-900');
+          if (assignedField) {
+            const deskNumber = deskId.replace('desk', '');
+            const clerkNames = {
+              'desk1': 'John Smith',
+              'desk2': 'Maria Garcia',
+              'desk3': 'Emily Davis',
+              'desk4': 'David Chen',
+              'desk5': 'Sarah Wilson'
+            };
+            const clerkName = clerkNames[deskId] || 'Staff Member';
+            assignedField.textContent = `${clerkName} - Desk ${deskNumber}`;
+          }
+        }
+      } else {
+        // No visitor on this desk - show empty state
+        clearServingArea();
+      }
+    }
+    
     // Desk selector functionality
     document.getElementById('desk-select').addEventListener('change', (e) => {
       const deskNumber = e.target.value.replace('desk', '');
+      const selectedDesk = e.target.value;
+      
       console.log('Switched to Desk ' + deskNumber);
-      // In a real application, this would load different queue data
+      
+      // Show loading state
+      const middlePanel = document.getElementById('middle-panel');
+      if (middlePanel) {
+        middlePanel.style.opacity = '0.5';
+        middlePanel.style.transition = 'opacity 0.2s';
+      }
+      
+      // Save current visitor before switching (if any)
+      saveVisitorToDesk(currentActiveDeskBeforeSwitch);
+      
+      // Update the tracking variable
+      currentActiveDeskBeforeSwitch = selectedDesk;
+      
+      // Small delay for smooth transition
+      setTimeout(() => {
+        // Load visitor for the new desk
+        loadVisitorForDesk(selectedDesk);
+        
+        // Restore opacity
+        if (middlePanel) {
+          middlePanel.style.opacity = '1';
+        }
+        
+        // Show notification of desk switch
+        const notification = document.createElement('div');
+        notification.className = 'fixed top-4 left-1/2 transform -translate-x-1/2 bg-purple-500 text-white px-6 py-3 rounded-xl shadow-2xl z-50 flex items-center gap-3 animate-fade-in';
+        notification.innerHTML = `
+          <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 7h12m0 0l-4-4m4 4l-4 4m0 6H4m0 0l4 4m-4-4l4-4"/>
+          </svg>
+          <span class="font-bold">Switched to Desk ${deskNumber}</span>
+        `;
+        document.body.appendChild(notification);
+        
+        setTimeout(() => {
+          notification.style.transition = 'opacity 0.3s';
+          notification.style.opacity = '0';
+          setTimeout(() => notification.remove(), 300);
+        }, 2000);
+      }, 200);
+    });
+    
+    // Load initial desk data on page load
+    window.addEventListener('DOMContentLoaded', () => {
+      const initialDesk = document.getElementById('desk-select').value;
+      loadVisitorForDesk(initialDesk);
     });
 
     // Filter change listeners
@@ -1352,6 +1614,1222 @@
           }, 2000);
         }, 1000);
       });
+    }
+
+    // Notification Modal Function
+    function showNotification(title, message, type = 'info') {
+      const colors = {
+        info: {
+          gradient: ['#3b82f6', '#2563eb'],
+          bg: 'bg-blue-50',
+          icon: `<svg class="w-7 h-7 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"/>
+                </svg>`
+        },
+        warning: {
+          gradient: ['#f59e0b', '#d97706'],
+          bg: 'bg-orange-50',
+          icon: `<svg class="w-7 h-7 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z"/>
+                </svg>`
+        },
+        error: {
+          gradient: ['#ef4444', '#dc2626'],
+          bg: 'bg-red-50',
+          icon: `<svg class="w-7 h-7 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"/>
+                </svg>`
+        }
+      };
+      
+      const colorScheme = colors[type] || colors.info;
+      
+      // Create modal
+      const modal = document.createElement('div');
+      modal.className = 'fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 animate-fade-in';
+      modal.style.backdropFilter = 'blur(4px)';
+      modal.style.transition = 'opacity 0.2s ease';
+      
+      modal.innerHTML = `
+        <div class="bg-white rounded-2xl shadow-2xl w-full max-w-md mx-4 animate-fade-in">
+          <div class="p-6">
+            <div class="flex items-start gap-4">
+              <div class="w-12 h-12 rounded-full flex items-center justify-center flex-shrink-0" style="background: linear-gradient(135deg, ${colorScheme.gradient[0]}, ${colorScheme.gradient[1]});">
+                ${colorScheme.icon}
+              </div>
+              <div class="flex-1 pt-1">
+                <h3 class="text-xl font-bold text-gray-900 mb-2">${title}</h3>
+                <p class="text-gray-600 leading-relaxed">${message}</p>
+              </div>
+            </div>
+          </div>
+          <div class="p-6 border-t border-gray-100">
+            <button class="notification-ok-btn w-full px-6 py-3 text-white font-bold rounded-xl transition-all shadow-md hover:shadow-lg" style="background: linear-gradient(135deg, ${colorScheme.gradient[0]}, ${colorScheme.gradient[1]});">
+              Got it
+            </button>
+          </div>
+        </div>
+      `;
+      
+      document.body.appendChild(modal);
+      
+      // Handle close
+      const closeBtn = modal.querySelector('.notification-ok-btn');
+      const handleClose = () => {
+        modal.style.opacity = '0';
+        setTimeout(() => modal.remove(), 200);
+      };
+      
+      closeBtn.addEventListener('click', handleClose);
+      modal.addEventListener('click', (e) => {
+        if (e.target === modal) handleClose();
+      });
+    }
+
+    // Confirmation Modal Functions
+    function showConfirmation(title, subtitle, message, details, iconColor, buttonColor, buttonText, onConfirm) {
+      const modal = document.getElementById('confirmation-modal');
+      const titleEl = document.getElementById('confirm-title');
+      const subtitleEl = document.getElementById('confirm-subtitle');
+      const messageEl = document.getElementById('confirm-message');
+      const detailsEl = document.getElementById('confirm-details');
+      const iconContainer = document.getElementById('confirm-icon-container');
+      const confirmBtn = document.getElementById('confirm-ok-btn');
+      const cancelBtn = document.getElementById('confirm-cancel-btn');
+      
+      // Set content
+      titleEl.textContent = title;
+      subtitleEl.textContent = subtitle;
+      messageEl.textContent = message;
+      detailsEl.innerHTML = details;
+      
+      // Set colors
+      iconContainer.style.background = `linear-gradient(135deg, ${iconColor[0]}, ${iconColor[1]})`;
+      iconContainer.querySelector('svg').style.color = 'white';
+      confirmBtn.style.background = `linear-gradient(135deg, ${buttonColor[0]}, ${buttonColor[1]})`;
+      confirmBtn.textContent = buttonText;
+      
+      // Show modal
+      modal.classList.remove('hidden');
+      
+      // Handle confirm
+      const handleConfirm = () => {
+        modal.classList.add('hidden');
+        onConfirm();
+        cleanup();
+      };
+      
+      // Handle cancel
+      const handleCancel = () => {
+        modal.classList.add('hidden');
+        cleanup();
+      };
+      
+      // Cleanup listeners
+      const cleanup = () => {
+        confirmBtn.removeEventListener('click', handleConfirm);
+        cancelBtn.removeEventListener('click', handleCancel);
+      };
+      
+      confirmBtn.addEventListener('click', handleConfirm);
+      cancelBtn.addEventListener('click', handleCancel);
+    }
+
+    // Complete Button Functionality
+    const finishBtn = document.getElementById('finish-btn');
+    if (finishBtn) {
+      finishBtn.addEventListener('click', () => {
+        // Get current visitor info
+        const currentName = document.getElementById('detail-name').textContent;
+        const currentToken = document.querySelector('.text-2xl.font-bold.text-gray-900 + .px-3').textContent;
+        
+        // Check if there's actually a visitor
+        if (!currentName || currentName === 'No Visitor' || currentName.trim() === '') {
+          showNotification('No Visitor', 'There is no visitor currently being served. Please click "Next" to call a visitor from the queue.', 'info');
+          return;
+        }
+        
+        // Show professional confirmation modal
+        showConfirmation(
+          'Complete Service',
+          'Mark this visitor as served',
+          'Are you sure you want to complete the service for this visitor?',
+          `
+            <div class="space-y-2">
+              <div class="flex items-center justify-between">
+                <span class="text-sm font-semibold text-gray-600">Visitor Name:</span>
+                <span class="text-sm font-bold text-gray-900">${currentName}</span>
+              </div>
+              <div class="flex items-center justify-between">
+                <span class="text-sm font-semibold text-gray-600">Token Number:</span>
+                <span class="text-sm font-bold text-purple-600">${currentToken}</span>
+              </div>
+              <div class="flex items-center justify-between pt-2 border-t border-gray-200">
+                <span class="text-sm font-semibold text-gray-600">Action:</span>
+                <span class="text-sm font-bold text-green-600">Mark as Completed</span>
+              </div>
+            </div>
+          `,
+          ['#8b5cf6', '#7c3aed'], // Purple gradient for icon
+          ['#8b5cf6', '#7c3aed'], // Purple gradient for button
+          'Complete Service',
+          () => {
+            // Store original content
+            const iconCircle = finishBtn.querySelector('div');
+            const originalBg = iconCircle.className;
+            
+            // Show loading state
+            iconCircle.className = 'w-11 h-11 rounded-full flex items-center justify-center bg-gradient-to-br from-purple-400 to-purple-500 shadow-md transition-all';
+            iconCircle.innerHTML = '<svg class="w-6 h-6 text-white animate-spin" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15"/></svg>';
+            
+            // Simulate completion process
+            setTimeout(() => {
+              // Show success
+              iconCircle.className = 'w-11 h-11 rounded-full flex items-center justify-center bg-gradient-to-br from-green-500 to-green-600 shadow-lg transition-all';
+              iconCircle.innerHTML = '<svg class="w-6 h-6 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="3" d="M5 13l4 4L19 7"/></svg>';
+              
+              // Show success notification
+              const notification = document.createElement('div');
+              notification.className = 'fixed top-4 right-4 bg-green-500 text-white px-6 py-4 rounded-xl shadow-2xl z-50 flex items-center gap-3 animate-fade-in';
+              notification.innerHTML = `
+                <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"/>
+                </svg>
+                <div>
+                  <p class="font-bold">Service Completed!</p>
+                  <p class="text-sm opacity-90">${currentName} has been served</p>
+                </div>
+              `;
+              document.body.appendChild(notification);
+              
+              // Update stats (increment served count)
+              const servedCount = document.querySelector('#served-card .text-xl.font-bold');
+              if (servedCount) {
+                servedCount.textContent = parseInt(servedCount.textContent) + 1;
+              }
+              
+              // Clear the desk data immediately
+              const currentDesk = currentActiveDeskBeforeSwitch;
+              deskData[currentDesk] = null;
+              
+              // Clear all user details in main panel
+              document.getElementById('detail-name').textContent = 'No Visitor';
+              document.querySelector('.text-2xl.font-bold.text-gray-900 + .px-3').textContent = '---';
+              
+              // Clear status badge
+              const statusBadge = document.querySelector('.px-3.py-1.text-white.text-sm.font-bold.rounded-lg');
+              if (statusBadge) {
+                statusBadge.style.background = 'linear-gradient(135deg, #9ca3af, #6b7280)';
+                statusBadge.innerHTML = '● No Service';
+              }
+              
+              // Hide the entire visitor information form
+              const visitorForm = document.querySelector('.max-w-3xl.mx-auto.bg-white.rounded-xl.shadow-lg.p-6');
+              if (visitorForm) {
+                visitorForm.style.display = 'none';
+              }
+              
+              // Show a "No visitor selected" message instead in the middle panel
+              const formParent = document.querySelector('#middle-panel .flex-1.overflow-auto .p-6');
+              if (formParent && !document.getElementById('no-visitor-message')) {
+                const noVisitorMsg = document.createElement('div');
+                noVisitorMsg.id = 'no-visitor-message';
+                noVisitorMsg.className = 'max-w-3xl mx-auto bg-gray-50 rounded-xl shadow-lg p-12 text-center';
+                noVisitorMsg.innerHTML = `
+                  <svg class="w-24 h-24 mx-auto mb-6 text-gray-300" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0zm6 3a2 2 0 11-4 0 2 2 0 014 0zM7 10a2 2 0 11-4 0 2 2 0 014 0z"/>
+                  </svg>
+                  <h3 class="text-2xl font-bold text-gray-400 mb-2">No Visitor Selected</h3>
+                  <p class="text-gray-500">Click "Next" to call a visitor from the queue</p>
+                `;
+                formParent.appendChild(noVisitorMsg);
+              }
+              
+              // Hide right panel details content and show empty state
+              const detailsTab = document.getElementById('tab-details');
+              if (detailsTab) {
+                // Hide all detail rows
+                const detailRows = detailsTab.querySelectorAll('.detail-row');
+                detailRows.forEach(row => row.style.display = 'none');
+                
+                // Show "No Visitor" placeholder in details tab
+                if (!detailsTab.querySelector('#details-empty-state')) {
+                  const emptyState = document.createElement('div');
+                  emptyState.id = 'details-empty-state';
+                  emptyState.className = 'text-center py-8';
+                  emptyState.innerHTML = `
+                    <svg class="w-16 h-16 mx-auto mb-3 text-gray-300" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z"/>
+                    </svg>
+                    <p class="text-sm font-semibold text-gray-400">No Visitor Data</p>
+                    <p class="text-xs text-gray-400 mt-1">Call next visitor to view details</p>
+                  `;
+                  detailsTab.appendChild(emptyState);
+                }
+              }
+              
+              // Remove notification after 3 seconds
+              setTimeout(() => {
+                notification.style.transition = 'opacity 0.3s';
+                notification.style.opacity = '0';
+                setTimeout(() => notification.remove(), 300);
+              }, 3000);
+              
+              // Reset button after 2 seconds
+              setTimeout(() => {
+                iconCircle.className = originalBg;
+                iconCircle.innerHTML = '<svg class="w-6 h-6 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"/></svg>';
+              }, 2000);
+            }, 1000);
+          }
+        );
+      });
+    }
+
+    // Next Button Functionality
+    const callNextBtn = document.getElementById('call-next-btn');
+    if (callNextBtn) {
+      callNextBtn.addEventListener('click', () => {
+        // Get the queue container
+        const queueContainer = document.querySelector('.space-y-3');
+        const visitorCards = queueContainer.querySelectorAll('.visitor-card');
+        
+        if (visitorCards.length === 0) {
+          showNotification('Queue Empty', 'There are no visitors in the waiting queue at the moment.', 'info');
+          return;
+        }
+        
+        // Get first visitor from queue
+        const nextVisitor = allVisitors[0];
+        
+        if (!nextVisitor) {
+          showNotification('Queue Empty', 'There are no more visitors in the waiting queue.', 'info');
+          return;
+        }
+        
+        // Store original content
+        const iconCircle = callNextBtn.querySelector('div');
+        const originalBg = iconCircle.className;
+        
+        // Show loading state
+        iconCircle.className = 'w-11 h-11 rounded-full flex items-center justify-center bg-gradient-to-br from-indigo-400 to-indigo-500 shadow-md transition-all';
+        iconCircle.innerHTML = '<svg class="w-6 h-6 text-white animate-spin" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15"/></svg>';
+        
+        // Simulate calling next visitor
+        setTimeout(() => {
+          // Show the visitor form again and hide the "no visitor" message
+          const visitorForm = document.querySelector('.max-w-3xl.mx-auto.bg-white.rounded-xl.shadow-lg.p-6');
+          if (visitorForm) {
+            visitorForm.style.display = 'block';
+          }
+          
+          const noVisitorMsg = document.getElementById('no-visitor-message');
+          if (noVisitorMsg) {
+            noVisitorMsg.remove();
+          }
+          
+          // Split name into first and last
+          const nameParts = nextVisitor.name.split(' ');
+          const firstName = nameParts[0] || '';
+          const lastName = nameParts.slice(1).join(' ') || '';
+          
+          // Update main panel header
+          document.getElementById('detail-name').textContent = nextVisitor.name;
+          document.querySelector('.text-2xl.font-bold.text-gray-900 + .px-3').textContent = nextVisitor.token;
+          
+          // Update status badge to "Serving now"
+          const statusBadge = document.querySelector('.px-3.py-1.text-white.text-sm.font-bold.rounded-lg');
+          if (statusBadge) {
+            statusBadge.style.background = 'linear-gradient(135deg, #10b981, #059669)';
+            statusBadge.innerHTML = '● Serving now';
+          }
+          
+          // Update form fields with visitor data
+          const firstNameInput = document.querySelector('input[type="text"]');
+          if (firstNameInput) firstNameInput.value = firstName;
+          
+          const inputs = document.querySelectorAll('input[type="text"]');
+          if (inputs[1]) inputs[1].value = lastName;
+          
+          const emailInput = document.querySelector('input[type="email"]');
+          if (emailInput) emailInput.value = `${firstName.toLowerCase()}.${lastName.toLowerCase()}@email.com`;
+          
+          const phoneInput = document.querySelector('input[type="tel"]');
+          if (phoneInput) phoneInput.value = '+1 (555) ' + Math.floor(Math.random() * 900 + 100) + '-' + Math.floor(Math.random() * 9000 + 1000);
+          
+          // Update right panel details tab
+          const detailsTab = document.getElementById('tab-details');
+          if (detailsTab) {
+            // Remove empty state if it exists
+            const emptyState = detailsTab.querySelector('#details-empty-state');
+            if (emptyState) emptyState.remove();
+            
+            // Show all detail rows again
+            const detailRows = detailsTab.querySelectorAll('.detail-row');
+            detailRows.forEach(row => row.style.display = '');
+            
+            // Token
+            const tokenField = detailsTab.querySelector('.detail-row:nth-child(1) .text-sm.font-bold');
+            if (tokenField) tokenField.textContent = nextVisitor.token;
+            
+            // Name
+            const nameField = detailsTab.querySelector('.detail-row:nth-child(2) .text-sm.font-bold');
+            if (nameField) nameField.textContent = nextVisitor.name;
+            
+            // Status
+            const statusField = detailsTab.querySelector('.detail-row:nth-child(3) span');
+            if (statusField) {
+              statusField.style.background = 'linear-gradient(135deg, #10b981, #059669)';
+              statusField.textContent = '● Serving now';
+            }
+            
+            // Phone
+            const phoneField = detailsTab.querySelector('.detail-row:nth-child(4) .text-sm.text-gray-900');
+            if (phoneField) phoneField.textContent = phoneInput ? phoneInput.value : '+1 (555) 123-4567';
+            
+            // Email
+            const emailField = detailsTab.querySelector('.detail-row:nth-child(5) .text-sm.text-gray-900');
+            if (emailField) emailField.textContent = emailInput ? emailInput.value : `${firstName.toLowerCase()}@email.com`;
+            
+            // Assigned to - Update with current desk
+            const assignedField = detailsTab.querySelector('.detail-row:nth-child(7) .text-sm.text-gray-900');
+            if (assignedField) {
+              const currentDesk = document.getElementById('desk-select').value;
+              const deskNumber = currentDesk.replace('desk', '');
+              const clerkNames = {
+                'desk1': 'John Smith',
+                'desk2': 'Maria Garcia',
+                'desk3': 'Emily Davis',
+                'desk4': 'David Chen',
+                'desk5': 'Sarah Wilson'
+              };
+              const clerkName = clerkNames[currentDesk] || 'Staff Member';
+              assignedField.textContent = `${clerkName} - Desk ${deskNumber}`;
+            }
+            
+            // Update service hierarchy in details tab
+            const hierarchyContainer = detailsTab.querySelector('.detail-row:nth-child(6) .space-y-2');
+            if (hierarchyContainer && nextVisitor.parentService) {
+              let hierarchyHTML = `
+                <div class="flex items-start gap-2">
+                  <span class="w-5 h-5 rounded-full bg-purple-600 text-white flex items-center justify-center text-[10px] font-bold flex-shrink-0 mt-0.5">1</span>
+                  <div>
+                    <p class="text-[10px] text-gray-500 font-semibold uppercase">Parent</p>
+                    <p class="text-xs font-bold text-gray-900">${nextVisitor.parentService}</p>
+                  </div>
+                </div>
+              `;
+              
+              if (nextVisitor.subParentService) {
+                hierarchyHTML += `
+                  <div class="flex items-start gap-2 ml-2">
+                    <span class="w-5 h-5 rounded-full bg-purple-500 text-white flex items-center justify-center text-[10px] font-bold flex-shrink-0 mt-0.5">2</span>
+                    <div>
+                      <p class="text-[10px] text-gray-500 font-semibold uppercase">Sub-Parent</p>
+                      <p class="text-xs font-bold text-gray-800">${nextVisitor.subParentService}</p>
+                    </div>
+                  </div>
+                `;
+              }
+              
+              if (nextVisitor.childService) {
+                hierarchyHTML += `
+                  <div class="flex items-start gap-2 ml-4">
+                    <span class="w-5 h-5 rounded-full bg-purple-400 text-white flex items-center justify-center text-[10px] font-bold flex-shrink-0 mt-0.5">3</span>
+                    <div>
+                      <p class="text-[10px] text-gray-500 font-semibold uppercase">Child</p>
+                      <p class="text-xs font-bold text-gray-700">${nextVisitor.childService}</p>
+                    </div>
+                  </div>
+                `;
+              }
+              
+              hierarchyContainer.innerHTML = hierarchyHTML;
+            }
+          }
+          
+          // Update the current service display in the form
+          const currentServiceDisplay = document.querySelector('.p-4.bg-gradient-to-r.from-purple-50.to-pink-50 .space-y-2');
+          if (currentServiceDisplay && nextVisitor.parentService) {
+            let serviceHTML = `
+              <div class="flex items-center gap-2">
+                <span class="w-6 h-6 rounded-full bg-purple-600 text-white flex items-center justify-center text-xs font-bold flex-shrink-0">1</span>
+                <div>
+                  <p class="text-xs text-gray-600 font-semibold">Parent Service</p>
+                  <p class="text-sm font-bold text-gray-900">${nextVisitor.parentService}</p>
+                </div>
+              </div>
+            `;
+            
+            if (nextVisitor.subParentService) {
+              serviceHTML += `
+                <div class="flex items-center gap-2 ml-3">
+                  <span class="w-6 h-6 rounded-full bg-purple-500 text-white flex items-center justify-center text-xs font-bold flex-shrink-0">2</span>
+                  <div>
+                    <p class="text-xs text-gray-600 font-semibold">Sub-Parent Service</p>
+                    <p class="text-sm font-bold text-gray-800">${nextVisitor.subParentService}</p>
+                  </div>
+                </div>
+              `;
+            }
+            
+            if (nextVisitor.childService) {
+              serviceHTML += `
+                <div class="flex items-center gap-2 ml-6">
+                  <span class="w-6 h-6 rounded-full bg-purple-400 text-white flex items-center justify-center text-xs font-bold flex-shrink-0">3</span>
+                  <div>
+                    <p class="text-xs text-gray-600 font-semibold">Child Service</p>
+                    <p class="text-sm font-bold text-gray-700">${nextVisitor.childService}</p>
+                  </div>
+                </div>
+              `;
+            }
+            
+            currentServiceDisplay.innerHTML = serviceHTML;
+          }
+          
+          // Show success on button
+          iconCircle.className = 'w-11 h-11 rounded-full flex items-center justify-center bg-gradient-to-br from-green-500 to-green-600 shadow-lg transition-all';
+          iconCircle.innerHTML = '<svg class="w-6 h-6 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="3" d="M5 13l4 4L19 7"/></svg>';
+          
+          // Show notification
+          const notification = document.createElement('div');
+          notification.className = 'fixed top-4 right-4 bg-indigo-500 text-white px-6 py-4 rounded-xl shadow-2xl z-50 flex items-center gap-3 animate-fade-in';
+          notification.innerHTML = `
+            <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 17h5l-1.405-1.405A2.032 2.032 0 0118 14.158V11a6.002 6.002 0 00-4-5.659V5a2 2 0 10-4 0v.341C7.67 6.165 6 8.388 6 11v3.159c0 .538-.214 1.055-.595 1.436L4 17h5m6 0v1a3 3 0 11-6 0v-1m6 0H9"/>
+            </svg>
+            <div>
+              <p class="font-bold">Now Serving</p>
+              <p class="text-sm opacity-90">${nextVisitor.name} (${nextVisitor.token})</p>
+            </div>
+          `;
+          document.body.appendChild(notification);
+          
+          // Remove first visitor from array and re-render queue
+          allVisitors.shift();
+          renderQueue();
+          
+          // Save this visitor to the current desk
+          setTimeout(() => {
+            saveVisitorToDesk();
+          }, 1200);
+          
+          // Remove notification after 3 seconds
+          setTimeout(() => {
+            notification.style.transition = 'opacity 0.3s';
+            notification.style.opacity = '0';
+            setTimeout(() => notification.remove(), 300);
+          }, 3000);
+          
+          // Reset button after 2 seconds
+          setTimeout(() => {
+            iconCircle.className = originalBg;
+            iconCircle.innerHTML = '<svg class="w-6 h-6 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M13 9l3 3m0 0l-3 3m3-3H8m13 0a9 9 0 11-18 0 9 9 0 0118 0z"/></svg>';
+          }, 2000);
+        }, 1000);
+      });
+    }
+
+    // Transfer Button Functionality
+    const transferBtn = document.getElementById('transfer-btn');
+    if (transferBtn) {
+      transferBtn.addEventListener('click', () => {
+        const currentName = document.getElementById('detail-name').textContent;
+        const currentToken = document.querySelector('.text-2xl.font-bold.text-gray-900 + .px-3').textContent;
+        
+        if (!currentName || currentName === 'No Visitor') {
+          showNotification('No Visitor', 'There is no visitor currently being served to transfer.', 'info');
+          return;
+        }
+        
+        // Show transfer modal with service and desk selection
+        showTransferModal(currentName, currentToken);
+      });
+    }
+
+    // Transfer Modal Function
+    function showTransferModal(visitorName, token) {
+      const modal = document.createElement('div');
+      modal.className = 'fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50';
+      modal.style.backdropFilter = 'blur(4px)';
+      
+      modal.innerHTML = `
+        <div class="bg-white rounded-2xl shadow-2xl w-full max-w-lg mx-4 animate-fade-in">
+          <div class="p-6 border-b border-gray-100">
+            <div class="flex items-center gap-4">
+              <div class="w-12 h-12 rounded-full flex items-center justify-center" style="background: linear-gradient(135deg, #a855f7, #9333ea);">
+                <svg class="w-7 h-7 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 7h12m0 0l-4-4m4 4l-4 4m0 6H4m0 0l4 4m-4-4l4-4"/>
+                </svg>
+              </div>
+              <div class="flex-1">
+                <h3 class="text-xl font-bold text-gray-900">Transfer Visitor</h3>
+                <p class="text-sm text-gray-500 mt-0.5">${visitorName} (${token})</p>
+              </div>
+            </div>
+          </div>
+          
+          <div class="p-6 space-y-4">
+            <!-- Transfer Type Selection -->
+            <div>
+              <label class="block text-sm font-bold text-gray-700 mb-3">Transfer Type</label>
+              <div class="flex gap-3">
+                <label class="flex-1 cursor-pointer">
+                  <input type="radio" name="transfer-type" value="desk" class="hidden peer" checked>
+                  <div class="p-4 border-2 border-gray-200 rounded-xl peer-checked:border-purple-600 peer-checked:bg-purple-50 transition-all hover:border-purple-300">
+                    <div class="flex items-center gap-3">
+                      <svg class="w-5 h-5 text-purple-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 7h12m0 0l-4-4m4 4l-4 4m0 6H4m0 0l4 4m-4-4l4-4"/>
+                      </svg>
+                      <div>
+                        <p class="font-bold text-gray-900">Transfer to Desk</p>
+                        <p class="text-xs text-gray-500">Move to another counter</p>
+                      </div>
+                    </div>
+                  </div>
+                </label>
+                
+                <label class="flex-1 cursor-pointer">
+                  <input type="radio" name="transfer-type" value="service" class="hidden peer">
+                  <div class="p-4 border-2 border-gray-200 rounded-xl peer-checked:border-purple-600 peer-checked:bg-purple-50 transition-all hover:border-purple-300">
+                    <div class="flex items-center gap-3">
+                      <svg class="w-5 h-5 text-purple-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2"/>
+                      </svg>
+                      <div>
+                        <p class="font-bold text-gray-900">Change Service</p>
+                        <p class="text-xs text-gray-500">Update service type</p>
+                      </div>
+                    </div>
+                  </div>
+                </label>
+              </div>
+            </div>
+            
+            <!-- Desk Selection (shown by default) -->
+            <div id="desk-transfer-section">
+              <label class="block text-sm font-bold text-gray-700 mb-2">Select Destination Desk</label>
+              <select id="transfer-desk" class="w-full px-4 py-2.5 border-2 border-purple-200 rounded-xl text-sm font-semibold text-gray-700 focus:ring-2 focus:ring-purple-500 focus:border-purple-500 transition-all bg-white">
+                <option value="">-- Select Desk --</option>
+                <option value="desk1">Desk 1</option>
+                <option value="desk2">Desk 2</option>
+                <option value="desk3">Desk 3</option>
+                <option value="desk4">Desk 4</option>
+                <option value="desk5">Desk 5</option>
+              </select>
+            </div>
+            
+            <!-- Service Selection (hidden by default) -->
+            <div id="service-transfer-section" class="hidden">
+              <label class="block text-sm font-bold text-gray-700 mb-2">Select New Service</label>
+              <div class="space-y-3 p-4 bg-gray-50 rounded-xl">
+                <p class="text-xs text-gray-600 mb-3">Select new service or leave empty to keep current service</p>
+                
+                <!-- Level 1: Parent Service -->
+                <div>
+                  <label class="block text-xs font-semibold text-gray-600 mb-1.5">
+                    <span class="inline-flex items-center gap-1">
+                      <span class="w-5 h-5 bg-purple-600 text-white rounded-full flex items-center justify-center text-xs font-bold">1</span>
+                      <span>Level 1 - Parent Service</span>
+                    </span>
+                  </label>
+                  <select id="transfer-service-level-1" class="w-full px-4 py-2.5 border-2 border-purple-300 rounded-xl text-sm text-gray-900 focus:ring-2 focus:ring-purple-500 focus:border-purple-500 transition-all bg-white font-medium">
+                    <option value="">-- Keep Current Service --</option>
+                    <option value="general">General Consultation</option>
+                    <option value="medical">Medical Check</option>
+                    <option value="lab">Laboratory Services</option>
+                    <option value="prescription">Prescription</option>
+                    <option value="followup">Follow-up</option>
+                  </select>
+                </div>
+                
+                <!-- Level 2: Sub-Parent Service -->
+                <div id="transfer-level-2-container" class="hidden">
+                  <label class="block text-xs font-semibold text-gray-600 mb-1.5">
+                    <span class="inline-flex items-center gap-1">
+                      <span class="w-5 h-5 bg-purple-500 text-white rounded-full flex items-center justify-center text-xs font-bold">2</span>
+                      <span>Level 2 - Sub-Parent Service</span>
+                    </span>
+                  </label>
+                  <select id="transfer-service-level-2" class="w-full px-4 py-2.5 border-2 border-purple-300 rounded-xl text-sm text-gray-900 focus:ring-2 focus:ring-purple-500 focus:border-purple-500 transition-all bg-white font-medium">
+                    <option value="">-- Select Sub-Parent Service --</option>
+                  </select>
+                </div>
+                
+                <!-- Level 3: Child Service -->
+                <div id="transfer-level-3-container" class="hidden">
+                  <label class="block text-xs font-semibold text-gray-600 mb-1.5">
+                    <span class="inline-flex items-center gap-1">
+                      <span class="w-5 h-5 bg-purple-400 text-white rounded-full flex items-center justify-center text-xs font-bold">3</span>
+                      <span>Level 3 - Child Service</span>
+                    </span>
+                  </label>
+                  <select id="transfer-service-level-3" class="w-full px-4 py-2.5 border-2 border-purple-300 rounded-xl text-sm text-gray-900 focus:ring-2 focus:ring-purple-500 focus:border-purple-500 transition-all bg-white font-medium">
+                    <option value="">-- Select Child Service --</option>
+                  </select>
+                </div>
+                
+                <!-- Selected Service Display -->
+                <div id="transfer-selected-service" class="hidden mt-3 p-3 bg-white border-2 border-purple-200 rounded-lg">
+                  <p class="text-xs font-semibold text-gray-600 mb-1">New Service:</p>
+                  <p id="transfer-selected-service-text" class="text-sm font-bold text-purple-700"></p>
+                </div>
+              </div>
+            </div>
+            
+            <div>
+              <label class="block text-sm font-bold text-gray-700 mb-2">Transfer Notes (Optional)</label>
+              <textarea id="transfer-notes" rows="3" class="w-full px-4 py-2.5 border-2 border-purple-200 rounded-xl text-sm text-gray-700 focus:ring-2 focus:ring-purple-500 focus:border-purple-500 transition-all bg-white" placeholder="Add any notes for the receiving desk..."></textarea>
+            </div>
+          </div>
+          
+          <div class="p-6 border-t border-gray-100 flex gap-3">
+            <button id="transfer-modal-cancel" class="flex-1 px-6 py-3 bg-gray-100 hover:bg-gray-200 text-gray-700 font-bold rounded-xl transition-all">
+              Cancel
+            </button>
+            <button id="transfer-modal-confirm" class="flex-1 px-6 py-3 text-white font-bold rounded-xl transition-all shadow-md hover:shadow-lg" style="background: linear-gradient(135deg, #a855f7, #9333ea);">
+              Transfer
+            </button>
+          </div>
+        </div>
+      `;
+      
+      document.body.appendChild(modal);
+      
+      const cancelBtn = modal.querySelector('#transfer-modal-cancel');
+      const confirmBtn = modal.querySelector('#transfer-modal-confirm');
+      const deskSelect = modal.querySelector('#transfer-desk');
+      
+      // Handle transfer type switching
+      const transferTypeRadios = modal.querySelectorAll('input[name="transfer-type"]');
+      const deskTransferSection = modal.querySelector('#desk-transfer-section');
+      const serviceTransferSection = modal.querySelector('#service-transfer-section');
+      
+      transferTypeRadios.forEach(radio => {
+        radio.addEventListener('change', (e) => {
+          if (e.target.value === 'desk') {
+            deskTransferSection.classList.remove('hidden');
+            serviceTransferSection.classList.add('hidden');
+          } else {
+            deskTransferSection.classList.add('hidden');
+            serviceTransferSection.classList.remove('hidden');
+          }
+        });
+      });
+      
+      // Setup cascading service selection for transfer modal
+      const transferLevel1 = modal.querySelector('#transfer-service-level-1');
+      const transferLevel2 = modal.querySelector('#transfer-service-level-2');
+      const transferLevel3 = modal.querySelector('#transfer-service-level-3');
+      const transferLevel2Container = modal.querySelector('#transfer-level-2-container');
+      const transferLevel3Container = modal.querySelector('#transfer-level-3-container');
+      const transferSelectedDisplay = modal.querySelector('#transfer-selected-service');
+      const transferSelectedText = modal.querySelector('#transfer-selected-service-text');
+      
+      let selectedServiceData = { level1: '', level2: '', level3: '', fullPath: '' };
+      
+      // Level 1 change
+      transferLevel1.addEventListener('change', function() {
+        const selectedValue = this.value;
+        
+        // Reset level 2 and 3
+        transferLevel2.innerHTML = '<option value="">-- Select Sub-Parent Service --</option>';
+        transferLevel3.innerHTML = '<option value="">-- Select Child Service --</option>';
+        transferLevel2Container.classList.add('hidden');
+        transferLevel3Container.classList.add('hidden');
+        transferSelectedDisplay.classList.add('hidden');
+        
+        selectedServiceData = { level1: selectedValue, level2: '', level3: '', fullPath: '' };
+        
+        if (selectedValue && serviceHierarchy[selectedValue].children) {
+          // Populate level 2
+          const children = serviceHierarchy[selectedValue].children;
+          for (const [key, value] of Object.entries(children)) {
+            const option = document.createElement('option');
+            option.value = key;
+            option.textContent = value.name;
+            transferLevel2.appendChild(option);
+          }
+          transferLevel2Container.classList.remove('hidden');
+        } else if (selectedValue) {
+          // No children, show final selection
+          selectedServiceData.fullPath = serviceHierarchy[selectedValue].name;
+          transferSelectedText.textContent = serviceHierarchy[selectedValue].name;
+          transferSelectedDisplay.classList.remove('hidden');
+        }
+      });
+      
+      // Level 2 change
+      transferLevel2.addEventListener('change', function() {
+        const level1Value = transferLevel1.value;
+        const level2Value = this.value;
+        
+        // Reset level 3
+        transferLevel3.innerHTML = '<option value="">-- Select Child Service --</option>';
+        transferLevel3Container.classList.add('hidden');
+        transferSelectedDisplay.classList.add('hidden');
+        
+        selectedServiceData.level2 = level2Value;
+        selectedServiceData.level3 = '';
+        
+        if (level2Value && serviceHierarchy[level1Value].children[level2Value].children) {
+          // Populate level 3
+          const children = serviceHierarchy[level1Value].children[level2Value].children;
+          for (const [key, value] of Object.entries(children)) {
+            const option = document.createElement('option');
+            option.value = key;
+            option.textContent = value.name;
+            transferLevel3.appendChild(option);
+          }
+          transferLevel3Container.classList.remove('hidden');
+        } else if (level2Value) {
+          // No children, show final selection
+          selectedServiceData.fullPath = `${serviceHierarchy[level1Value].name} → ${serviceHierarchy[level1Value].children[level2Value].name}`;
+          transferSelectedText.textContent = selectedServiceData.fullPath;
+          transferSelectedDisplay.classList.remove('hidden');
+        }
+      });
+      
+      // Level 3 change
+      transferLevel3.addEventListener('change', function() {
+        const level1Value = transferLevel1.value;
+        const level2Value = transferLevel2.value;
+        const level3Value = this.value;
+        
+        transferSelectedDisplay.classList.add('hidden');
+        selectedServiceData.level3 = level3Value;
+        
+        if (level3Value) {
+          // Show final selection
+          selectedServiceData.fullPath = `${serviceHierarchy[level1Value].name} → ${serviceHierarchy[level1Value].children[level2Value].name} → ${serviceHierarchy[level1Value].children[level2Value].children[level3Value].name}`;
+          transferSelectedText.textContent = selectedServiceData.fullPath;
+          transferSelectedDisplay.classList.remove('hidden');
+        }
+      });
+      
+      cancelBtn.addEventListener('click', () => modal.remove());
+      
+      confirmBtn.addEventListener('click', () => {
+        const transferType = modal.querySelector('input[name="transfer-type"]:checked').value;
+        const selectedDesk = deskSelect.value;
+        const selectedService = transferLevel1.value;
+        
+        // Validate based on transfer type
+        if (transferType === 'desk' && !selectedDesk) {
+          showNotification('Select Desk', 'Please select a desk to transfer the visitor to.', 'warning');
+          return;
+        }
+        
+        if (transferType === 'service' && !selectedService) {
+          showNotification('Select Service', 'Please select a service to transfer the visitor to.', 'warning');
+          return;
+        }
+        
+        modal.remove();
+        
+        // Create visitor object to add back to queue
+        const nameParts = visitorName.split(' ');
+        const firstName = nameParts[0] || '';
+        const lastName = nameParts.slice(1).join(' ') || '';
+        
+        // Get current or new service info
+        let parentService = 'General Consultation';
+        let serviceType = 'general';
+        let serviceBadge = 'bg-purple-100 text-purple-700';
+        
+        if (selectedService) {
+          // Map selected service to display values
+          const serviceMap = {
+            'general': { name: 'General Consultation', type: 'general', badge: 'bg-purple-100 text-purple-700' },
+            'medical': { name: 'Medical Check', type: 'medical', badge: 'bg-blue-100 text-blue-700' },
+            'lab': { name: 'Laboratory Services', type: 'lab', badge: 'bg-pink-100 text-pink-700' },
+            'prescription': { name: 'Prescription', type: 'prescription', badge: 'bg-green-100 text-green-700' },
+            'followup': { name: 'Follow-up', type: 'followup', badge: 'bg-orange-100 text-orange-700' }
+          };
+          
+          if (serviceMap[selectedService]) {
+            parentService = serviceMap[selectedService].name;
+            serviceType = serviceMap[selectedService].type;
+            serviceBadge = serviceMap[selectedService].badge;
+          }
+        } else {
+          // Get current service from the form
+          const serviceDisplay = document.querySelector('.p-4.bg-gradient-to-r.from-purple-50.to-pink-50');
+          if (serviceDisplay) {
+            const serviceTexts = serviceDisplay.querySelectorAll('.text-sm.font-bold');
+            if (serviceTexts.length > 0) {
+              parentService = serviceTexts[0].textContent;
+            }
+          }
+        }
+        
+        const visitorToAdd = {
+          id: Date.now(),
+          token: token,
+          name: visitorName,
+          service: parentService,
+          serviceType: serviceType,
+          waitTime: '0 min',
+          type: 'appointment',
+          badge: serviceBadge,
+          parentService: parentService,
+          subParentService: null,
+          childService: null
+        };
+        
+        // Add visitor back to the queue
+        allVisitors.unshift(visitorToAdd);
+        
+        // Re-render the queue
+        renderQueue();
+        
+        // Clear serving area
+        clearServingArea();
+        
+        // Show success notification based on transfer type
+        const notification = document.createElement('div');
+        notification.className = 'fixed top-4 right-4 bg-purple-500 text-white px-6 py-4 rounded-xl shadow-2xl z-50 flex items-center gap-3 animate-fade-in';
+        
+        let notificationMessage = '';
+        if (transferType === 'desk') {
+          notificationMessage = `${visitorName} transferred to waiting queue for ${selectedDesk.replace('desk', 'Desk ')}`;
+        } else {
+          const serviceName = selectedServiceData.fullPath || serviceHierarchy[selectedService]?.name || 'new service';
+          notificationMessage = `${visitorName} service changed to: ${serviceName}`;
+        }
+        
+        notification.innerHTML = `
+          <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"/>
+          </svg>
+          <div>
+            <p class="font-bold">Transfer Successful!</p>
+            <p class="text-sm opacity-90">${notificationMessage}</p>
+          </div>
+        `;
+        document.body.appendChild(notification);
+        
+        setTimeout(() => {
+          notification.style.transition = 'opacity 0.3s';
+          notification.style.opacity = '0';
+          setTimeout(() => notification.remove(), 300);
+        }, 4000);
+      });
+    }
+
+    // Cancel Button Functionality
+    const cancelBtn = document.getElementById('cancel-btn');
+    if (cancelBtn) {
+      cancelBtn.addEventListener('click', () => {
+        const currentName = document.getElementById('detail-name').textContent;
+        const currentToken = document.querySelector('.text-2xl.font-bold.text-gray-900 + .px-3').textContent;
+        
+        if (!currentName || currentName === 'No Visitor') {
+          showNotification('No Visitor', 'There is no visitor currently being served to cancel.', 'info');
+          return;
+        }
+        
+        showConfirmation(
+          'Cancel Service',
+          'Remove visitor from all queues',
+          'Are you sure you want to cancel this visitor? This action will remove them from all queues permanently.',
+          `
+            <div class="space-y-2">
+              <div class="flex items-center justify-between">
+                <span class="text-sm font-semibold text-gray-600">Visitor Name:</span>
+                <span class="text-sm font-bold text-gray-900">${currentName}</span>
+              </div>
+              <div class="flex items-center justify-between">
+                <span class="text-sm font-semibold text-gray-600">Token Number:</span>
+                <span class="text-sm font-bold text-purple-600">${currentToken}</span>
+              </div>
+              <div class="flex items-center justify-between pt-2 border-t border-gray-200">
+                <span class="text-sm font-semibold text-gray-600">Action:</span>
+                <span class="text-sm font-bold text-red-600">Remove from Queue</span>
+              </div>
+            </div>
+          `,
+          ['#ef4444', '#dc2626'],
+          ['#ef4444', '#dc2626'],
+          'Cancel Service',
+          () => {
+            clearServingArea();
+            
+            // Update missed count
+            const missedCount = document.querySelector('#missed-card .text-xl.font-bold');
+            if (missedCount) {
+              missedCount.textContent = parseInt(missedCount.textContent) + 1;
+            }
+            
+            const notification = document.createElement('div');
+            notification.className = 'fixed top-4 right-4 bg-red-500 text-white px-6 py-4 rounded-xl shadow-2xl z-50 flex items-center gap-3 animate-fade-in';
+            notification.innerHTML = `
+              <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"/>
+              </svg>
+              <div>
+                <p class="font-bold">Service Cancelled</p>
+                <p class="text-sm opacity-90">${currentName} removed from queue</p>
+              </div>
+            `;
+            document.body.appendChild(notification);
+            
+            setTimeout(() => {
+              notification.style.transition = 'opacity 0.3s';
+              notification.style.opacity = '0';
+              setTimeout(() => notification.remove(), 300);
+            }, 3000);
+          }
+        );
+      });
+    }
+
+    // Recall Button Functionality
+    const recallBtn = document.getElementById('recall-btn');
+    if (recallBtn) {
+      recallBtn.addEventListener('click', () => {
+        const currentName = document.getElementById('detail-name').textContent;
+        const currentToken = document.querySelector('.text-2xl.font-bold.text-gray-900 + .px-3').textContent;
+        
+        if (!currentName || currentName === 'No Visitor') {
+          showNotification('No Visitor', 'There is no visitor currently being served to recall.', 'info');
+          return;
+        }
+        
+        const notification = document.createElement('div');
+        notification.className = 'fixed top-4 right-4 bg-green-500 text-white px-6 py-4 rounded-xl shadow-2xl z-50 flex items-center gap-3 animate-fade-in';
+        notification.innerHTML = `
+          <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 5a2 2 0 012-2h3.28a1 1 0 01.948.684l1.498 4.493a1 1 0 01-.502 1.21l-2.257 1.13a11.042 11.042 0 005.516 5.516l1.13-2.257a1 1 0 011.21-.502l4.493 1.498a1 1 0 01.684.949V19a2 2 0 01-2 2h-1C9.716 21 3 14.284 3 6V5z"/>
+          </svg>
+          <div>
+            <p class="font-bold">Recall Successful!</p>
+            <p class="text-sm opacity-90">${currentName} (${currentToken}) has been recalled</p>
+          </div>
+        `;
+        document.body.appendChild(notification);
+        
+        setTimeout(() => {
+          notification.style.transition = 'opacity 0.3s';
+          notification.style.opacity = '0';
+          setTimeout(() => notification.remove(), 300);
+        }, 3000);
+      });
+    }
+
+    // Move Back Button Functionality
+    const moveBackBtn = document.getElementById('moveback-btn');
+    if (moveBackBtn) {
+      moveBackBtn.addEventListener('click', () => {
+        const currentName = document.getElementById('detail-name').textContent;
+        const currentToken = document.querySelector('.text-2xl.font-bold.text-gray-900 + .px-3').textContent;
+        
+        if (!currentName || currentName === 'No Visitor') {
+          showNotification('No Visitor', 'There is no visitor currently being served to move back.', 'info');
+          return;
+        }
+        
+        // Create visitor object to add back to queue
+        const nameParts = currentName.split(' ');
+        const firstName = nameParts[0] || '';
+        const lastName = nameParts.slice(1).join(' ') || '';
+        
+        // Get current service info from the form display
+        const serviceDisplay = document.querySelector('.p-4.bg-gradient-to-r.from-purple-50.to-pink-50');
+        let parentService = 'General Consultation';
+        let subParentService = null;
+        let childService = null;
+        
+        if (serviceDisplay) {
+          const serviceTexts = serviceDisplay.querySelectorAll('.text-sm.font-bold');
+          if (serviceTexts.length > 0) {
+            parentService = serviceTexts[0].textContent;
+            if (serviceTexts.length > 1) subParentService = serviceTexts[1].textContent;
+            if (serviceTexts.length > 2) childService = serviceTexts[2].textContent;
+          }
+        }
+        
+        const visitorToAdd = {
+          id: Date.now(),
+          token: currentToken,
+          name: currentName,
+          service: parentService,
+          serviceType: 'general',
+          waitTime: '0 min',
+          type: 'walk-in',
+          badge: 'bg-purple-100 text-purple-700',
+          parentService: parentService,
+          subParentService: subParentService,
+          childService: childService
+        };
+        
+        // Add visitor back to the beginning of the queue
+        allVisitors.unshift(visitorToAdd);
+        
+        // Re-render the queue
+        renderQueue();
+        
+        // Clear serving area
+        clearServingArea();
+        
+        const notification = document.createElement('div');
+        notification.className = 'fixed top-4 right-4 bg-slate-500 text-white px-6 py-4 rounded-xl shadow-2xl z-50 flex items-center gap-3 animate-fade-in';
+        notification.innerHTML = `
+          <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M11 15l-3-3m0 0l3-3m-3 3h8M3 12a9 9 0 1118 0 9 9 0 01-18 0z"/>
+          </svg>
+          <div>
+            <p class="font-bold">Moved Back to Queue</p>
+            <p class="text-sm opacity-90">${currentName} returned to waiting queue</p>
+          </div>
+        `;
+        document.body.appendChild(notification);
+        
+        setTimeout(() => {
+          notification.style.transition = 'opacity 0.3s';
+          notification.style.opacity = '0';
+          setTimeout(() => notification.remove(), 300);
+        }, 3000);
+      });
+    }
+
+    // Hold Button Functionality
+    const holdBtn = document.getElementById('hold-btn');
+    if (holdBtn) {
+      holdBtn.addEventListener('click', () => {
+        const currentName = document.getElementById('detail-name').textContent;
+        const currentToken = document.querySelector('.text-2xl.font-bold.text-gray-900 + .px-3').textContent;
+        
+        if (!currentName || currentName === 'No Visitor') {
+          showNotification('No Visitor', 'There is no visitor currently being served to put on hold.', 'info');
+          return;
+        }
+        
+        clearServingArea();
+        
+        // Update hold count
+        const holdCount = document.querySelector('#hold-card .text-xl.font-bold');
+        if (holdCount) {
+          holdCount.textContent = parseInt(holdCount.textContent) + 1;
+        }
+        
+        const notification = document.createElement('div');
+        notification.className = 'fixed top-4 right-4 bg-orange-500 text-white px-6 py-4 rounded-xl shadow-2xl z-50 flex items-center gap-3 animate-fade-in';
+        notification.innerHTML = `
+          <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10 9v6m4-6v6m7-3a9 9 0 11-18 0 9 9 0 0118 0z"/>
+          </svg>
+          <div>
+            <p class="font-bold">Placed on Hold</p>
+            <p class="text-sm opacity-90">${currentName} moved to hold queue</p>
+          </div>
+        `;
+        document.body.appendChild(notification);
+        
+        setTimeout(() => {
+          notification.style.transition = 'opacity 0.3s';
+          notification.style.opacity = '0';
+          setTimeout(() => notification.remove(), 300);
+        }, 3000);
+      });
+    }
+
+    // Skip Button Functionality
+    const skipBtn = document.getElementById('skip-btn');
+    if (skipBtn) {
+      skipBtn.addEventListener('click', () => {
+        const currentName = document.getElementById('detail-name').textContent;
+        const currentToken = document.querySelector('.text-2xl.font-bold.text-gray-900 + .px-3').textContent;
+        
+        if (!currentName || currentName === 'No Visitor') {
+          showNotification('No Visitor', 'There is no visitor currently being served to skip.', 'info');
+          return;
+        }
+        
+        clearServingArea();
+        
+        // Update missed count
+        const missedCount = document.querySelector('#missed-card .text-xl.font-bold');
+        if (missedCount) {
+          missedCount.textContent = parseInt(missedCount.textContent) + 1;
+        }
+        
+        const notification = document.createElement('div');
+        notification.className = 'fixed top-4 right-4 bg-blue-500 text-white px-6 py-4 rounded-xl shadow-2xl z-50 flex items-center gap-3 animate-fade-in';
+        notification.innerHTML = `
+          <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 5l7 7-7 7M5 5l7 7-7 7"/>
+          </svg>
+          <div>
+            <p class="font-bold">Visitor Skipped</p>
+            <p class="text-sm opacity-90">${currentName} moved to missed queue</p>
+          </div>
+        `;
+        document.body.appendChild(notification);
+        
+        setTimeout(() => {
+          notification.style.transition = 'opacity 0.3s';
+          notification.style.opacity = '0';
+          setTimeout(() => notification.remove(), 300);
+        }, 3000);
+      });
+    }
+
+    // Helper function to clear serving area
+    function clearServingArea() {
+      // Clear the current desk's data
+      const currentDesk = currentActiveDeskBeforeSwitch;
+      deskData[currentDesk] = null;
+      
+      document.getElementById('detail-name').textContent = 'No Visitor';
+      document.querySelector('.text-2xl.font-bold.text-gray-900 + .px-3').textContent = '---';
+      
+      const statusBadge = document.querySelector('.px-3.py-1.text-white.text-sm.font-bold.rounded-lg');
+      if (statusBadge) {
+        statusBadge.style.background = 'linear-gradient(135deg, #9ca3af, #6b7280)';
+        statusBadge.innerHTML = '● No Service';
+      }
+      
+      const visitorForm = document.querySelector('.max-w-3xl.mx-auto.bg-white.rounded-xl.shadow-lg.p-6');
+      if (visitorForm) {
+        visitorForm.style.display = 'none';
+      }
+      
+      const formParent = document.querySelector('#middle-panel .flex-1.overflow-auto .p-6');
+      if (formParent && !document.getElementById('no-visitor-message')) {
+        const noVisitorMsg = document.createElement('div');
+        noVisitorMsg.id = 'no-visitor-message';
+        noVisitorMsg.className = 'max-w-3xl mx-auto bg-gray-50 rounded-xl shadow-lg p-12 text-center';
+        noVisitorMsg.innerHTML = `
+          <svg class="w-24 h-24 mx-auto mb-6 text-gray-300" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0zm6 3a2 2 0 11-4 0 2 2 0 014 0zM7 10a2 2 0 11-4 0 2 2 0 014 0z"/>
+          </svg>
+          <h3 class="text-2xl font-bold text-gray-400 mb-2">No Visitor Selected</h3>
+          <p class="text-gray-500">Click "Next" to call a visitor from the queue</p>
+        `;
+        formParent.appendChild(noVisitorMsg);
+      }
+      
+      const detailsTab = document.getElementById('tab-details');
+      if (detailsTab) {
+        const detailRows = detailsTab.querySelectorAll('.detail-row');
+        detailRows.forEach(row => row.style.display = 'none');
+        
+        if (!detailsTab.querySelector('#details-empty-state')) {
+          const emptyState = document.createElement('div');
+          emptyState.id = 'details-empty-state';
+          emptyState.className = 'text-center py-8';
+          emptyState.innerHTML = `
+            <svg class="w-16 h-16 mx-auto mb-3 text-gray-300" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z"/>
+            </svg>
+            <p class="text-sm font-semibold text-gray-400">No Visitor Data</p>
+            <p class="text-xs text-gray-400 mt-1">Call next visitor to view details</p>
+          `;
+          detailsTab.appendChild(emptyState);
+        }
+      }
     }
   </script>
 </body>
