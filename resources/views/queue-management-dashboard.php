@@ -107,6 +107,25 @@
     #toggle-activity-log svg {
       transition: transform 0.3s ease;
     }
+
+    .tab-btn {
+      transition: all 0.2s ease;
+      white-space: nowrap;
+    }
+
+    .tab-btn:hover {
+      background: rgba(139, 92, 246, 0.05);
+    }
+
+    .detail-row {
+      padding-bottom: 12px;
+      border-bottom: 1px solid #f3f4f6;
+    }
+
+    .detail-row:last-child {
+      border-bottom: none;
+      padding-bottom: 0;
+    }
   </style>
  </head>
 <body class="h-screen w-full overflow-hidden" style="background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);">
@@ -256,10 +275,141 @@
          <!-- Service Details Section -->
          <div class="space-y-4">
           <h3 class="text-sm font-semibold text-gray-600 uppercase tracking-wide border-b pb-2">Service Details</h3>
-          <div class="grid grid-cols-2 gap-4">
-           <div><label class="block text-sm font-bold text-gray-700 mb-2">Preferred Language</label> <select class="w-full px-4 py-2.5 border-2 border-gray-200 rounded-xl text-sm text-gray-900 focus:ring-2 focus:ring-purple-500 focus:border-purple-500 transition-all bg-white font-medium"> <option>English</option> <option>Spanish</option> <option>French</option> <option>German</option> <option>Chinese</option> </select>
+          
+          <!-- Current Service Hierarchy Display -->
+          <div class="p-4 bg-gradient-to-r from-purple-50 to-pink-50 rounded-xl border-2 border-purple-200">
+           <label class="block text-xs font-bold text-gray-600 mb-3 uppercase tracking-wide">Current Service Selection</label>
+           <div class="space-y-2">
+            <div class="flex items-center gap-2">
+             <span class="w-6 h-6 rounded-full bg-purple-600 text-white flex items-center justify-center text-xs font-bold flex-shrink-0">1</span>
+             <div>
+              <p class="text-xs text-gray-600 font-semibold">Parent Service</p>
+              <p class="text-sm font-bold text-gray-900">Laboratory Services</p>
+             </div>
+            </div>
+            <div class="flex items-center gap-2 ml-3">
+             <span class="w-6 h-6 rounded-full bg-purple-500 text-white flex items-center justify-center text-xs font-bold flex-shrink-0">2</span>
+             <div>
+              <p class="text-xs text-gray-600 font-semibold">Sub-Parent Service</p>
+              <p class="text-sm font-bold text-gray-800">Blood Tests</p>
+             </div>
+            </div>
+            <div class="flex items-center gap-2 ml-6">
+             <span class="w-6 h-6 rounded-full bg-purple-400 text-white flex items-center justify-center text-xs font-bold flex-shrink-0">3</span>
+             <div>
+              <p class="text-xs text-gray-600 font-semibold">Child Service</p>
+              <p class="text-sm font-bold text-gray-700">Complete Blood Count (CBC)</p>
+             </div>
+            </div>
            </div>
-           <div><label class="block text-sm font-bold text-gray-700 mb-2">Service Type</label> <select id="service-select" class="w-full px-4 py-2.5 border-2 border-gray-200 rounded-xl text-sm text-gray-900 focus:ring-2 focus:ring-purple-500 focus:border-purple-500 transition-all bg-white font-medium"> <option>General Consultation</option> <option>Medical Check</option> <option>Lab Results</option> <option>Prescription</option> <option>Follow-up</option> </select>
+           <div class="mt-3 pt-3 border-t border-purple-200">
+            <p class="text-xs font-bold text-purple-700">Full Path: Laboratory Services → Blood Tests → Complete Blood Count (CBC)</p>
+           </div>
+          </div>
+          
+          <div class="grid grid-cols-2 gap-4">
+           <div><label class="block text-sm font-bold text-gray-700 mb-2">Preferred Language</label> 
+            <select class="w-full px-4 py-2.5 border-2 border-gray-200 rounded-xl text-sm text-gray-900 focus:ring-2 focus:ring-purple-500 focus:border-purple-500 transition-all bg-white font-medium">
+             <option>English</option> <option>Spanish</option> <option>French</option> <option>German</option> <option>Chinese</option>
+            </select>
+           </div>
+          </div>
+          
+          <!-- Multi-Level Service Selection -->
+          <div class="space-y-3 p-4 bg-gray-50 rounded-xl">
+           <div class="flex items-start justify-between mb-3">
+            <label class="block text-sm font-bold text-gray-700">Service Selection (Multi-Level)</label>
+            <button type="button" id="show-service-examples" class="text-xs font-semibold text-purple-600 hover:text-purple-700 underline">Show Examples</button>
+           </div>
+           
+           <!-- Service Hierarchy Examples (Hidden by default) -->
+           <div id="service-examples" class="hidden mb-3 p-3 bg-white border-2 border-purple-200 rounded-lg">
+            <p class="text-xs font-bold text-gray-700 mb-2">📋 Service Hierarchy Examples:</p>
+            <div class="space-y-2 text-xs">
+             <div class="flex items-start gap-2">
+              <span class="text-purple-600 font-bold">1.</span>
+              <div>
+               <span class="font-semibold text-gray-900">Medical Check</span>
+               <span class="text-gray-500"> → </span>
+               <span class="font-semibold text-gray-700">Physical Examination</span>
+               <span class="text-gray-500"> → </span>
+               <span class="text-gray-600">Routine Check-up</span>
+              </div>
+             </div>
+             <div class="flex items-start gap-2">
+              <span class="text-purple-600 font-bold">2.</span>
+              <div>
+               <span class="font-semibold text-gray-900">Laboratory Services</span>
+               <span class="text-gray-500"> → </span>
+               <span class="font-semibold text-gray-700">Blood Tests</span>
+               <span class="text-gray-500"> → </span>
+               <span class="text-gray-600">Complete Blood Count (CBC)</span>
+              </div>
+             </div>
+             <div class="flex items-start gap-2">
+              <span class="text-purple-600 font-bold">3.</span>
+              <div>
+               <span class="font-semibold text-gray-900">Prescription</span>
+               <span class="text-gray-500"> → </span>
+               <span class="font-semibold text-gray-700">New Prescription</span>
+               <span class="text-gray-500"> → </span>
+               <span class="text-gray-600">Chronic Condition</span>
+              </div>
+             </div>
+            </div>
+            <div class="mt-2 pt-2 border-t border-purple-100">
+             <p class="text-xs text-gray-600"><span class="font-bold text-gray-900">Level 1:</span> Parent Service | <span class="font-bold text-gray-900">Level 2:</span> Sub-Parent Service | <span class="font-bold text-gray-900">Level 3:</span> Child Service</p>
+            </div>
+           </div>
+           
+           <!-- Level 1: Parent Service -->
+           <div>
+            <label class="block text-xs font-semibold text-gray-600 mb-1.5">
+             <span class="inline-flex items-center gap-1">
+              <span class="w-5 h-5 bg-purple-600 text-white rounded-full flex items-center justify-center text-xs font-bold">1</span>
+              <span>Level 1 - Parent Service</span>
+             </span>
+            </label>
+            <select id="service-level-1" class="w-full px-4 py-2.5 border-2 border-purple-300 rounded-xl text-sm text-gray-900 focus:ring-2 focus:ring-purple-500 focus:border-purple-500 transition-all bg-white font-medium">
+             <option value="">-- Select Parent Service --</option>
+             <option value="general">General Consultation</option>
+             <option value="medical">Medical Check</option>
+             <option value="lab">Laboratory Services</option>
+             <option value="prescription">Prescription</option>
+             <option value="followup">Follow-up</option>
+            </select>
+           </div>
+           
+           <!-- Level 2: Sub-Parent Service -->
+           <div id="level-2-container" class="hidden">
+            <label class="block text-xs font-semibold text-gray-600 mb-1.5">
+             <span class="inline-flex items-center gap-1">
+              <span class="w-5 h-5 bg-purple-500 text-white rounded-full flex items-center justify-center text-xs font-bold">2</span>
+              <span>Level 2 - Sub-Parent Service</span>
+             </span>
+            </label>
+            <select id="service-level-2" class="w-full px-4 py-2.5 border-2 border-purple-300 rounded-xl text-sm text-gray-900 focus:ring-2 focus:ring-purple-500 focus:border-purple-500 transition-all bg-white font-medium">
+             <option value="">-- Select Sub-Parent Service --</option>
+            </select>
+           </div>
+           
+           <!-- Level 3: Child Service -->
+           <div id="level-3-container" class="hidden">
+            <label class="block text-xs font-semibold text-gray-600 mb-1.5">
+             <span class="inline-flex items-center gap-1">
+              <span class="w-5 h-5 bg-purple-400 text-white rounded-full flex items-center justify-center text-xs font-bold">3</span>
+              <span>Level 3 - Child Service</span>
+             </span>
+            </label>
+            <select id="service-level-3" class="w-full px-4 py-2.5 border-2 border-purple-300 rounded-xl text-sm text-gray-900 focus:ring-2 focus:ring-purple-500 focus:border-purple-500 transition-all bg-white font-medium">
+             <option value="">-- Select Child Service --</option>
+            </select>
+           </div>
+           
+           <!-- Selected Service Display -->
+           <div id="selected-service-display" class="hidden mt-3 p-3 bg-white border-2 border-purple-200 rounded-lg">
+            <p class="text-xs font-semibold text-gray-600 mb-1">Selected Service:</p>
+            <p id="selected-service-text" class="text-sm font-bold text-purple-700"></p>
            </div>
           </div>
          </div>
@@ -301,24 +451,154 @@
        </div>
       </div>
      </div>
-    </div><!-- Right Panel - Activity Timeline -->
+    </div><!-- Right Panel - Visitor Details Tabs -->
     <div id="activity-panel" class="w-80 glass-effect border-l flex flex-col overflow-hidden transition-all duration-300" style="border-color: rgba(139, 92, 246, 0.1);">
+     <!-- Header with Toggle -->
      <div class="p-4 border-b flex-shrink-0" style="border-color: rgba(139, 92, 246, 0.1);">
       <div class="flex items-center justify-between">
-       <h2 class="text-base font-bold text-gray-900 flex items-center gap-2">
-        <svg class="w-4 h-4" style="color: #8b5cf6;" fill="none" stroke="currentColor" viewbox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" />
-        </svg> Activity Log</h2>
-       <div class="flex items-center gap-2">
-        <span class="px-2 py-1 bg-purple-100 text-purple-700 text-xs font-bold rounded-lg">1h 2m</span>
-        <button id="toggle-activity-log" class="p-1.5 hover:bg-gray-100 rounded-lg transition-all" title="Toggle Activity Log">
-         <svg class="w-4 h-4 text-gray-600 transition-transform duration-300" fill="none" stroke="currentColor" viewbox="0 0 24 24">
-          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7"/>
-         </svg>
-        </button>
-       </div>
+       <h2 class="text-base font-bold text-gray-900">Visitor Details</h2>
+       <button id="toggle-activity-log" class="p-1.5 hover:bg-gray-100 rounded-lg transition-all" title="Toggle Panel">
+        <svg class="w-4 h-4 text-gray-600 transition-transform duration-300" fill="none" stroke="currentColor" viewbox="0 0 24 24">
+         <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7"/>
+        </svg>
+       </button>
       </div>
      </div>
-     <div id="activity-content" class="flex-1 overflow-auto p-4">
+     
+     <!-- Tabs Navigation -->
+     <div class="border-b flex-shrink-0" style="border-color: rgba(139, 92, 246, 0.1);">
+      <div class="flex">
+       <button class="tab-btn active px-4 py-2.5 text-sm font-semibold border-b-2 border-purple-600 text-purple-600 transition-all" data-tab="details">Details</button>
+       <button class="tab-btn px-4 py-2.5 text-sm font-semibold border-b-2 border-transparent text-gray-500 hover:text-gray-700 transition-all" data-tab="notes">Notes</button>
+       <button class="tab-btn px-4 py-2.5 text-sm font-semibold border-b-2 border-transparent text-gray-500 hover:text-gray-700 transition-all" data-tab="messages">Messages</button>
+       <button class="tab-btn px-4 py-2.5 text-sm font-semibold border-b-2 border-transparent text-gray-500 hover:text-gray-700 transition-all" data-tab="logs">Logs</button>
+      </div>
+     </div>
+     
+     <div id="activity-content" class="flex-1 overflow-auto">
+      
+      <!-- Details Tab -->
+      <div id="tab-details" class="tab-content p-4">
+       <div class="space-y-3">
+        <div class="detail-row">
+         <p class="text-xs font-semibold text-gray-500 mb-1">Token</p>
+         <p class="text-sm font-bold text-gray-900">A025</p>
+        </div>
+        <div class="detail-row">
+         <p class="text-xs font-semibold text-gray-500 mb-1">Name</p>
+         <p class="text-sm font-bold text-gray-900">Sarah Johnson</p>
+        </div>
+        <div class="detail-row">
+         <p class="text-xs font-semibold text-gray-500 mb-1">State</p>
+         <span class="inline-block px-2 py-1 text-xs font-bold rounded-lg text-white" style="background: linear-gradient(135deg, #10b981, #059669);">● Serving now</span>
+        </div>
+        <div class="detail-row">
+         <p class="text-xs font-semibold text-gray-500 mb-1">Phone</p>
+         <p class="text-sm text-gray-900">+1 (555) 123-4567</p>
+        </div>
+        <div class="detail-row">
+         <p class="text-xs font-semibold text-gray-500 mb-1">Email</p>
+         <p class="text-sm text-gray-900">sarah.johnson@email.com</p>
+        </div>
+        <div class="detail-row">
+         <p class="text-xs font-semibold text-gray-500 mb-2">Service Hierarchy</p>
+         <div class="space-y-2 p-3 bg-gray-50 rounded-lg">
+          <div class="flex items-start gap-2">
+           <span class="w-5 h-5 rounded-full bg-purple-600 text-white flex items-center justify-center text-[10px] font-bold flex-shrink-0 mt-0.5">1</span>
+           <div>
+            <p class="text-[10px] text-gray-500 font-semibold uppercase">Parent</p>
+            <p class="text-xs font-bold text-gray-900">Laboratory Services</p>
+           </div>
+          </div>
+          <div class="flex items-start gap-2 ml-2">
+           <span class="w-5 h-5 rounded-full bg-purple-500 text-white flex items-center justify-center text-[10px] font-bold flex-shrink-0 mt-0.5">2</span>
+           <div>
+            <p class="text-[10px] text-gray-500 font-semibold uppercase">Sub-Parent</p>
+            <p class="text-xs font-bold text-gray-800">Blood Tests</p>
+           </div>
+          </div>
+          <div class="flex items-start gap-2 ml-4">
+           <span class="w-5 h-5 rounded-full bg-purple-400 text-white flex items-center justify-center text-[10px] font-bold flex-shrink-0 mt-0.5">3</span>
+           <div>
+            <p class="text-[10px] text-gray-500 font-semibold uppercase">Child</p>
+            <p class="text-xs font-bold text-gray-700">Complete Blood Count (CBC)</p>
+           </div>
+          </div>
+         </div>
+        </div>
+        <div class="detail-row">
+         <p class="text-xs font-semibold text-gray-500 mb-1">Assigned to</p>
+         <p class="text-sm text-gray-900">Emily Davis - Desk 3</p>
+        </div>
+        <div class="detail-row">
+         <p class="text-xs font-semibold text-gray-500 mb-1">Created</p>
+         <p class="text-sm text-gray-900">Aug 27, 9:21 AM</p>
+        </div>
+        <div class="detail-row">
+         <p class="text-xs font-semibold text-gray-500 mb-1">Waited</p>
+         <p class="text-sm text-gray-900">1h 2m</p>
+        </div>
+        <div class="detail-row">
+         <p class="text-xs font-semibold text-gray-500 mb-1">Source</p>
+         <p class="text-sm text-gray-900">Walk-in</p>
+        </div>
+        <div class="detail-row">
+         <p class="text-xs font-semibold text-gray-500 mb-1">Date of Birth</p>
+         <p class="text-sm text-gray-900">15 Mar 1985</p>
+        </div>
+        <div class="detail-row">
+         <p class="text-xs font-semibold text-gray-500 mb-1">ID</p>
+         <p class="text-xs text-gray-600 font-mono">zqJVBsE6IPrHFx70018o</p>
+        </div>
+       </div>
+      </div>
+      
+      <!-- Notes Tab -->
+      <div id="tab-notes" class="tab-content hidden p-4">
+       <div class="space-y-3">
+        <div class="bg-gray-50 rounded-lg p-3 border-l-4 border-blue-500">
+         <p class="text-xs font-semibold text-gray-600 mb-1">Aug 27, 10:23 AM - Emily Davis</p>
+         <p class="text-sm text-gray-800">Patient requested quick service. Regular visitor.</p>
+        </div>
+        <div class="bg-gray-50 rounded-lg p-3 border-l-4 border-blue-500">
+         <p class="text-xs font-semibold text-gray-600 mb-1">Aug 27, 9:21 AM - System</p>
+         <p class="text-sm text-gray-800">Check-in completed via kiosk.</p>
+        </div>
+       </div>
+       <div class="mt-4">
+        <textarea class="w-full px-3 py-2 border-2 border-gray-200 rounded-lg text-sm focus:ring-2 focus:ring-purple-500 focus:border-purple-500" rows="3" placeholder="Add a note..."></textarea>
+        <button class="mt-2 w-full bg-purple-600 hover:bg-purple-700 text-white text-sm font-semibold py-2 px-4 rounded-lg transition-all">Add Note</button>
+       </div>
+      </div>
+      
+      <!-- Messages Tab -->
+      <div id="tab-messages" class="tab-content hidden p-4">
+       <div class="space-y-3">
+        <div class="bg-blue-50 rounded-lg p-3 border-l-4 border-blue-500">
+         <div class="flex items-center gap-2 mb-2">
+          <svg class="w-4 h-4 text-blue-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+           <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 12h.01M12 12h.01M16 12h.01M21 12c0 4.418-4.03 8-9 8a9.863 9.863 0 01-4.255-.949L3 20l1.395-3.72C3.512 15.042 3 13.574 3 12c0-4.418 4.03-8 9-8s9 3.582 9 8z"/>
+          </svg>
+          <p class="text-xs font-semibold text-blue-900">SMS - 10:23 AM</p>
+         </div>
+         <p class="text-sm text-gray-800">"Your turn! Please proceed to Desk 3 now."</p>
+         <p class="text-xs text-gray-500 mt-1">Sent to: +1 (555) 123-4567</p>
+        </div>
+        <div class="bg-green-50 rounded-lg p-3 border-l-4 border-green-500">
+         <div class="flex items-center gap-2 mb-2">
+          <svg class="w-4 h-4 text-green-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+           <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 12h.01M12 12h.01M16 12h.01M21 12c0 4.418-4.03 8-9 8a9.863 9.863 0 01-4.255-.949L3 20l1.395-3.72C3.512 15.042 3 13.574 3 12c0-4.418 4.03-8 9-8s9 3.582 9 8z"/>
+          </svg>
+          <p class="text-xs font-semibold text-green-900">SMS - 9:21 AM</p>
+         </div>
+         <p class="text-sm text-gray-800">"Queue A025 confirmed. You are 8th in line. Estimated wait: 35 min."</p>
+         <p class="text-xs text-gray-500 mt-1">Sent to: +1 (555) 123-4567</p>
+        </div>
+       </div>
+      </div>
+      
+      <!-- Logs Tab -->
+      <div id="tab-logs" class="tab-content hidden p-4">
       <div class="space-y-4">
        <div class="timeline-item relative pl-8">
         <div class="absolute left-0 top-0.5 w-5 h-5 rounded-full border-3 border-white shadow" style="background: linear-gradient(135deg, #8b5cf6, #7c3aed);"></div>
@@ -389,6 +669,7 @@
      </div>
     </div>
    </div>
+  </div>
   <!-- Bottom Status Bar -->
   <div class="border-t flex-shrink-0" style="border-color: rgba(139, 92, 246, 0.2); background: rgba(255, 255, 255, 0.9); backdrop-filter: blur(10px); min-height: 72px; max-height: 72px;">
    <div class="flex h-full"><!-- Extended Sidebar Space -->
@@ -448,15 +729,301 @@
    </div>
   </div>
   <script>
+    // Multi-level Service Structure
+    const serviceHierarchy = {
+      'general': {
+        name: 'General Consultation',
+        children: null
+      },
+      'medical': {
+        name: 'Medical Check',
+        children: {
+          'physical': { 
+            name: 'Physical Examination',
+            children: {
+              'routine': { name: 'Routine Check-up' },
+              'comprehensive': { name: 'Comprehensive Exam' },
+              'sports': { name: 'Sports Physical' }
+            }
+          },
+          'diagnostic': { 
+            name: 'Diagnostic Tests',
+            children: {
+              'xray': { name: 'X-Ray' },
+              'ultrasound': { name: 'Ultrasound' },
+              'ct': { name: 'CT Scan' }
+            }
+          }
+        }
+      },
+      'lab': {
+        name: 'Laboratory Services',
+        children: {
+          'blood': { 
+            name: 'Blood Tests',
+            children: {
+              'cbc': { name: 'Complete Blood Count (CBC)' },
+              'lipid': { name: 'Lipid Panel' },
+              'glucose': { name: 'Glucose Test' },
+              'thyroid': { name: 'Thyroid Function' }
+            }
+          },
+          'urine': { 
+            name: 'Urine Tests',
+            children: {
+              'basic': { name: 'Basic Urinalysis' },
+              'complete': { name: 'Complete Urinalysis' },
+              'culture': { name: 'Urine Culture' }
+            }
+          },
+          'culture': { 
+            name: 'Culture Tests',
+            children: {
+              'throat': { name: 'Throat Culture' },
+              'wound': { name: 'Wound Culture' },
+              'blood': { name: 'Blood Culture' }
+            }
+          }
+        }
+      },
+      'prescription': {
+        name: 'Prescription',
+        children: {
+          'new': { 
+            name: 'New Prescription',
+            children: {
+              'acute': { name: 'Acute Condition' },
+              'chronic': { name: 'Chronic Condition' }
+            }
+          },
+          'refill': { 
+            name: 'Prescription Refill',
+            children: {
+              'regular': { name: 'Regular Medication' },
+              'controlled': { name: 'Controlled Substance' }
+            }
+          }
+        }
+      },
+      'followup': {
+        name: 'Follow-up',
+        children: null
+      }
+    };
+
+    // Handle cascading service selection
+    const level1Select = document.getElementById('service-level-1');
+    const level2Select = document.getElementById('service-level-2');
+    const level3Select = document.getElementById('service-level-3');
+    const level2Container = document.getElementById('level-2-container');
+    const level3Container = document.getElementById('level-3-container');
+    const selectedServiceDisplay = document.getElementById('selected-service-display');
+    const selectedServiceText = document.getElementById('selected-service-text');
+
+    // Level 1 change
+    level1Select.addEventListener('change', function() {
+      const selectedValue = this.value;
+      
+      // Reset level 2 and 3
+      level2Select.innerHTML = '<option value="">-- Select Sub-Parent Service --</option>';
+      level3Select.innerHTML = '<option value="">-- Select Child Service --</option>';
+      level2Container.classList.add('hidden');
+      level3Container.classList.add('hidden');
+      selectedServiceDisplay.classList.add('hidden');
+      
+      if (selectedValue && serviceHierarchy[selectedValue].children) {
+        // Populate level 2
+        const children = serviceHierarchy[selectedValue].children;
+        for (const [key, value] of Object.entries(children)) {
+          const option = document.createElement('option');
+          option.value = key;
+          option.textContent = value.name;
+          level2Select.appendChild(option);
+        }
+        level2Container.classList.remove('hidden');
+      } else if (selectedValue) {
+        // No children, show final selection
+        selectedServiceText.textContent = serviceHierarchy[selectedValue].name;
+        selectedServiceDisplay.classList.remove('hidden');
+      }
+    });
+
+    // Level 2 change
+    level2Select.addEventListener('change', function() {
+      const level1Value = level1Select.value;
+      const level2Value = this.value;
+      
+      // Reset level 3
+      level3Select.innerHTML = '<option value="">-- Select Child Service --</option>';
+      level3Container.classList.add('hidden');
+      selectedServiceDisplay.classList.add('hidden');
+      
+      if (level2Value && serviceHierarchy[level1Value].children[level2Value].children) {
+        // Populate level 3
+        const children = serviceHierarchy[level1Value].children[level2Value].children;
+        for (const [key, value] of Object.entries(children)) {
+          const option = document.createElement('option');
+          option.value = key;
+          option.textContent = value.name;
+          level3Select.appendChild(option);
+        }
+        level3Container.classList.remove('hidden');
+      } else if (level2Value) {
+        // No children, show final selection
+        const servicePath = `${serviceHierarchy[level1Value].name} > ${serviceHierarchy[level1Value].children[level2Value].name}`;
+        selectedServiceText.textContent = servicePath;
+        selectedServiceDisplay.classList.remove('hidden');
+      }
+    });
+
+    // Level 3 change
+    level3Select.addEventListener('change', function() {
+      const level1Value = level1Select.value;
+      const level2Value = level2Select.value;
+      const level3Value = this.value;
+      
+      selectedServiceDisplay.classList.add('hidden');
+      
+      if (level3Value) {
+        // Show final selection
+        const servicePath = `${serviceHierarchy[level1Value].name} > ${serviceHierarchy[level1Value].children[level2Value].name} > ${serviceHierarchy[level1Value].children[level2Value].children[level3Value].name}`;
+        selectedServiceText.textContent = servicePath;
+        selectedServiceDisplay.classList.remove('hidden');
+      }
+    });
+
+    // Toggle Service Examples
+    const showExamplesBtn = document.getElementById('show-service-examples');
+    const serviceExamples = document.getElementById('service-examples');
+    if (showExamplesBtn && serviceExamples) {
+      showExamplesBtn.addEventListener('click', function() {
+        if (serviceExamples.classList.contains('hidden')) {
+          serviceExamples.classList.remove('hidden');
+          showExamplesBtn.textContent = 'Hide Examples';
+        } else {
+          serviceExamples.classList.add('hidden');
+          showExamplesBtn.textContent = 'Show Examples';
+        }
+      });
+    }
+
     // Queue data structure
     const allVisitors = [
-      { id: 1, token: 'A026', name: 'Michael Chen', service: 'Medical Check', serviceType: 'medical', waitTime: '12 min', type: 'walk-in', badge: 'bg-blue-100 text-blue-700' },
-      { id: 2, token: 'A027', name: 'Emma Williams', service: 'Lab Results', serviceType: 'lab', waitTime: '8 min', type: 'appointment', badge: 'bg-pink-100 text-pink-700' },
-      { id: 3, token: 'A028', name: 'James Rodriguez', service: 'Prescription', serviceType: 'prescription', waitTime: '5 min', type: 'walk-in', badge: 'bg-green-100 text-green-700' },
-      { id: 4, token: 'A029', name: 'Sophie Taylor', service: 'General Consultation', serviceType: 'general', waitTime: '15 min', type: 'appointment', badge: 'bg-purple-100 text-purple-700' },
-      { id: 5, token: 'A030', name: 'David Kim', service: 'Follow-up', serviceType: 'followup', waitTime: '10 min', type: 'walk-in', badge: 'bg-orange-100 text-orange-700' },
-      { id: 6, token: 'A031', name: 'Maria Garcia', service: 'Medical Check', serviceType: 'medical', waitTime: '18 min', type: 'appointment', badge: 'bg-blue-100 text-blue-700' }
+      { 
+        id: 1, 
+        token: 'A026', 
+        name: 'Michael Chen', 
+        service: 'Medical Check', 
+        serviceType: 'medical', 
+        waitTime: '12 min', 
+        type: 'walk-in', 
+        badge: 'bg-blue-100 text-blue-700',
+        parentService: 'Medical Check',
+        subParentService: 'Physical Examination',
+        childService: 'Routine Check-up'
+      },
+      { 
+        id: 2, 
+        token: 'A027', 
+        name: 'Emma Williams', 
+        service: 'Lab Results', 
+        serviceType: 'lab', 
+        waitTime: '8 min', 
+        type: 'appointment', 
+        badge: 'bg-pink-100 text-pink-700',
+        parentService: 'Laboratory Services',
+        subParentService: 'Blood Tests',
+        childService: 'Complete Blood Count (CBC)'
+      },
+      { 
+        id: 3, 
+        token: 'A028', 
+        name: 'James Rodriguez', 
+        service: 'Prescription', 
+        serviceType: 'prescription', 
+        waitTime: '5 min', 
+        type: 'walk-in', 
+        badge: 'bg-green-100 text-green-700',
+        parentService: 'Prescription',
+        subParentService: 'New Prescription',
+        childService: 'Chronic Condition'
+      },
+      { 
+        id: 4, 
+        token: 'A029', 
+        name: 'Sophie Taylor', 
+        service: 'General Consultation', 
+        serviceType: 'general', 
+        waitTime: '15 min', 
+        type: 'appointment', 
+        badge: 'bg-purple-100 text-purple-700',
+        parentService: 'General Consultation',
+        subParentService: null,
+        childService: null
+      },
+      { 
+        id: 5, 
+        token: 'A030', 
+        name: 'David Kim', 
+        service: 'Follow-up', 
+        serviceType: 'followup', 
+        waitTime: '10 min', 
+        type: 'walk-in', 
+        badge: 'bg-orange-100 text-orange-700',
+        parentService: 'Follow-up',
+        subParentService: null,
+        childService: null
+      },
+      { 
+        id: 6, 
+        token: 'A031', 
+        name: 'Maria Garcia', 
+        service: 'Medical Check', 
+        serviceType: 'medical', 
+        waitTime: '18 min', 
+        type: 'appointment', 
+        badge: 'bg-blue-100 text-blue-700',
+        parentService: 'Medical Check',
+        subParentService: 'Diagnostic Tests',
+        childService: 'X-Ray'
+      }
     ];
+
+    // Helper function to format service hierarchy
+    function formatServiceHierarchy(visitor) {
+      if (!visitor.subParentService && !visitor.childService) {
+        return `<span class="text-xs font-semibold text-gray-700">${visitor.parentService}</span>`;
+      }
+      
+      let html = `
+        <div class="text-xs space-y-1">
+          <div class="flex items-center gap-1">
+            <span class="w-4 h-4 rounded-full bg-purple-600 text-white flex items-center justify-center text-[8px] font-bold flex-shrink-0">1</span>
+            <span class="font-semibold text-gray-900">${visitor.parentService}</span>
+          </div>
+      `;
+      
+      if (visitor.subParentService) {
+        html += `
+          <div class="flex items-center gap-1 ml-2">
+            <span class="w-4 h-4 rounded-full bg-purple-500 text-white flex items-center justify-center text-[8px] font-bold flex-shrink-0">2</span>
+            <span class="font-medium text-gray-700">${visitor.subParentService}</span>
+          </div>
+        `;
+      }
+      
+      if (visitor.childService) {
+        html += `
+          <div class="flex items-center gap-1 ml-4">
+            <span class="w-4 h-4 rounded-full bg-purple-400 text-white flex items-center justify-center text-[8px] font-bold flex-shrink-0">3</span>
+            <span class="text-gray-600">${visitor.childService}</span>
+          </div>
+        `;
+      }
+      
+      html += `</div>`;
+      return html;
+    }
 
     // Filter and render queue
     function renderQueue() {
@@ -481,21 +1048,22 @@
       
       // Render filtered visitors
       queueContainer.innerHTML = filteredVisitors.map(visitor => `
-        <div class="visitor-card bg-white rounded-2xl p-4 cursor-pointer shadow-md">
-          <div class="flex items-center gap-2 mb-2">
+        <div class="visitor-card bg-white rounded-2xl p-4 cursor-pointer shadow-md hover:shadow-lg transition-shadow">
+          <div class="flex items-center gap-2 mb-3">
             <span class="px-2 py-1 bg-purple-600 text-white text-sm font-bold rounded-md">${visitor.token}</span>
-            <span class="px-3 py-1 ${visitor.badge} text-xs font-bold rounded-lg">${visitor.service}</span>
+            <span class="px-3 py-1 ${visitor.badge} text-xs font-bold rounded-lg">${visitor.type === 'walk-in' ? 'Walk-in' : 'Appointment'}</span>
           </div>
-          <div class="flex items-start justify-between mb-2">
-            <div>
-              <h3 class="font-bold text-gray-900 text-base">${visitor.name}</h3>
-              <div class="flex items-center gap-1.5 text-xs text-gray-500 mt-1">
-                <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z"/>
-                </svg>
-                <span class="font-semibold">${visitor.waitTime}</span>
-              </div>
+          <div class="mb-3">
+            <h3 class="font-bold text-gray-900 text-base mb-1">${visitor.name}</h3>
+            <div class="flex items-center gap-1.5 text-xs text-gray-500">
+              <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z"/>
+              </svg>
+              <span class="font-semibold">${visitor.waitTime}</span>
             </div>
+          </div>
+          <div class="p-2 bg-gray-50 rounded-lg mb-2">
+            ${formatServiceHierarchy(visitor)}
           </div>
           <div class="text-xs font-medium text-gray-400 uppercase tracking-wide">Not Assigned</div>
         </div>
@@ -696,34 +1264,64 @@
       }
     });
 
-    // Activity Log Toggle
+    // Tab Switching Functionality
+    const tabButtons = document.querySelectorAll('.tab-btn');
+    const tabContents = document.querySelectorAll('.tab-content');
+
+    tabButtons.forEach(button => {
+      button.addEventListener('click', () => {
+        const tabName = button.getAttribute('data-tab');
+        
+        // Remove active class from all buttons
+        tabButtons.forEach(btn => {
+          btn.classList.remove('active', 'border-purple-600', 'text-purple-600');
+          btn.classList.add('border-transparent', 'text-gray-500');
+        });
+        
+        // Add active class to clicked button
+        button.classList.add('active', 'border-purple-600', 'text-purple-600');
+        button.classList.remove('border-transparent', 'text-gray-500');
+        
+        // Hide all tab contents
+        tabContents.forEach(content => {
+          content.classList.add('hidden');
+        });
+        
+        // Show selected tab content
+        document.getElementById(`tab-${tabName}`).classList.remove('hidden');
+      });
+    });
+
+    // Activity Panel Toggle
     const activityPanel = document.getElementById('activity-panel');
     const activityContent = document.getElementById('activity-content');
     const toggleButton = document.getElementById('toggle-activity-log');
-    const activityHeader = activityPanel.querySelector('.p-4.border-b');
     const leftPanel = document.getElementById('left-panel');
     let isActivityLogOpen = true;
 
     toggleButton.addEventListener('click', () => {
       isActivityLogOpen = !isActivityLogOpen;
       
+      const tabsNav = activityPanel.querySelector('.border-b.flex-shrink-0:not(.p-4)');
+      const headerTitle = activityPanel.querySelector('h2');
+      
       if (isActivityLogOpen) {
-        // Open the Activity Log panel
+        // Open the panel
         activityPanel.style.width = '20rem'; // w-80 = 20rem
         activityPanel.style.minWidth = '20rem';
         activityContent.classList.remove('hidden');
-        activityHeader.querySelector('h2').classList.remove('hidden');
-        activityHeader.querySelector('span').classList.remove('hidden');
+        if (tabsNav) tabsNav.classList.remove('hidden');
+        if (headerTitle) headerTitle.classList.remove('hidden');
         toggleButton.querySelector('svg').style.transform = 'rotate(0deg)';
         // Reset left panel to normal size
         leftPanel.style.width = '20rem'; // w-80
       } else {
-        // Close the Activity Log panel
+        // Close the panel
         activityPanel.style.width = '48px'; // Just show the toggle button
         activityPanel.style.minWidth = '48px';
         activityContent.classList.add('hidden');
-        activityHeader.querySelector('h2').classList.add('hidden');
-        activityHeader.querySelector('span').classList.add('hidden');
+        if (tabsNav) tabsNav.classList.add('hidden');
+        if (headerTitle) headerTitle.classList.add('hidden');
         toggleButton.querySelector('svg').style.transform = 'rotate(180deg)';
         // Expand left panel to use the extra space
         leftPanel.style.width = '28rem'; // Expand from 20rem to 28rem (extra 8rem)
@@ -755,3 +1353,4 @@
   </script>
 </body>
 </html>
+
