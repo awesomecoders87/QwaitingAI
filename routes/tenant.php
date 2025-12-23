@@ -577,6 +577,10 @@ Route::get('/queue-management-dashboard', function () {
    return view('queue-management-dashboard');
 });
 
+Route::get('/queue-management-display', function () {
+   return view('queue-management-display');
+});
+
 Route::get('/admin-pricing-module', function () {
    return view('admin-pricing-module');
 });
