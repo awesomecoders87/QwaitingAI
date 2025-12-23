@@ -429,25 +429,54 @@
      </div>
      <div class="glass-effect border-t p-4 flex-shrink-0" style="border-color: rgba(139, 92, 246, 0.1);">
       <div class="max-w-3xl mx-auto">
-       <div class="flex items-center gap-3"><button id="finish-btn" class="flex-1 text-white font-bold py-3 px-6 rounded-xl transition-all shadow-lg hover:shadow-xl text-sm" style="background: linear-gradient(135deg, #8b5cf6, #7c3aed);"> Complete Service </button> <button id="call-next-btn" class="flex-1 bg-white border-2 border-purple-200 hover:border-purple-300 text-gray-700 font-bold py-3 px-6 rounded-xl transition-all shadow-md hover:shadow-lg text-sm"> Next Visitor </button>
-        <div class="relative"><button id="more-menu-btn" class="p-4 bg-white border-2 border-gray-200 hover:border-gray-300 rounded-xl transition-all shadow-md hover:shadow-lg">
-          <svg class="w-5 h-5 text-gray-600" fill="none" stroke="currentColor" viewbox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 12h.01M12 12h.01M19 12h.01M6 12a1 1 0 11-2 0 1 1 0 012 0zm7 0a1 1 0 11-2 0 1 1 0 012 0zm7 0a1 1 0 11-2 0 1 1 0 012 0z" />
-          </svg></button>
-         <div id="more-menu" class="hidden absolute bottom-full right-0 mb-2 w-48 bg-white rounded-xl shadow-xl border-2 border-gray-100 overflow-hidden z-10"><button class="w-full px-4 py-3 text-left text-sm font-semibold text-gray-700 hover:bg-purple-50 transition-colors flex items-center gap-2">
-           <svg class="w-4 h-4" fill="none" stroke="currentColor" viewbox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10 9v6m4-6v6m7-3a9 9 0 11-18 0 9 9 0 0118 0z" />
-           </svg> Hold </button> <button class="w-full px-4 py-3 text-left text-sm font-semibold text-gray-700 hover:bg-purple-50 transition-colors flex items-center gap-2">
-           <svg class="w-4 h-4" fill="none" stroke="currentColor" viewbox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 5l7 7-7 7M5 5l7 7-7 7" />
-           </svg> Skip </button> <button class="w-full px-4 py-3 text-left text-sm font-semibold text-gray-700 hover:bg-purple-50 transition-colors flex items-center gap-2">
-           <svg class="w-4 h-4" fill="none" stroke="currentColor" viewbox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 7h12m0 0l-4-4m4 4l-4 4m0 6H4m0 0l4 4m-4-4l4-4" />
-           </svg> Transfer </button> <button class="w-full px-4 py-3 text-left text-sm font-semibold text-gray-700 hover:bg-purple-50 transition-colors flex items-center gap-2">
-           <svg class="w-4 h-4" fill="none" stroke="currentColor" viewbox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12" />
-           </svg> Cancel </button> <button class="w-full px-4 py-3 text-left text-sm font-semibold text-gray-700 hover:bg-purple-50 transition-colors flex items-center gap-2">
-           <svg class="w-4 h-4" fill="none" stroke="currentColor" viewbox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 5a2 2 0 012-2h3.28a1 1 0 01.948.684l1.498 4.493a1 1 0 01-.502 1.21l-2.257 1.13a11.042 11.042 0 005.516 5.516l1.13-2.257a1 1 0 011.21-.502l4.493 1.498a1 1 0 01.684.949V19a2 2 0 01-2 2h-1C9.716 21 3 14.284 3 6V5z" />
-           </svg> Recall </button> <button class="w-full px-4 py-3 text-left text-sm font-semibold text-gray-700 hover:bg-purple-50 transition-colors flex items-center gap-2">
-           <svg class="w-4 h-4" fill="none" stroke="currentColor" viewbox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M11 15l-3-3m0 0l3-3m-3 3h8M3 12a9 9 0 1118 0 9 9 0 01-18 0z" />
-           </svg> Move Back </button>
-         </div>
-        </div>
+       <div class="flex items-center gap-2 flex-wrap justify-center">
+        <!-- Complete Button -->
+        <button id="finish-btn" class="flex items-center gap-2 px-4 py-2.5 bg-white border-2 border-purple-200 hover:border-purple-400 hover:bg-purple-50 text-gray-700 font-semibold rounded-xl transition-all shadow-md hover:shadow-lg text-sm">
+          <svg class="w-4 h-4 text-purple-600" fill="none" stroke="currentColor" viewbox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
+          </svg> Complete
+        </button>
+        
+        <!-- Next Button -->
+        <button id="call-next-btn" class="flex items-center gap-2 px-4 py-2.5 bg-white border-2 border-indigo-200 hover:border-indigo-400 hover:bg-indigo-50 text-gray-700 font-semibold rounded-xl transition-all shadow-md hover:shadow-lg text-sm">
+          <svg class="w-4 h-4 text-indigo-600" fill="none" stroke="currentColor" viewbox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 9l3 3m0 0l-3 3m3-3H8m13 0a9 9 0 11-18 0 9 9 0 0118 0z" />
+          </svg> Next
+        </button>
+        
+        <!-- Hold Button -->
+        <button id="hold-btn" class="flex items-center gap-2 px-4 py-2.5 bg-white border-2 border-orange-200 hover:border-orange-400 hover:bg-orange-50 text-gray-700 font-semibold rounded-xl transition-all shadow-md hover:shadow-lg text-sm">
+          <svg class="w-4 h-4 text-orange-600" fill="none" stroke="currentColor" viewbox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10 9v6m4-6v6m7-3a9 9 0 11-18 0 9 9 0 0118 0z" />
+          </svg> Hold
+        </button>
+        
+        <!-- Skip Button -->
+        <button id="skip-btn" class="flex items-center gap-2 px-4 py-2.5 bg-white border-2 border-blue-200 hover:border-blue-400 hover:bg-blue-50 text-gray-700 font-semibold rounded-xl transition-all shadow-md hover:shadow-lg text-sm">
+          <svg class="w-4 h-4 text-blue-600" fill="none" stroke="currentColor" viewbox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 5l7 7-7 7M5 5l7 7-7 7" />
+          </svg> Skip
+        </button>
+        
+        <!-- Transfer Button -->
+        <button id="transfer-btn" class="flex items-center gap-2 px-4 py-2.5 bg-white border-2 border-purple-200 hover:border-purple-400 hover:bg-purple-50 text-gray-700 font-semibold rounded-xl transition-all shadow-md hover:shadow-lg text-sm">
+          <svg class="w-4 h-4 text-purple-600" fill="none" stroke="currentColor" viewbox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 7h12m0 0l-4-4m4 4l-4 4m0 6H4m0 0l4 4m-4-4l4-4" />
+          </svg> Transfer
+        </button>
+        
+        <!-- Cancel Button -->
+        <button id="cancel-btn" class="flex items-center gap-2 px-4 py-2.5 bg-white border-2 border-red-200 hover:border-red-400 hover:bg-red-50 text-gray-700 font-semibold rounded-xl transition-all shadow-md hover:shadow-lg text-sm">
+          <svg class="w-4 h-4 text-red-600" fill="none" stroke="currentColor" viewbox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12" />
+          </svg> Cancel
+        </button>
+        
+        <!-- Recall Button -->
+        <button id="recall-btn" class="flex items-center gap-2 px-4 py-2.5 bg-white border-2 border-green-200 hover:border-green-400 hover:bg-green-50 text-gray-700 font-semibold rounded-xl transition-all shadow-md hover:shadow-lg text-sm">
+          <svg class="w-4 h-4 text-green-600" fill="none" stroke="currentColor" viewbox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 5a2 2 0 012-2h3.28a1 1 0 01.948.684l1.498 4.493a1 1 0 01-.502 1.21l-2.257 1.13a11.042 11.042 0 005.516 5.516l1.13-2.257a1 1 0 011.21-.502l4.493 1.498a1 1 0 01.684.949V19a2 2 0 01-2 2h-1C9.716 21 3 14.284 3 6V5z" />
+          </svg> Recall
+        </button>
+        
+        <!-- Move Back Button -->
+        <button id="moveback-btn" class="flex items-center gap-2 px-4 py-2.5 bg-white border-2 border-gray-300 hover:border-gray-400 hover:bg-gray-50 text-gray-700 font-semibold rounded-xl transition-all shadow-md hover:shadow-lg text-sm">
+          <svg class="w-4 h-4 text-gray-600" fill="none" stroke="currentColor" viewbox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M11 15l-3-3m0 0l3-3m-3 3h8M3 12a9 9 0 1118 0 9 9 0 01-18 0z" />
+          </svg> Move Back
+        </button>
        </div>
       </div>
      </div>
@@ -1095,32 +1124,6 @@
 
     // Initial render
     renderQueue();
-    
-    // More menu toggle functionality
-    const moreMenuBtn = document.getElementById('more-menu-btn');
-    const moreMenu = document.getElementById('more-menu');
-    
-    if (moreMenuBtn && moreMenu) {
-      moreMenuBtn.addEventListener('click', (e) => {
-        e.stopPropagation();
-        moreMenu.classList.toggle('hidden');
-      });
-      
-      // Close menu when clicking outside
-      document.addEventListener('click', (e) => {
-        if (!moreMenu.contains(e.target) && !moreMenuBtn.contains(e.target)) {
-          moreMenu.classList.add('hidden');
-        }
-      });
-      
-      // Close menu when clicking a menu item
-      const menuItems = moreMenu.querySelectorAll('button');
-      menuItems.forEach(item => {
-        item.addEventListener('click', () => {
-          moreMenu.classList.add('hidden');
-        });
-      });
-    }
 
     // Modal functionality
     const queueModal = document.getElementById('queue-modal');
@@ -1353,4 +1356,5 @@
   </script>
 </body>
 </html>
+
 
