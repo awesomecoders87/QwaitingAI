@@ -86,7 +86,7 @@
           <div class="max-w-7xl mx-auto px-6 mt-6">
             <div class="flex gap-8 border-b" style="border-color: #e2e8f0;">
               
-        <button class="tab-button px-4 py-3 tab-active" data-view="features" style="font-size: 16px; color: #3b82f6; font-weight: 600; border-color: #3b82f6; background: none; border: none; cursor: pointer; border-bottom-width: 3px;">
+        <button class="tab-button px-4 py-3 " data-view="features" style="font-size: 16px; color: #64748b; font-weight: 500; border-color: #3b82f6; background: none; border: none; cursor: pointer; border-bottom-width: 0;">
           📋 Features
         </button>
       
@@ -97,12 +97,22 @@
       
               
         <button class="tab-button px-4 py-3 " data-view="configuration" style="font-size: 16px; color: #64748b; font-weight: 500; border-color: #3b82f6; background: none; border: none; cursor: pointer; border-bottom-width: 0;">
-          ⚙�� Configuration
+          ⚙️ Configuration
         </button>
       
               
         <button class="tab-button px-4 py-3 " data-view="pricing" style="font-size: 16px; color: #64748b; font-weight: 500; border-color: #3b82f6; background: none; border: none; cursor: pointer; border-bottom-width: 0;">
-          ��� Pricing
+          💰 Pricing
+        </button>
+      
+              
+        <button class="tab-button px-4 py-3 tab-active" data-view="coupons" style="font-size: 16px; color: #3b82f6; font-weight: 600; border-color: #3b82f6; background: none; border: none; cursor: pointer; border-bottom-width: 3px;">
+          🎟️ Coupons
+        </button>
+      
+              
+        <button class="tab-button px-4 py-3 " data-view="preview" style="font-size: 16px; color: #64748b; font-weight: 500; border-color: #3b82f6; background: none; border: none; cursor: pointer; border-bottom-width: 0;">
+          👁️ Preview
         </button>
       
             </div>
@@ -115,29 +125,29 @@
           <div class="flex justify-between items-center mb-6">
             <div>
               <h2 style="font-size: 24px; color: #1e293b; font-weight: 700; margin: 0 0 8px 0;">
-                Subscription Features
+                Coupon Management
               </h2>
               <p style="font-size: 14px; color: #64748b; margin: 0;">
-                Define features that will be available in your subscription packages
+                Create discount codes and promotional offers for your subscription packages
               </p>
             </div>
-            <button id="add-feature-btn" style="background-color: #3b82f6; color: white; padding: 12px 24px; border-radius: 8px; font-size: 16px; font-weight: 600; border: none; cursor: pointer; box-shadow: 0 2px 4px rgba(0,0,0,0.1);">
-              + Add Feature
+            <button id="add-coupon-btn" style="background-color: #3b82f6; color: white; padding: 12px 24px; border-radius: 8px; font-size: 16px; font-weight: 600; border: none; cursor: pointer; box-shadow: 0 2px 4px rgba(0,0,0,0.1);">
+              + Create Coupon
             </button>
           </div>
 
           <!-- Info Box -->
           <div style="background-color: #eff6ff; border-left: 4px solid #3b82f6; padding: 16px 20px; border-radius: 8px; margin-bottom: 24px;">
             <div style="display: flex; gap: 12px;">
-              <div style="font-size: 20px;">ℹ️</div>
+              <div style="font-size: 20px;">🎟️</div>
               <div>
-                <h4 style="font-size: 16px; font-weight: 600; margin: 0 0 8px 0; color: #1e293b;">Quick Tips</h4>
+                <h4 style="font-size: 16px; font-weight: 600; margin: 0 0 8px 0; color: #1e293b;">Coupon Types</h4>
                 <ul style="margin: 0; padding-left: 20px; font-size: 14px; color: #1e293b; line-height: 1.8;">
-                  <li><strong>Feature Key</strong> is auto-generated and used in your system code</li>
-                  <li>Use <strong>Number</strong> type for countable limits (projects, users, storage GB)</li>
-                  <li>Use <strong>Boolean</strong> for on/off features (API access, custom domain)</li>
-                  <li>Enable <strong>Metered</strong> only if you track usage for billing purposes</li>
-                  <li>Set to <strong>Inactive</strong> to temporarily hide without deleting</li>
+                  <li><strong>Percentage:</strong> Discount by % (e.g., 20% off = enter 20)</li>
+                  <li><strong>Fixed Amount:</strong> Discount by specific amount (e.g., $50 off)</li>
+                  <li><strong>Recurring vs Once:</strong> Apply discount to multiple billing cycles or just first payment</li>
+                  <li><strong>Usage Limits:</strong> Set maximum redemptions or unlimited usage</li>
+                  <li><strong>Validity Period:</strong> Set start and end dates for the coupon</li>
                 </ul>
               </div>
             </div>
@@ -147,170 +157,47 @@
             <table style="width: 100%; border-collapse: collapse;">
               <thead style="background-color: #f8fafc;">
                 <tr>
-                  <th style="padding: 16px; text-align: left; font-size: 14px; font-weight: 600; color: #64748b;">Feature Name</th>
-                  <th style="padding: 16px; text-align: left; font-size: 14px; font-weight: 600; color: #64748b;">Feature Key</th>
-                  <th style="padding: 16px; text-align: left; font-size: 14px; font-weight: 600; color: #64748b;">Data Type</th>
-                  <th style="padding: 16px; text-align: left; font-size: 14px; font-weight: 600; color: #64748b;">Metered</th>
+                  <th style="padding: 16px; text-align: left; font-size: 14px; font-weight: 600; color: #64748b;">Code</th>
+                  <th style="padding: 16px; text-align: left; font-size: 14px; font-weight: 600; color: #64748b;">Discount</th>
+                  <th style="padding: 16px; text-align: left; font-size: 14px; font-weight: 600; color: #64748b;">Type</th>
+                  <th style="padding: 16px; text-align: left; font-size: 14px; font-weight: 600; color: #64748b;">Valid Period</th>
+                  <th style="padding: 16px; text-align: left; font-size: 14px; font-weight: 600; color: #64748b;">Usage</th>
                   <th style="padding: 16px; text-align: left; font-size: 14px; font-weight: 600; color: #64748b;">Status</th>
                   <th style="padding: 16px; text-align: right; font-size: 14px; font-weight: 600; color: #64748b;">Actions</th>
                 </tr>
               </thead>
               <tbody>
                 
-                  <tr style="border-top: 1px solid #e2e8f0;">
-                    <td style="padding: 16px; font-size: 16px; color: #1e293b; font-weight: 600;">Projects</td>
-                    <td style="padding: 16px; font-size: 14px; color: #64748b; font-family: monospace;">projects</td>
-                    <td style="padding: 16px; font-size: 14px;">
-                      <span style="background-color: #e0e7ff; color: #4338ca; padding: 4px 12px; border-radius: 12px; font-size: 12px; font-weight: 600;">
-                        Number
-                      </span>
-                    </td>
-                    <td style="padding: 16px; font-size: 14px;">
-                      ❌ No
-                    </td>
-                    <td style="padding: 16px; font-size: 14px;">
-                      <span style="background-color: #dcfce7; color: #166534; padding: 4px 12px; border-radius: 12px; font-size: 12px; font-weight: 600;">
-                        Active
-                      </span>
-                    </td>
-                    <td style="padding: 16px; text-align: right;">
-                      <button class="edit-feature-btn" data-id="id_1766402307416_r9nt8niz5" style="color: #3b82f6; background: none; border: none; cursor: pointer; margin-right: 12px; font-size: 14px; font-weight: 600;">Edit</button>
-                      <button class="delete-feature-btn" data-id="id_1766402307416_r9nt8niz5" style="color: #dc2626; background: none; border: none; cursor: pointer; font-size: 14px; font-weight: 600;">Delete</button>
-                    </td>
-                  </tr>
-                
-                  <tr style="border-top: 1px solid #e2e8f0;">
-                    <td style="padding: 16px; font-size: 16px; color: #1e293b; font-weight: 600;">Storage (GB)</td>
-                    <td style="padding: 16px; font-size: 14px; color: #64748b; font-family: monospace;">storage_gb</td>
-                    <td style="padding: 16px; font-size: 14px;">
-                      <span style="background-color: #e0e7ff; color: #4338ca; padding: 4px 12px; border-radius: 12px; font-size: 12px; font-weight: 600;">
-                        Number
-                      </span>
-                    </td>
-                    <td style="padding: 16px; font-size: 14px;">
-                      ✅ Yes
-                    </td>
-                    <td style="padding: 16px; font-size: 14px;">
-                      <span style="background-color: #dcfce7; color: #166534; padding: 4px 12px; border-radius: 12px; font-size: 12px; font-weight: 600;">
-                        Active
-                      </span>
-                    </td>
-                    <td style="padding: 16px; text-align: right;">
-                      <button class="edit-feature-btn" data-id="id_1766402307416_fwdnv0dat" style="color: #3b82f6; background: none; border: none; cursor: pointer; margin-right: 12px; font-size: 14px; font-weight: 600;">Edit</button>
-                      <button class="delete-feature-btn" data-id="id_1766402307416_fwdnv0dat" style="color: #dc2626; background: none; border: none; cursor: pointer; font-size: 14px; font-weight: 600;">Delete</button>
-                    </td>
-                  </tr>
-                
-                  <tr style="border-top: 1px solid #e2e8f0;">
-                    <td style="padding: 16px; font-size: 16px; color: #1e293b; font-weight: 600;">Team Members</td>
-                    <td style="padding: 16px; font-size: 14px; color: #64748b; font-family: monospace;">team_members</td>
-                    <td style="padding: 16px; font-size: 14px;">
-                      <span style="background-color: #e0e7ff; color: #4338ca; padding: 4px 12px; border-radius: 12px; font-size: 12px; font-weight: 600;">
-                        Number
-                      </span>
-                    </td>
-                    <td style="padding: 16px; font-size: 14px;">
-                      ❌ No
-                    </td>
-                    <td style="padding: 16px; font-size: 14px;">
-                      <span style="background-color: #dcfce7; color: #166534; padding: 4px 12px; border-radius: 12px; font-size: 12px; font-weight: 600;">
-                        Active
-                      </span>
-                    </td>
-                    <td style="padding: 16px; text-align: right;">
-                      <button class="edit-feature-btn" data-id="id_1766402307416_q9w4ugi7x" style="color: #3b82f6; background: none; border: none; cursor: pointer; margin-right: 12px; font-size: 14px; font-weight: 600;">Edit</button>
-                      <button class="delete-feature-btn" data-id="id_1766402307416_q9w4ugi7x" style="color: #dc2626; background: none; border: none; cursor: pointer; font-size: 14px; font-weight: 600;">Delete</button>
-                    </td>
-                  </tr>
-                
-                  <tr style="border-top: 1px solid #e2e8f0;">
-                    <td style="padding: 16px; font-size: 16px; color: #1e293b; font-weight: 600;">API Access</td>
-                    <td style="padding: 16px; font-size: 14px; color: #64748b; font-family: monospace;">api_access</td>
-                    <td style="padding: 16px; font-size: 14px;">
-                      <span style="background-color: #e0e7ff; color: #4338ca; padding: 4px 12px; border-radius: 12px; font-size: 12px; font-weight: 600;">
-                        Boolean
-                      </span>
-                    </td>
-                    <td style="padding: 16px; font-size: 14px;">
-                      ❌ No
-                    </td>
-                    <td style="padding: 16px; font-size: 14px;">
-                      <span style="background-color: #dcfce7; color: #166534; padding: 4px 12px; border-radius: 12px; font-size: 12px; font-weight: 600;">
-                        Active
-                      </span>
-                    </td>
-                    <td style="padding: 16px; text-align: right;">
-                      <button class="edit-feature-btn" data-id="id_1766402307416_sv0vkrmgu" style="color: #3b82f6; background: none; border: none; cursor: pointer; margin-right: 12px; font-size: 14px; font-weight: 600;">Edit</button>
-                      <button class="delete-feature-btn" data-id="id_1766402307416_sv0vkrmgu" style="color: #dc2626; background: none; border: none; cursor: pointer; font-size: 14px; font-weight: 600;">Delete</button>
-                    </td>
-                  </tr>
-                
-                  <tr style="border-top: 1px solid #e2e8f0;">
-                    <td style="padding: 16px; font-size: 16px; color: #1e293b; font-weight: 600;">Custom Domain</td>
-                    <td style="padding: 16px; font-size: 14px; color: #64748b; font-family: monospace;">custom_domain</td>
-                    <td style="padding: 16px; font-size: 14px;">
-                      <span style="background-color: #e0e7ff; color: #4338ca; padding: 4px 12px; border-radius: 12px; font-size: 12px; font-weight: 600;">
-                        Boolean
-                      </span>
-                    </td>
-                    <td style="padding: 16px; font-size: 14px;">
-                      ❌ No
-                    </td>
-                    <td style="padding: 16px; font-size: 14px;">
-                      <span style="background-color: #dcfce7; color: #166534; padding: 4px 12px; border-radius: 12px; font-size: 12px; font-weight: 600;">
-                        Active
-                      </span>
-                    </td>
-                    <td style="padding: 16px; text-align: right;">
-                      <button class="edit-feature-btn" data-id="id_1766402307416_nrkhzfmx1" style="color: #3b82f6; background: none; border: none; cursor: pointer; margin-right: 12px; font-size: 14px; font-weight: 600;">Edit</button>
-                      <button class="delete-feature-btn" data-id="id_1766402307416_nrkhzfmx1" style="color: #dc2626; background: none; border: none; cursor: pointer; font-size: 14px; font-weight: 600;">Delete</button>
-                    </td>
-                  </tr>
-                
-                  <tr style="border-top: 1px solid #e2e8f0;">
-                    <td style="padding: 16px; font-size: 16px; color: #1e293b; font-weight: 600;">Priority Support</td>
-                    <td style="padding: 16px; font-size: 14px; color: #64748b; font-family: monospace;">priority_support</td>
-                    <td style="padding: 16px; font-size: 14px;">
-                      <span style="background-color: #e0e7ff; color: #4338ca; padding: 4px 12px; border-radius: 12px; font-size: 12px; font-weight: 600;">
-                        Boolean
-                      </span>
-                    </td>
-                    <td style="padding: 16px; font-size: 14px;">
-                      ❌ No
-                    </td>
-                    <td style="padding: 16px; font-size: 14px;">
-                      <span style="background-color: #dcfce7; color: #166534; padding: 4px 12px; border-radius: 12px; font-size: 12px; font-weight: 600;">
-                        Active
-                      </span>
-                    </td>
-                    <td style="padding: 16px; text-align: right;">
-                      <button class="edit-feature-btn" data-id="id_1766402307416_isgakdv0a" style="color: #3b82f6; background: none; border: none; cursor: pointer; margin-right: 12px; font-size: 14px; font-weight: 600;">Edit</button>
-                      <button class="delete-feature-btn" data-id="id_1766402307416_isgakdv0a" style="color: #dc2626; background: none; border: none; cursor: pointer; font-size: 14px; font-weight: 600;">Delete</button>
-                    </td>
-                  </tr>
-                
-                  <tr style="border-top: 1px solid #e2e8f0;">
-                    <td style="padding: 16px; font-size: 16px; color: #1e293b; font-weight: 600;">API Calls (Monthly)</td>
-                    <td style="padding: 16px; font-size: 14px; color: #64748b; font-family: monospace;">api_calls_monthly</td>
-                    <td style="padding: 16px; font-size: 14px;">
-                      <span style="background-color: #e0e7ff; color: #4338ca; padding: 4px 12px; border-radius: 12px; font-size: 12px; font-weight: 600;">
-                        Number
-                      </span>
-                    </td>
-                    <td style="padding: 16px; font-size: 14px;">
-                      ✅ Yes
-                    </td>
-                    <td style="padding: 16px; font-size: 14px;">
-                      <span style="background-color: #dcfce7; color: #166534; padding: 4px 12px; border-radius: 12px; font-size: 12px; font-weight: 600;">
-                        Active
-                      </span>
-                    </td>
-                    <td style="padding: 16px; text-align: right;">
-                      <button class="edit-feature-btn" data-id="id_1766402307416_qjqic8bvk" style="color: #3b82f6; background: none; border: none; cursor: pointer; margin-right: 12px; font-size: 14px; font-weight: 600;">Edit</button>
-                      <button class="delete-feature-btn" data-id="id_1766402307416_qjqic8bvk" style="color: #dc2626; background: none; border: none; cursor: pointer; font-size: 14px; font-weight: 600;">Delete</button>
-                    </td>
-                  </tr>
-                
+                    <tr style="border-top: 1px solid #e2e8f0;">
+                      <td style="padding: 16px; font-size: 16px; color: #1e293b; font-weight: 700; font-family: monospace;">
+                        SUMMER2024
+                      </td>
+                      <td style="padding: 16px; font-size: 16px; color: #1e293b; font-weight: 600;">
+                        25%
+                      </td>
+                      <td style="padding: 16px; font-size: 14px;">
+                        <span style="background-color: #fef3c7; color: #92400e; padding: 4px 12px; border-radius: 12px; font-size: 12px; font-weight: 600;">
+                          Once
+                        </span>
+                      </td>
+                      <td style="padding: 16px; font-size: 14px; color: #1e293b;">
+                        01/06/2024 - 31/08/2024
+                      </td>
+                      <td style="padding: 16px; font-size: 14px; color: #1e293b;">
+                        12 / 100
+                      </td>
+                      <td style="padding: 16px; font-size: 14px;">
+                        <span style="background-color: #fee2e2; color: #991b1b; padding: 4px 12px; border-radius: 12px; font-size: 12px; font-weight: 600;">
+                          Expired
+                        </span>
+                      </td>
+                      <td style="padding: 16px; text-align: right;">
+                        <button class="view-usage-btn" data-id="id_1766469793487_gnhsnmh9r" style="color: #10b981; background: none; border: none; cursor: pointer; margin-right: 12px; font-size: 14px; font-weight: 600;">View Usage</button>
+                        <button class="edit-coupon-btn" data-id="id_1766469793487_gnhsnmh9r" style="color: #3b82f6; background: none; border: none; cursor: pointer; margin-right: 12px; font-size: 14px; font-weight: 600;">Edit</button>
+                        <button class="delete-coupon-btn" data-id="id_1766469793487_gnhsnmh9r" style="color: #dc2626; background: none; border: none; cursor: pointer; font-size: 14px; font-weight: 600;">Delete</button>
+                      </td>
+                    </tr>
+                  
               </tbody>
             </table>
           </div>
@@ -347,7 +234,8 @@
       features: 'subscription_features',
       packages: 'subscription_packages',
       featureConfigs: 'subscription_feature_configs',
-      pricing: 'subscription_pricing'
+      pricing: 'subscription_pricing',
+      coupons: 'subscription_coupons'
     };
 
     // Initialize data from localStorage or defaults
@@ -355,6 +243,8 @@
     let packages = JSON.parse(localStorage.getItem(STORAGE_KEYS.packages) || '[]');
     let featureConfigs = JSON.parse(localStorage.getItem(STORAGE_KEYS.featureConfigs) || '[]');
     let pricing = JSON.parse(localStorage.getItem(STORAGE_KEYS.pricing) || '[]');
+    let coupons = JSON.parse(localStorage.getItem(STORAGE_KEYS.coupons) || '[]');
+    let couponUsageHistory = JSON.parse(localStorage.getItem('subscription_coupon_usage') || '[]');
 
     const currencies = ['USD', 'EUR', 'GBP', 'INR', 'AUD'];
     const billingCycles = ['Monthly', 'Annual'];
@@ -365,6 +255,8 @@
       localStorage.setItem(STORAGE_KEYS.packages, JSON.stringify(packages));
       localStorage.setItem(STORAGE_KEYS.featureConfigs, JSON.stringify(featureConfigs));
       localStorage.setItem(STORAGE_KEYS.pricing, JSON.stringify(pricing));
+      localStorage.setItem(STORAGE_KEYS.coupons, JSON.stringify(coupons));
+      localStorage.setItem('subscription_coupon_usage', JSON.stringify(couponUsageHistory));
     }
 
     function generateId() {
@@ -388,6 +280,18 @@
           { id: generateId(), packageName: 'Basic Plan', packageCode: 'BASIC', description: 'Perfect for individuals and small teams getting started', billingType: 'Monthly, Annual', trialEnabled: true, trialDays: 14, creditCardRequired: false, status: 'Active', sortOrder: 0, createdAt: new Date().toISOString() },
           { id: generateId(), packageName: 'Professional Plan', packageCode: 'PRO', description: 'For growing teams and businesses needing more power', billingType: 'Monthly, Annual', trialEnabled: true, trialDays: 30, creditCardRequired: true, status: 'Active', sortOrder: 1, createdAt: new Date().toISOString() },
           { id: generateId(), packageName: 'Enterprise Plan', packageCode: 'ENTERPRISE', description: 'Advanced features and unlimited resources for large organizations', billingType: 'Monthly, Annual', trialEnabled: false, trialDays: 0, creditCardRequired: true, status: 'Active', sortOrder: 2, createdAt: new Date().toISOString() }
+        ];
+
+        // Seed sample coupon usage history
+        const sampleCouponId = generateId();
+        coupons = [
+          { id: sampleCouponId, code: 'SUMMER2024', discountType: 'Percentage', discountValue: 25, currency: 'USD', durationType: 'Once', durationMonths: 1, usageLimit: 100, usedCount: 12, validFrom: '2024-06-01', validUntil: '2024-08-31', applicablePackages: 'All', selectedPackages: [], status: 'Active', createdAt: new Date().toISOString() }
+        ];
+
+        couponUsageHistory = [
+          { id: generateId(), couponId: sampleCouponId, couponCode: 'SUMMER2024', customerEmail: 'john.doe@example.com', customerName: 'John Doe', packageName: 'Professional Plan', discountAmount: 7.25, currency: 'USD', usedAt: new Date(Date.now() - 5 * 24 * 60 * 60 * 1000).toISOString() },
+          { id: generateId(), couponId: sampleCouponId, couponCode: 'SUMMER2024', customerEmail: 'jane.smith@example.com', customerName: 'Jane Smith', packageName: 'Basic Plan', discountAmount: 2.25, currency: 'USD', usedAt: new Date(Date.now() - 3 * 24 * 60 * 60 * 1000).toISOString() },
+          { id: generateId(), couponId: sampleCouponId, couponCode: 'SUMMER2024', customerEmail: 'bob.wilson@example.com', customerName: 'Bob Wilson', packageName: 'Professional Plan', discountAmount: 7.25, currency: 'USD', usedAt: new Date(Date.now() - 1 * 24 * 60 * 60 * 1000).toISOString() }
         ];
 
         saveToLocalStorage();
@@ -436,8 +340,10 @@
             <div class="flex gap-8 border-b" style="border-color: #e2e8f0;">
               ${renderTab('features', '📋 Features', baseFont)}
               ${renderTab('packages', '📦 Packages', baseFont)}
-              ${renderTab('configuration', '⚙�� Configuration', baseFont)}
-              ${renderTab('pricing', '��� Pricing', baseFont)}
+              ${renderTab('configuration', '⚙️ Configuration', baseFont)}
+              ${renderTab('pricing', '💰 Pricing', baseFont)}
+              ${renderTab('coupons', '🎟️ Coupons', baseFont)}
+              ${renderTab('preview', '👁️ Preview', baseFont)}
             </div>
           </div>
 
@@ -563,6 +469,14 @@
           contentArea.innerHTML = renderPricingView();
           setupPricingListeners();
           break;
+        case 'coupons':
+          contentArea.innerHTML = renderCouponsView();
+          setupCouponsListeners();
+          break;
+        case 'preview':
+          contentArea.innerHTML = renderPreviewView();
+          setupPreviewListeners();
+          break;
       }
     }
 
@@ -631,7 +545,7 @@
                       </span>
                     </td>
                     <td style="padding: 16px; font-size: ${baseFont * 0.875}px;">
-                      ${feature.isMetered ? '✅ Yes' : '❌ No'}
+                      ${feature.isMetered ? '��� Yes' : '❌ No'}
                     </td>
                     <td style="padding: 16px; font-size: ${baseFont * 0.875}px;">
                       <span style="background-color: ${feature.status === 'Active' ? '#dcfce7' : '#fee2e2'}; color: ${feature.status === 'Active' ? '#166534' : '#991b1b'}; padding: 4px 12px; border-radius: 12px; font-size: ${baseFont * 0.75}px; font-weight: 600;">
@@ -1065,6 +979,10 @@
         modalContent = renderPackageModal(baseFont);
       } else if (modalType === 'price') {
         modalContent = renderPriceModal(baseFont);
+      } else if (modalType === 'coupon') {
+        modalContent = renderCouponModal(baseFont);
+      } else if (modalType === 'coupon-usage') {
+        modalContent = renderCouponUsageModal(baseFont);
       } else if (modalType === 'help') {
         modalContent = renderHelpModal(baseFont);
       } else if (modalType === 'copy-error') {
@@ -1418,7 +1336,7 @@
             </h4>
             <div style="background-color: ${config.surface_color}; padding: 20px; border-radius: 8px; border: 1px solid #e2e8f0;">
               <p style="font-size: ${baseFont * 0.875}px; color: ${config.text_color}; line-height: 1.6; margin: 0 0 16px 0;">
-                Packages are subscription tiers (plans) that customers can purchase. Common structure: Free → Basic → Pro → Enterprise.
+                Packages are subscription tiers (plans) that customers can purchase. Common structure: Free ��� Basic → Pro → Enterprise.
               </p>
               <ul style="margin: 0; padding-left: 20px; font-size: ${baseFont * 0.875}px; color: ${config.text_color}; line-height: 1.8;">
                 <li style="margin-bottom: 8px;"><strong>Package Name:</strong> Customer-facing name (e.g., "Professional Plan")</li>
@@ -1461,7 +1379,7 @@
           <!-- Pricing Section -->
           <div style="margin-bottom: 32px;">
             <h4 style="font-size: ${baseFont * 1.25}px; color: ${config.text_color}; font-weight: 700; margin: 0 0 16px 0; padding-bottom: 12px; border-bottom: 2px solid #e2e8f0;">
-              💰 Pricing Tab
+              �� Pricing Tab
             </h4>
             <div style="background-color: ${config.surface_color}; padding: 20px; border-radius: 8px; border: 1px solid #e2e8f0;">
               <p style="font-size: ${baseFont * 0.875}px; color: ${config.text_color}; line-height: 1.6; margin: 0 0 16px 0;">
@@ -1578,6 +1496,325 @@
               Close
             </button>
           </div>
+        </div>
+      `;
+    }
+
+    function renderCouponUsageModal(baseFont) {
+      const coupon = editingItem;
+      const usageRecords = couponUsageHistory.filter(u => u.couponId === coupon.id).sort((a, b) => new Date(b.usedAt) - new Date(a.usedAt));
+      
+      const totalDiscount = usageRecords.reduce((sum, record) => sum + record.discountAmount, 0);
+
+      return `
+        <div style="padding: 32px; max-width: 900px; max-height: 80vh; overflow-y: auto;">
+          <div style="margin-bottom: 24px;">
+            <h3 style="font-size: ${baseFont * 1.5}px; color: ${config.text_color}; font-weight: 700; margin: 0 0 8px 0;">
+              📊 Usage History: ${coupon.code}
+            </h3>
+            <p style="font-size: ${baseFont * 0.875}px; color: ${config.secondary_action_color}; margin: 0;">
+              Track all redemptions and customer usage of this coupon
+            </p>
+          </div>
+
+          <!-- Summary Cards -->
+          <div style="display: grid; grid-template-columns: repeat(3, 1fr); gap: 16px; margin-bottom: 24px;">
+            <div style="background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); padding: 20px; border-radius: 12px; color: white;">
+              <div style="font-size: ${baseFont * 0.75}px; opacity: 0.9; margin-bottom: 8px; text-transform: uppercase; font-weight: 600; letter-spacing: 0.5px;">
+                Total Uses
+              </div>
+              <div style="font-size: ${baseFont * 2}px; font-weight: 800;">
+                ${usageRecords.length}
+              </div>
+              ${coupon.usageLimit > 0 ? `
+                <div style="font-size: ${baseFont * 0.75}px; opacity: 0.9; margin-top: 4px;">
+                  of ${coupon.usageLimit} limit
+                </div>
+              ` : ''}
+            </div>
+
+            <div style="background: linear-gradient(135deg, #f093fb 0%, #f5576c 100%); padding: 20px; border-radius: 12px; color: white;">
+              <div style="font-size: ${baseFont * 0.75}px; opacity: 0.9; margin-bottom: 8px; text-transform: uppercase; font-weight: 600; letter-spacing: 0.5px;">
+                Total Discount
+              </div>
+              <div style="font-size: ${baseFont * 2}px; font-weight: 800;">
+                ${coupon.currency} ${totalDiscount.toFixed(2)}
+              </div>
+              <div style="font-size: ${baseFont * 0.75}px; opacity: 0.9; margin-top: 4px;">
+                Given to customers
+              </div>
+            </div>
+
+            <div style="background: linear-gradient(135deg, #4facfe 0%, #00f2fe 100%); padding: 20px; border-radius: 12px; color: white;">
+              <div style="font-size: ${baseFont * 0.75}px; opacity: 0.9; margin-bottom: 8px; text-transform: uppercase; font-weight: 600; letter-spacing: 0.5px;">
+                Unique Customers
+              </div>
+              <div style="font-size: ${baseFont * 2}px; font-weight: 800;">
+                ${new Set(usageRecords.map(r => r.customerEmail)).size}
+              </div>
+              <div style="font-size: ${baseFont * 0.75}px; opacity: 0.9; margin-top: 4px;">
+                Different users
+              </div>
+            </div>
+          </div>
+
+          ${usageRecords.length === 0 ? `
+            <div style="background-color: ${config.surface_color}; border-radius: 12px; padding: 48px; text-align: center; box-shadow: 0 1px 3px rgba(0,0,0,0.1); margin-bottom: 24px;">
+              <p style="font-size: ${baseFont}px; color: ${config.secondary_action_color}; margin: 0;">
+                📋 No usage history yet. This coupon hasn't been redeemed by any customers.
+              </p>
+            </div>
+          ` : `
+            <!-- Usage Table -->
+            <div style="background-color: ${config.surface_color}; border-radius: 12px; box-shadow: 0 1px 3px rgba(0,0,0,0.1); overflow: hidden; margin-bottom: 24px;">
+              <table style="width: 100%; border-collapse: collapse;">
+                <thead style="background-color: ${config.background_color};">
+                  <tr>
+                    <th style="padding: 16px; text-align: left; font-size: ${baseFont * 0.875}px; font-weight: 600; color: ${config.secondary_action_color};">Customer</th>
+                    <th style="padding: 16px; text-align: left; font-size: ${baseFont * 0.875}px; font-weight: 600; color: ${config.secondary_action_color};">Package</th>
+                    <th style="padding: 16px; text-align: left; font-size: ${baseFont * 0.875}px; font-weight: 600; color: ${config.secondary_action_color};">Discount</th>
+                    <th style="padding: 16px; text-align: left; font-size: ${baseFont * 0.875}px; font-weight: 600; color: ${config.secondary_action_color};">Date</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  ${usageRecords.map((record, index) => {
+                    const usedDate = new Date(record.usedAt);
+                    const now = new Date();
+                    const diffTime = Math.abs(now - usedDate);
+                    const diffDays = Math.floor(diffTime / (1000 * 60 * 60 * 24));
+                    
+                    let timeAgo;
+                    if (diffDays === 0) {
+                      timeAgo = 'Today';
+                    } else if (diffDays === 1) {
+                      timeAgo = 'Yesterday';
+                    } else if (diffDays < 7) {
+                      timeAgo = `${diffDays} days ago`;
+                    } else if (diffDays < 30) {
+                      timeAgo = `${Math.floor(diffDays / 7)} weeks ago`;
+                    } else {
+                      timeAgo = `${Math.floor(diffDays / 30)} months ago`;
+                    }
+
+                    return `
+                      <tr style="border-top: 1px solid #e2e8f0;">
+                        <td style="padding: 16px;">
+                          <div style="font-size: ${baseFont * 0.875}px; color: ${config.text_color}; font-weight: 600; margin-bottom: 4px;">
+                            ${record.customerName}
+                          </div>
+                          <div style="font-size: ${baseFont * 0.75}px; color: ${config.secondary_action_color};">
+                            ${record.customerEmail}
+                          </div>
+                        </td>
+                        <td style="padding: 16px; font-size: ${baseFont * 0.875}px; color: ${config.text_color};">
+                          ${record.packageName}
+                        </td>
+                        <td style="padding: 16px; font-size: ${baseFont * 0.875}px; color: #10b981; font-weight: 700;">
+                          -${record.currency} ${record.discountAmount.toFixed(2)}
+                        </td>
+                        <td style="padding: 16px;">
+                          <div style="font-size: ${baseFont * 0.875}px; color: ${config.text_color};">
+                            ${usedDate.toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })}
+                          </div>
+                          <div style="font-size: ${baseFont * 0.75}px; color: ${config.secondary_action_color};">
+                            ${timeAgo}
+                          </div>
+                        </td>
+                      </tr>
+                    `;
+                  }).join('')}
+                </tbody>
+              </table>
+            </div>
+          `}
+
+          <!-- Export Info Box -->
+          <div style="background-color: #eff6ff; border-left: 4px solid ${config.primary_action_color}; padding: 16px 20px; border-radius: 8px; margin-bottom: 24px;">
+            <p style="font-size: ${baseFont * 0.875}px; color: ${config.text_color}; margin: 0; line-height: 1.6;">
+              💡 <strong>Export Tip:</strong> You can copy the entire table data by selecting it and using Ctrl+C (or Cmd+C on Mac) to paste into Excel or Google Sheets for further analysis.
+            </p>
+          </div>
+
+          <div style="display: flex; justify-content: flex-end; padding-top: 16px; border-top: 1px solid #e2e8f0;">
+            <button id="modal-cancel" style="padding: 12px 32px; background-color: ${config.primary_action_color}; color: white; border-radius: 8px; font-size: ${baseFont}px; font-weight: 600; border: none; cursor: pointer;">
+              Close
+            </button>
+          </div>
+        </div>
+      `;
+    }
+
+    function renderCouponModal(baseFont) {
+      const isEdit = editingItem !== null;
+      const coupon = isEdit ? editingItem : { 
+        code: '', 
+        discountType: 'Percentage', 
+        discountValue: 0, 
+        currency: 'USD',
+        durationType: 'Once', 
+        durationMonths: 1,
+        usageLimit: 0, 
+        usedCount: 0,
+        validFrom: '', 
+        validUntil: '', 
+        applicablePackages: 'All',
+        selectedPackages: [],
+        status: 'Active' 
+      };
+
+      return `
+        <div style="padding: 32px; max-height: 80vh; overflow-y: auto;">
+          <h3 style="font-size: ${baseFont * 1.5}px; color: ${config.text_color}; font-weight: 700; margin: 0 0 24px 0;">
+            ${isEdit ? 'Edit Coupon' : 'Create New Coupon'}
+          </h3>
+
+          <form id="coupon-form">
+            <div style="margin-bottom: 20px;">
+              <label style="display: block; font-size: ${baseFont * 0.875}px; color: ${config.text_color}; font-weight: 600; margin-bottom: 8px;">
+                Coupon Code *
+              </label>
+              <input type="text" id="coupon-code" value="${coupon.code}" required style="width: 100%; padding: 12px; border: 2px solid #e2e8f0; border-radius: 8px; font-size: ${baseFont}px; font-family: monospace; text-transform: uppercase;">
+              <p style="font-size: ${baseFont * 0.75}px; color: ${config.secondary_action_color}; margin: 4px 0 0 0;">
+                e.g., SUMMER2024, WELCOME50, EARLYBIRD
+              </p>
+            </div>
+
+            <div style="margin-bottom: 20px;">
+              <label style="display: block; font-size: ${baseFont * 0.875}px; color: ${config.text_color}; font-weight: 600; margin-bottom: 8px;">
+                Discount Type *
+              </label>
+              <div style="display: flex; gap: 16px; margin-bottom: 12px;">
+                <label style="display: flex; align-items: center; gap: 8px; cursor: pointer;">
+                  <input type="radio" name="discount-type" value="Percentage" ${coupon.discountType === 'Percentage' ? 'checked' : ''} style="width: 18px; height: 18px;">
+                  <span style="font-size: ${baseFont * 0.875}px;">Percentage (%)</span>
+                </label>
+                <label style="display: flex; align-items: center; gap: 8px; cursor: pointer;">
+                  <input type="radio" name="discount-type" value="Fixed" ${coupon.discountType === 'Fixed' ? 'checked' : ''} style="width: 18px; height: 18px;">
+                  <span style="font-size: ${baseFont * 0.875}px;">Fixed Amount</span>
+                </label>
+              </div>
+            </div>
+
+            <div style="display: grid; grid-template-columns: 2fr 1fr; gap: 16px; margin-bottom: 20px;">
+              <div>
+                <label style="display: block; font-size: ${baseFont * 0.875}px; color: ${config.text_color}; font-weight: 600; margin-bottom: 8px;">
+                  Discount Value *
+                </label>
+                <input type="number" id="coupon-value" value="${coupon.discountValue}" required min="0" step="0.01" style="width: 100%; padding: 12px; border: 2px solid #e2e8f0; border-radius: 8px; font-size: ${baseFont}px;">
+              </div>
+              <div id="currency-container" style="${coupon.discountType === 'Fixed' ? '' : 'display: none;'}">
+                <label style="display: block; font-size: ${baseFont * 0.875}px; color: ${config.text_color}; font-weight: 600; margin-bottom: 8px;">
+                  Currency
+                </label>
+                <select id="coupon-currency" style="width: 100%; padding: 12px; border: 2px solid #e2e8f0; border-radius: 8px; font-size: ${baseFont}px;">
+                  ${currencies.map(curr => `
+                    <option value="${curr}" ${coupon.currency === curr ? 'selected' : ''}>${curr}</option>
+                  `).join('')}
+                </select>
+              </div>
+            </div>
+
+            <div style="margin-bottom: 20px;">
+              <label style="display: block; font-size: ${baseFont * 0.875}px; color: ${config.text_color}; font-weight: 600; margin-bottom: 8px;">
+                Duration Type *
+              </label>
+              <div style="display: flex; gap: 16px; margin-bottom: 12px;">
+                <label style="display: flex; align-items: center; gap: 8px; cursor: pointer;">
+                  <input type="radio" name="duration-type" value="Once" ${coupon.durationType === 'Once' ? 'checked' : ''} style="width: 18px; height: 18px;">
+                  <span style="font-size: ${baseFont * 0.875}px;">Once (First payment only)</span>
+                </label>
+                <label style="display: flex; align-items: center; gap: 8px; cursor: pointer;">
+                  <input type="radio" name="duration-type" value="Recurring" ${coupon.durationType === 'Recurring' ? 'checked' : ''} style="width: 18px; height: 18px;">
+                  <span style="font-size: ${baseFont * 0.875}px;">Recurring</span>
+                </label>
+                <label style="display: flex; align-items: center; gap: 8px; cursor: pointer;">
+                  <input type="radio" name="duration-type" value="Forever" ${coupon.durationType === 'Forever' ? 'checked' : ''} style="width: 18px; height: 18px;">
+                  <span style="font-size: ${baseFont * 0.875}px;">Forever</span>
+                </label>
+              </div>
+            </div>
+
+            <div id="duration-months-container" style="margin-bottom: 20px; ${coupon.durationType === 'Recurring' ? '' : 'display: none;'}">
+              <label style="display: block; font-size: ${baseFont * 0.875}px; color: ${config.text_color}; font-weight: 600; margin-bottom: 8px;">
+                Number of Months
+              </label>
+              <input type="number" id="duration-months" value="${coupon.durationMonths || 1}" min="1" style="width: 100%; padding: 12px; border: 2px solid #e2e8f0; border-radius: 8px; font-size: ${baseFont}px;">
+            </div>
+
+            <div style="margin-bottom: 20px;">
+              <label style="display: block; font-size: ${baseFont * 0.875}px; color: ${config.text_color}; font-weight: 600; margin-bottom: 8px;">
+                Usage Limit
+              </label>
+              <input type="number" id="usage-limit" value="${coupon.usageLimit}" min="0" style="width: 100%; padding: 12px; border: 2px solid #e2e8f0; border-radius: 8px; font-size: ${baseFont}px;">
+              <p style="font-size: ${baseFont * 0.75}px; color: ${config.secondary_action_color}; margin: 4px 0 0 0;">
+                Set to 0 for unlimited usage
+              </p>
+            </div>
+
+            <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 16px; margin-bottom: 20px;">
+              <div>
+                <label style="display: block; font-size: ${baseFont * 0.875}px; color: ${config.text_color}; font-weight: 600; margin-bottom: 8px;">
+                  Valid From
+                </label>
+                <input type="date" id="valid-from" value="${coupon.validFrom}" style="width: 100%; padding: 12px; border: 2px solid #e2e8f0; border-radius: 8px; font-size: ${baseFont}px;">
+              </div>
+              <div>
+                <label style="display: block; font-size: ${baseFont * 0.875}px; color: ${config.text_color}; font-weight: 600; margin-bottom: 8px;">
+                  Valid Until
+                </label>
+                <input type="date" id="valid-until" value="${coupon.validUntil}" style="width: 100%; padding: 12px; border: 2px solid #e2e8f0; border-radius: 8px; font-size: ${baseFont}px;">
+              </div>
+            </div>
+
+            <div style="margin-bottom: 20px;">
+              <label style="display: block; font-size: ${baseFont * 0.875}px; color: ${config.text_color}; font-weight: 600; margin-bottom: 8px;">
+                Applicable Packages
+              </label>
+              <div style="display: flex; gap: 16px; margin-bottom: 12px;">
+                <label style="display: flex; align-items: center; gap: 8px; cursor: pointer;">
+                  <input type="radio" name="applicable-packages" value="All" ${coupon.applicablePackages === 'All' ? 'checked' : ''} style="width: 18px; height: 18px;">
+                  <span style="font-size: ${baseFont * 0.875}px;">All Packages</span>
+                </label>
+                <label style="display: flex; align-items: center; gap: 8px; cursor: pointer;">
+                  <input type="radio" name="applicable-packages" value="Specific" ${coupon.applicablePackages === 'Specific' ? 'checked' : ''} style="width: 18px; height: 18px;">
+                  <span style="font-size: ${baseFont * 0.875}px;">Specific Packages</span>
+                </label>
+              </div>
+            </div>
+
+            <div id="specific-packages-container" style="margin-bottom: 20px; ${coupon.applicablePackages === 'Specific' ? '' : 'display: none;'}">
+              <label style="display: block; font-size: ${baseFont * 0.875}px; color: ${config.text_color}; font-weight: 600; margin-bottom: 8px;">
+                Select Packages
+              </label>
+              <div style="border: 2px solid #e2e8f0; border-radius: 8px; padding: 12px; max-height: 200px; overflow-y: auto;">
+                ${packages.map(pkg => `
+                  <label style="display: flex; align-items: center; gap: 8px; padding: 8px; cursor: pointer; border-radius: 4px; transition: background-color 0.2s;">
+                    <input type="checkbox" class="package-checkbox" value="${pkg.id}" ${(coupon.selectedPackages || []).includes(pkg.id) ? 'checked' : ''} style="width: 18px; height: 18px;">
+                    <span style="font-size: ${baseFont * 0.875}px;">${pkg.packageName}</span>
+                  </label>
+                `).join('')}
+              </div>
+            </div>
+
+            <div style="margin-bottom: 20px;">
+              <label style="display: block; font-size: ${baseFont * 0.875}px; color: ${config.text_color}; font-weight: 600; margin-bottom: 8px;">
+                Status
+              </label>
+              <select id="coupon-status" style="width: 100%; padding: 12px; border: 2px solid #e2e8f0; border-radius: 8px; font-size: ${baseFont}px;">
+                <option value="Active" ${coupon.status === 'Active' ? 'selected' : ''}>Active</option>
+                <option value="Inactive" ${coupon.status === 'Inactive' ? 'selected' : ''}>Inactive</option>
+              </select>
+            </div>
+
+            <div style="display: flex; gap: 12px; justify-content: flex-end;">
+              <button type="button" id="modal-cancel" style="padding: 12px 24px; border: 2px solid #e2e8f0; border-radius: 8px; font-size: ${baseFont}px; font-weight: 600; background: none; cursor: pointer; color: ${config.secondary_action_color};">
+                Cancel
+              </button>
+              <button type="submit" id="modal-save" style="padding: 12px 24px; background-color: ${config.primary_action_color}; color: white; border-radius: 8px; font-size: ${baseFont}px; font-weight: 600; border: none; cursor: pointer;">
+                ${isEdit ? 'Update' : 'Create'} Coupon
+              </button>
+            </div>
+          </form>
         </div>
       `;
     }
@@ -1735,6 +1972,368 @@
         });
       }
     }
+
+    function renderPreviewView() {
+      const baseFont = config.font_size;
+
+      if (packages.length === 0) {
+        return `
+          <div style="background-color: ${config.surface_color}; border-radius: 12px; padding: 48px; text-align: center; box-shadow: 0 1px 3px rgba(0,0,0,0.1);">
+            <p style="font-size: ${baseFont * 1.125}px; color: ${config.secondary_action_color}; margin: 0 0 16px 0;">
+              📦 No packages to preview yet
+            </p>
+            <p style="font-size: ${baseFont * 0.875}px; color: ${config.secondary_action_color}; margin: 0;">
+              Create some packages first, then come back here to see how they'll look to your customers!
+            </p>
+          </div>
+        `;
+      }
+
+      // Get active packages sorted by sortOrder
+      const activePackages = packages.filter(p => p.status === 'Active').sort((a, b) => a.sortOrder - b.sortOrder);
+
+      return `
+        <div>
+          <div class="mb-6">
+            <h2 style="font-size: ${baseFont * 1.5}px; color: ${config.text_color}; font-weight: 700; margin: 0 0 8px 0;">
+              📺 Customer-Facing Preview
+            </h2>
+            <p style="font-size: ${baseFont * 0.875}px; color: ${config.secondary_action_color}; margin: 0;">
+              See how your subscription packages will appear to customers
+            </p>
+          </div>
+
+          <!-- Currency Selector -->
+          <div style="margin-bottom: 32px; max-width: 300px;">
+            <label style="display: block; font-size: ${baseFont * 0.875}px; color: ${config.text_color}; font-weight: 600; margin-bottom: 8px;">
+              Display Currency
+            </label>
+            <select id="preview-currency" style="width: 100%; padding: 12px; border: 2px solid #e2e8f0; border-radius: 8px; font-size: ${baseFont}px; background-color: ${config.surface_color}; color: ${config.text_color};">
+              ${currencies.map(curr => `
+                <option value="${curr}" ${selectedCurrency === curr ? 'selected' : ''}>${curr}</option>
+              `).join('')}
+            </select>
+          </div>
+
+          <!-- Preview Container -->
+          <div style="background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); padding: 64px 32px; border-radius: 16px; margin-bottom: 32px;">
+            <div style="text-align: center; margin-bottom: 48px;">
+              <h1 style="font-size: ${baseFont * 2.5}px; color: white; font-weight: 800; margin: 0 0 16px 0;">
+                Choose Your Plan
+              </h1>
+              <p style="font-size: ${baseFont * 1.125}px; color: rgba(255, 255, 255, 0.9); margin: 0;">
+                Select the perfect plan for your needs
+              </p>
+            </div>
+
+            <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(300px, 1fr)); gap: 32px; max-width: 1200px; margin: 0 auto;">
+              ${activePackages.map((pkg, index) => {
+                const configs = featureConfigs.filter(fc => fc.packageId === pkg.id);
+                const monthlyPrice = pricing.find(p => p.packageId === pkg.id && p.billingCycle === 'Monthly' && p.currency === selectedCurrency);
+                const annualPrice = pricing.find(p => p.packageId === pkg.id && p.billingCycle === 'Annual' && p.currency === selectedCurrency);
+                
+                const isPopular = index === 1 && activePackages.length >= 3;
+
+                return `
+                  <div style="background-color: white; border-radius: 16px; padding: 32px; position: relative; box-shadow: 0 10px 30px rgba(0,0,0,0.15); transform: ${isPopular ? 'scale(1.05)' : 'scale(1)'}; transition: transform 0.3s;">
+                    ${isPopular ? `
+                      <div style="position: absolute; top: -12px; right: 24px; background: linear-gradient(135deg, #f093fb 0%, #f5576c 100%); color: white; padding: 6px 16px; border-radius: 20px; font-size: ${baseFont * 0.75}px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.5px;">
+                        ��� Most Popular
+                      </div>
+                    ` : ''}
+
+                    <div style="text-align: center; margin-bottom: 24px;">
+                      <h3 style="font-size: ${baseFont * 1.5}px; color: ${config.text_color}; font-weight: 700; margin: 0 0 8px 0;">
+                        ${pkg.packageName}
+                      </h3>
+                      <p style="font-size: ${baseFont * 0.875}px; color: ${config.secondary_action_color}; margin: 0; min-height: 42px;">
+                        ${pkg.description || ''}
+                      </p>
+                    </div>
+
+                    ${monthlyPrice || annualPrice ? `
+                      <div style="text-align: center; margin-bottom: 24px; padding: 24px 0; border-top: 2px solid #e2e8f0; border-bottom: 2px solid #e2e8f0;">
+                        ${monthlyPrice ? `
+                          <div style="margin-bottom: ${annualPrice ? '16px' : '0'};">
+                            <div style="font-size: ${baseFont * 0.75}px; color: ${config.secondary_action_color}; margin-bottom: 4px; text-transform: uppercase; font-weight: 600; letter-spacing: 0.5px;">
+                              Monthly
+                            </div>
+                            <div style="font-size: ${baseFont * 2.5}px; color: ${config.text_color}; font-weight: 800; line-height: 1;">
+                              ${monthlyPrice.currency === 'USD' ? '$' : monthlyPrice.currency === 'EUR' ? '€' : monthlyPrice.currency === 'GBP' ? '£' : monthlyPrice.currency === 'INR' ? '₹' : '$'}${monthlyPrice.price.toFixed(0)}
+                              <span style="font-size: ${baseFont * 1}px; color: ${config.secondary_action_color}; font-weight: 500;">/mo</span>
+                            </div>
+                          </div>
+                        ` : ''}
+                        ${annualPrice ? `
+                          <div>
+                            <div style="font-size: ${baseFont * 0.75}px; color: ${config.secondary_action_color}; margin-bottom: 4px; text-transform: uppercase; font-weight: 600; letter-spacing: 0.5px;">
+                              Annual
+                            </div>
+                            <div style="font-size: ${baseFont * 2.5}px; color: ${config.text_color}; font-weight: 800; line-height: 1;">
+                              ${annualPrice.currency === 'USD' ? '$' : annualPrice.currency === 'EUR' ? '€' : annualPrice.currency === 'GBP' ? '£' : annualPrice.currency === 'INR' ? '₹' : '$'}${(annualPrice.price / 12).toFixed(0)}
+                              <span style="font-size: ${baseFont * 1}px; color: ${config.secondary_action_color}; font-weight: 500;">/mo</span>
+                            </div>
+                            ${monthlyPrice ? `
+                              <div style="font-size: ${baseFont * 0.75}px; color: #10b981; font-weight: 600; margin-top: 4px;">
+                                Save ${Math.round((1 - (annualPrice.price / 12) / monthlyPrice.price) * 100)}%
+                              </div>
+                            ` : ''}
+                          </div>
+                        ` : ''}
+                      </div>
+                    ` : `
+                      <div style="text-align: center; margin-bottom: 24px; padding: 24px 0; border-top: 2px solid #e2e8f0; border-bottom: 2px solid #e2e8f0;">
+                        <div style="font-size: ${baseFont * 2.5}px; color: ${config.text_color}; font-weight: 800;">
+                          Contact Us
+                        </div>
+                        <div style="font-size: ${baseFont * 0.875}px; color: ${config.secondary_action_color}; margin-top: 8px;">
+                          Custom pricing
+                        </div>
+                      </div>
+                    `}
+
+                    <ul style="list-style: none; padding: 0; margin: 0 0 32px 0;">
+                      ${features.filter(f => f.status === 'Active').map(feature => {
+                        const featureConfig = configs.find(c => c.featureId === feature.id);
+                        const limitType = featureConfig?.limitType || 'Disabled';
+                        const limitValue = featureConfig?.limitValue || 0;
+
+                        if (limitType === 'Disabled') {
+                          return `
+                            <li style="padding: 12px 0; display: flex; align-items: center; gap: 12px; border-bottom: 1px solid #f1f5f9;">
+                              <span style="color: #cbd5e1; font-size: ${baseFont * 1.25}px;">✗</span>
+                              <span style="font-size: ${baseFont * 0.875}px; color: #94a3b8; text-decoration: line-through;">
+                                ${feature.name}
+                              </span>
+                            </li>
+                          `;
+                        } else if (limitType === 'Unlimited') {
+                          return `
+                            <li style="padding: 12px 0; display: flex; align-items: center; gap: 12px; border-bottom: 1px solid #f1f5f9;">
+                              <span style="color: #10b981; font-size: ${baseFont * 1.25}px;">✓</span>
+                              <span style="font-size: ${baseFont * 0.875}px; color: ${config.text_color}; font-weight: 500;">
+                                <strong>Unlimited</strong> ${feature.name}
+                              </span>
+                            </li>
+                          `;
+                        } else {
+                          return `
+                            <li style="padding: 12px 0; display: flex; align-items: center; gap: 12px; border-bottom: 1px solid #f1f5f9;">
+                              <span style="color: #10b981; font-size: ${baseFont * 1.25}px;">✓</span>
+                              <span style="font-size: ${baseFont * 0.875}px; color: ${config.text_color};">
+                                <strong>${limitValue}</strong> ${feature.name}
+                              </span>
+                            </li>
+                          `;
+                        }
+                      }).join('')}
+                    </ul>
+
+                    <button style="width: 100%; padding: 16px; background-color: ${isPopular ? '#667eea' : config.primary_action_color}; color: white; border: none; border-radius: 8px; font-size: ${baseFont}px; font-weight: 700; cursor: pointer; transition: all 0.3s; box-shadow: 0 4px 6px rgba(0,0,0,0.1);">
+                      Get Started
+                    </button>
+
+                    ${pkg.trialEnabled ? `
+                      <p style="text-align: center; font-size: ${baseFont * 0.75}px; color: ${config.secondary_action_color}; margin: 12px 0 0 0;">
+                        🎁 ${pkg.trialDays}-day free trial
+                      </p>
+                    ` : ''}
+                  </div>
+                `;
+              }).join('')}
+            </div>
+          </div>
+
+          <!-- Info Note -->
+          <div style="background-color: #eff6ff; border-left: 4px solid ${config.primary_action_color}; padding: 16px 20px; border-radius: 8px;">
+            <p style="font-size: ${baseFont * 0.875}px; color: ${config.text_color}; margin: 0; line-height: 1.6;">
+              <strong>💡 Preview Tips:</strong> This shows how your active packages will appear to customers. The middle package is automatically highlighted as "Most Popular" when you have 3+ packages. Inactive packages are hidden from preview.
+            </p>
+          </div>
+        </div>
+      `;
+    }
+
+    function setupPreviewListeners() {
+      const currencySelector = document.getElementById('preview-currency');
+      if (currencySelector) {
+        currencySelector.addEventListener('change', (e) => {
+          selectedCurrency = e.target.value;
+          renderContent();
+        });
+      }
+    }
+
+    function renderCouponsView() {
+      const baseFont = config.font_size;
+
+      return `
+        <div>
+          <div class="flex justify-between items-center mb-6">
+            <div>
+              <h2 style="font-size: ${baseFont * 1.5}px; color: ${config.text_color}; font-weight: 700; margin: 0 0 8px 0;">
+                Coupon Management
+              </h2>
+              <p style="font-size: ${baseFont * 0.875}px; color: ${config.secondary_action_color}; margin: 0;">
+                Create discount codes and promotional offers for your subscription packages
+              </p>
+            </div>
+            <button id="add-coupon-btn" style="background-color: ${config.primary_action_color}; color: white; padding: 12px 24px; border-radius: 8px; font-size: ${baseFont}px; font-weight: 600; border: none; cursor: pointer; box-shadow: 0 2px 4px rgba(0,0,0,0.1);">
+              + Create Coupon
+            </button>
+          </div>
+
+          <!-- Info Box -->
+          <div style="background-color: #eff6ff; border-left: 4px solid ${config.primary_action_color}; padding: 16px 20px; border-radius: 8px; margin-bottom: 24px;">
+            <div style="display: flex; gap: 12px;">
+              <div style="font-size: ${baseFont * 1.25}px;">🎟️</div>
+              <div>
+                <h4 style="font-size: ${baseFont}px; font-weight: 600; margin: 0 0 8px 0; color: ${config.text_color};">Coupon Types</h4>
+                <ul style="margin: 0; padding-left: 20px; font-size: ${baseFont * 0.875}px; color: ${config.text_color}; line-height: 1.8;">
+                  <li><strong>Percentage:</strong> Discount by % (e.g., 20% off = enter 20)</li>
+                  <li><strong>Fixed Amount:</strong> Discount by specific amount (e.g., $50 off)</li>
+                  <li><strong>Recurring vs Once:</strong> Apply discount to multiple billing cycles or just first payment</li>
+                  <li><strong>Usage Limits:</strong> Set maximum redemptions or unlimited usage</li>
+                  <li><strong>Validity Period:</strong> Set start and end dates for the coupon</li>
+                </ul>
+              </div>
+            </div>
+          </div>
+
+          <div style="background-color: ${config.surface_color}; border-radius: 12px; box-shadow: 0 1px 3px rgba(0,0,0,0.1); overflow: hidden;">
+            <table style="width: 100%; border-collapse: collapse;">
+              <thead style="background-color: ${config.background_color};">
+                <tr>
+                  <th style="padding: 16px; text-align: left; font-size: ${baseFont * 0.875}px; font-weight: 600; color: ${config.secondary_action_color};">Code</th>
+                  <th style="padding: 16px; text-align: left; font-size: ${baseFont * 0.875}px; font-weight: 600; color: ${config.secondary_action_color};">Discount</th>
+                  <th style="padding: 16px; text-align: left; font-size: ${baseFont * 0.875}px; font-weight: 600; color: ${config.secondary_action_color};">Type</th>
+                  <th style="padding: 16px; text-align: left; font-size: ${baseFont * 0.875}px; font-weight: 600; color: ${config.secondary_action_color};">Valid Period</th>
+                  <th style="padding: 16px; text-align: left; font-size: ${baseFont * 0.875}px; font-weight: 600; color: ${config.secondary_action_color};">Usage</th>
+                  <th style="padding: 16px; text-align: left; font-size: ${baseFont * 0.875}px; font-weight: 600; color: ${config.secondary_action_color};">Status</th>
+                  <th style="padding: 16px; text-align: right; font-size: ${baseFont * 0.875}px; font-weight: 600; color: ${config.secondary_action_color};">Actions</th>
+                </tr>
+              </thead>
+              <tbody>
+                ${coupons.length === 0 ? `
+                  <tr>
+                    <td colspan="7" style="padding: 48px; text-align: center; font-size: ${baseFont}px; color: ${config.secondary_action_color};">
+                      No coupons yet. Click "+ Create Coupon" to create one.
+                    </td>
+                  </tr>
+                ` : coupons.map((coupon, index) => {
+                  const now = new Date();
+                  const validFrom = coupon.validFrom ? new Date(coupon.validFrom) : null;
+                  const validUntil = coupon.validUntil ? new Date(coupon.validUntil) : null;
+                  
+                  let validityText = '';
+                  if (validFrom && validUntil) {
+                    validityText = `${validFrom.toLocaleDateString()} - ${validUntil.toLocaleDateString()}`;
+                  } else if (validFrom) {
+                    validityText = `From ${validFrom.toLocaleDateString()}`;
+                  } else if (validUntil) {
+                    validityText = `Until ${validUntil.toLocaleDateString()}`;
+                  } else {
+                    validityText = 'No expiry';
+                  }
+
+                  const isExpired = validUntil && validUntil < now;
+                  const isNotStarted = validFrom && validFrom > now;
+                  
+                  return `
+                    <tr style="border-top: 1px solid #e2e8f0;">
+                      <td style="padding: 16px; font-size: ${baseFont}px; color: ${config.text_color}; font-weight: 700; font-family: monospace;">
+                        ${coupon.code}
+                      </td>
+                      <td style="padding: 16px; font-size: ${baseFont * 1}px; color: ${config.text_color}; font-weight: 600;">
+                        ${coupon.discountType === 'Percentage' ? `${coupon.discountValue}%` : `${coupon.currency} ${coupon.discountValue}`}
+                      </td>
+                      <td style="padding: 16px; font-size: ${baseFont * 0.875}px;">
+                        <span style="background-color: ${coupon.durationType === 'Recurring' ? '#dbeafe' : '#fef3c7'}; color: ${coupon.durationType === 'Recurring' ? '#1e40af' : '#92400e'}; padding: 4px 12px; border-radius: 12px; font-size: ${baseFont * 0.75}px; font-weight: 600;">
+                          ${coupon.durationType}
+                        </span>
+                      </td>
+                      <td style="padding: 16px; font-size: ${baseFont * 0.875}px; color: ${config.text_color};">
+                        ${validityText}
+                      </td>
+                      <td style="padding: 16px; font-size: ${baseFont * 0.875}px; color: ${config.text_color};">
+                        ${coupon.usageLimit === 0 ? 'Unlimited' : `${coupon.usedCount || 0} / ${coupon.usageLimit}`}
+                      </td>
+                      <td style="padding: 16px; font-size: ${baseFont * 0.875}px;">
+                        <span style="background-color: ${isExpired || isNotStarted ? '#fee2e2' : coupon.status === 'Active' ? '#dcfce7' : '#fee2e2'}; color: ${isExpired || isNotStarted ? '#991b1b' : coupon.status === 'Active' ? '#166534' : '#991b1b'}; padding: 4px 12px; border-radius: 12px; font-size: ${baseFont * 0.75}px; font-weight: 600;">
+                          ${isExpired ? 'Expired' : isNotStarted ? 'Scheduled' : coupon.status}
+                        </span>
+                      </td>
+                      <td style="padding: 16px; text-align: right;">
+                        <button class="view-usage-btn" data-id="${coupon.id}" style="color: #10b981; background: none; border: none; cursor: pointer; margin-right: 12px; font-size: ${baseFont * 0.875}px; font-weight: 600;">View Usage</button>
+                        <button class="edit-coupon-btn" data-id="${coupon.id}" style="color: ${config.primary_action_color}; background: none; border: none; cursor: pointer; margin-right: 12px; font-size: ${baseFont * 0.875}px; font-weight: 600;">Edit</button>
+                        <button class="delete-coupon-btn" data-id="${coupon.id}" style="color: #dc2626; background: none; border: none; cursor: pointer; font-size: ${baseFont * 0.875}px; font-weight: 600;">Delete</button>
+                      </td>
+                    </tr>
+                  `;
+                }).join('')}
+              </tbody>
+            </table>
+          </div>
+        </div>
+      `;
+    }
+
+    function setupCouponsListeners() {
+      const addBtn = document.getElementById('add-coupon-btn');
+      if (addBtn) {
+        addBtn.addEventListener('click', () => {
+          showModal = true;
+          modalType = 'coupon';
+          editingItem = null;
+          renderApp();
+        });
+      }
+
+      document.querySelectorAll('.view-usage-btn').forEach(btn => {
+        btn.addEventListener('click', (e) => {
+          const id = e.target.dataset.id;
+          editingItem = coupons.find(c => c.id === id);
+          showModal = true;
+          modalType = 'coupon-usage';
+          renderApp();
+        });
+      });
+
+      document.querySelectorAll('.edit-coupon-btn').forEach(btn => {
+        btn.addEventListener('click', (e) => {
+          const id = e.target.dataset.id;
+          editingItem = coupons.find(c => c.id === id);
+          showModal = true;
+          modalType = 'coupon';
+          renderApp();
+        });
+      });
+
+      document.querySelectorAll('.delete-coupon-btn').forEach(btn => {
+        btn.addEventListener('click', (e) => {
+          const id = e.target.dataset.id;
+          
+          const confirmBtn = e.target;
+          const originalText = confirmBtn.textContent;
+          confirmBtn.textContent = 'Confirm?';
+          confirmBtn.style.fontWeight = '700';
+          
+          const timeoutId = setTimeout(() => {
+            confirmBtn.textContent = originalText;
+            confirmBtn.style.fontWeight = '600';
+            confirmBtn.onclick = null;
+          }, 3000);
+          
+          confirmBtn.onclick = () => {
+            clearTimeout(timeoutId);
+            coupons = coupons.filter(c => c.id !== id);
+            saveToLocalStorage();
+            renderApp();
+          };
+        });
+      });
+    }
+
 
     function setupPricingListeners() {
       const packageSelector = document.getElementById('pricing-package-selector');
@@ -1929,6 +2528,72 @@
           editingItem = null;
           renderApp();
         });
+      } else if (modalType === 'coupon') {
+        const form = document.getElementById('coupon-form');
+        
+        // Dynamic form controls
+        const discountTypeRadios = document.querySelectorAll('input[name="discount-type"]');
+        const currencyContainer = document.getElementById('currency-container');
+        
+        discountTypeRadios.forEach(radio => {
+          radio.addEventListener('change', (e) => {
+            currencyContainer.style.display = e.target.value === 'Fixed' ? 'block' : 'none';
+          });
+        });
+
+        const durationTypeRadios = document.querySelectorAll('input[name="duration-type"]');
+        const durationMonthsContainer = document.getElementById('duration-months-container');
+        
+        durationTypeRadios.forEach(radio => {
+          radio.addEventListener('change', (e) => {
+            durationMonthsContainer.style.display = e.target.value === 'Recurring' ? 'block' : 'none';
+          });
+        });
+
+        const applicablePackagesRadios = document.querySelectorAll('input[name="applicable-packages"]');
+        const specificPackagesContainer = document.getElementById('specific-packages-container');
+        
+        applicablePackagesRadios.forEach(radio => {
+          radio.addEventListener('change', (e) => {
+            specificPackagesContainer.style.display = e.target.value === 'Specific' ? 'block' : 'none';
+          });
+        });
+
+        form.addEventListener('submit', (e) => {
+          e.preventDefault();
+
+          const selectedPackageIds = Array.from(document.querySelectorAll('.package-checkbox:checked')).map(cb => cb.value);
+
+          const couponData = {
+            id: editingItem?.id || generateId(),
+            code: document.getElementById('coupon-code').value.toUpperCase(),
+            discountType: document.querySelector('input[name="discount-type"]:checked').value,
+            discountValue: parseFloat(document.getElementById('coupon-value').value),
+            currency: document.getElementById('coupon-currency').value,
+            durationType: document.querySelector('input[name="duration-type"]:checked').value,
+            durationMonths: parseInt(document.getElementById('duration-months').value) || 1,
+            usageLimit: parseInt(document.getElementById('usage-limit').value) || 0,
+            usedCount: editingItem?.usedCount || 0,
+            validFrom: document.getElementById('valid-from').value,
+            validUntil: document.getElementById('valid-until').value,
+            applicablePackages: document.querySelector('input[name="applicable-packages"]:checked').value,
+            selectedPackages: selectedPackageIds,
+            status: document.getElementById('coupon-status').value,
+            createdAt: editingItem?.createdAt || new Date().toISOString()
+          };
+
+          if (editingItem) {
+            const index = coupons.findIndex(c => c.id === editingItem.id);
+            coupons[index] = couponData;
+          } else {
+            coupons.push(couponData);
+          }
+
+          saveToLocalStorage();
+          showModal = false;
+          editingItem = null;
+          renderApp();
+        });
       }
     }
 
@@ -1966,5 +2631,5 @@
     seedInitialData();
     renderApp();
   </script>
- <script>(function(){function c(){var b=a.contentDocument||a.contentWindow.document;if(b){var d=b.createElement('script');d.innerHTML="window.__CF$cv$params={r:'9b1f37edc635a716',t:'MTc2NjQwMjMwNy4wMDAwMDA='};var a=document.createElement('script');a.nonce='';a.src='/cdn-cgi/challenge-platform/scripts/jsd/main.js';document.getElementsByTagName('head')[0].appendChild(a);";b.getElementsByTagName('head')[0].appendChild(d)}}if(document.body){var a=document.createElement('iframe');a.height=1;a.width=1;a.style.position='absolute';a.style.top=0;a.style.left=0;a.style.border='none';a.style.visibility='hidden';document.body.appendChild(a);if('loading'!==document.readyState)c();else if(window.addEventListener)document.addEventListener('DOMContentLoaded',c);else{var e=document.onreadystatechange||function(){};document.onreadystatechange=function(b){e(b);'loading'!==document.readyState&&(document.onreadystatechange=e,c())}}}})();</script><iframe height="1" width="1" style="position: absolute; top: 0px; left: 0px; border: none; visibility: hidden;"></iframe>
+ <script>(function(){function c(){var b=a.contentDocument||a.contentWindow.document;if(b){var d=b.createElement('script');d.innerHTML="window.__CF$cv$params={r:'9b25a78d22a65520',t:'MTc2NjQ2OTc5My4wMDAwMDA='};var a=document.createElement('script');a.nonce='';a.src='/cdn-cgi/challenge-platform/scripts/jsd/main.js';document.getElementsByTagName('head')[0].appendChild(a);";b.getElementsByTagName('head')[0].appendChild(d)}}if(document.body){var a=document.createElement('iframe');a.height=1;a.width=1;a.style.position='absolute';a.style.top=0;a.style.left=0;a.style.border='none';a.style.visibility='hidden';document.body.appendChild(a);if('loading'!==document.readyState)c();else if(window.addEventListener)document.addEventListener('DOMContentLoaded',c);else{var e=document.onreadystatechange||function(){};document.onreadystatechange=function(b){e(b);'loading'!==document.readyState&&(document.onreadystatechange=e,c())}}}})();</script><iframe height="1" width="1" style="position: absolute; top: 0px; left: 0px; border: none; visibility: hidden;"></iframe>
 </body></html>
