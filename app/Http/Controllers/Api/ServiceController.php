@@ -68,16 +68,8 @@ class ServiceController extends Controller
                     'status'  => 'success',
                     'message' => 'Service found',
                     'service' => [
-                        'id'                  => $service->id,
-                        'name'                => $service->name,
-                        'img'                 => $service->img,
-                        'other_name'          => $service->other_name,
-                        'redirect_url'        => $service->redirect_url,
-                        'service_time'        => $service->service_time,
-                        'is_service_template' => $service->is_service_template,
-                        'note'                => $service->note,
-                        'description'         => $service->description,
-                        'bg_color'            => $service->bg_color,
+                        'id'   => $service->id,
+                        'name' => $service->name,
                     ]
                 ]);
             }
@@ -86,16 +78,8 @@ class ServiceController extends Controller
                 'status'  => 'error',
                 'message' => 'Service not found',
                 'services' => $services->map(fn($s) => [
-                    'id'                  => $s->id,
-                    'name'                => $s->name,
-                    'img'                 => $s->img,
-                    'other_name'          => $s->other_name,
-                    'redirect_url'        => $s->redirect_url,
-                    'service_time'        => $s->service_time,
-                    'is_service_template' => $s->is_service_template,
-                    'note'                => $s->note,
-                    'description'         => $s->description,
-                    'bg_color'            => $s->bg_color,
+                    'id'   => $s->id,
+                    'name' => $s->name,
                 ])->values()
             ], 404);
         }
@@ -105,16 +89,8 @@ class ServiceController extends Controller
             'status'  => 'success',
             'message' => 'All services retrieved',
             'services' => $services->map(fn($s) => [
-                'id'                  => $s->id,
-                'name'                => $s->name,
-                'img'                 => $s->img,
-                'other_name'          => $s->other_name,
-                'redirect_url'        => $s->redirect_url,
-                'service_time'        => $s->service_time,
-                'is_service_template' => $s->is_service_template,
-                'note'                => $s->note,
-                'description'         => $s->description,
-                'bg_color'            => $s->bg_color,
+                'id'   => $s->id,
+                'name' => $s->name,
             ])->values()
         ]);
     }
