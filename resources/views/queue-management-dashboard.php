@@ -443,75 +443,75 @@
       </div>
      </div>
      <div class="glass-effect border-t p-4 flex-shrink-0" style="border-color: rgba(139, 92, 246, 0.1);">
-      <div class="max-w-3xl mx-auto">
-       <div class="flex items-center gap-3 flex-wrap justify-center">
+      <div class="max-w-full mx-auto">
+       <div class="flex items-center gap-2 justify-center">
         <!-- Complete Button -->
-        <button id="finish-btn" class="flex flex-col items-center gap-1.5 px-4 py-3 bg-purple-50 hover:bg-purple-100 rounded-2xl transition-all text-sm hover:scale-110 transform group">
-          <div class="w-11 h-11 rounded-full flex items-center justify-center bg-gradient-to-br from-purple-500 to-purple-600 shadow-md group-hover:shadow-lg transition-all">
-            <svg class="w-6 h-6 text-white" fill="none" stroke="currentColor" viewbox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
+        <button id="finish-btn" class="flex flex-col items-center gap-1 px-2 py-2 bg-purple-50 hover:bg-purple-100 rounded-xl transition-all text-xs hover:scale-105 transform group">
+          <div class="w-9 h-9 rounded-full flex items-center justify-center bg-gradient-to-br from-purple-500 to-purple-600 shadow-md group-hover:shadow-lg transition-all">
+            <svg class="w-5 h-5 text-white" fill="none" stroke="currentColor" viewbox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
             </svg>
           </div>
           <span class="font-bold text-purple-700">Complete</span>
         </button>
         
-        <!-- Next Button -->
-        <button id="call-next-btn" class="flex flex-col items-center gap-1.5 px-4 py-3 bg-indigo-50 hover:bg-indigo-100 rounded-2xl transition-all text-sm hover:scale-110 transform group">
-          <div class="w-11 h-11 rounded-full flex items-center justify-center bg-gradient-to-br from-indigo-500 to-indigo-600 shadow-md group-hover:shadow-lg transition-all">
-            <svg class="w-6 h-6 text-white" fill="none" stroke="currentColor" viewbox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M13 9l3 3m0 0l-3 3m3-3H8m13 0a9 9 0 11-18 0 9 9 0 0118 0z" />
-            </svg>
-          </div>
-          <span class="font-bold text-indigo-700">Next</span>
-        </button>
-        
         <!-- Hold Button -->
-        <button id="hold-btn" class="flex flex-col items-center gap-1.5 px-4 py-3 bg-orange-50 hover:bg-orange-100 rounded-2xl transition-all text-sm hover:scale-110 transform group">
-          <div class="w-11 h-11 rounded-full flex items-center justify-center bg-gradient-to-br from-orange-500 to-orange-600 shadow-md group-hover:shadow-lg transition-all">
-            <svg class="w-6 h-6 text-white" fill="none" stroke="currentColor" viewbox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M10 9v6m4-6v6m7-3a9 9 0 11-18 0 9 9 0 0118 0z" />
+        <button id="hold-btn" class="flex flex-col items-center gap-1 px-2 py-2 bg-orange-50 hover:bg-orange-100 rounded-xl transition-all text-xs hover:scale-105 transform group">
+          <div class="w-9 h-9 rounded-full flex items-center justify-center bg-gradient-to-br from-orange-500 to-orange-600 shadow-md group-hover:shadow-lg transition-all">
+            <svg class="w-5 h-5 text-white" fill="none" stroke="currentColor" viewbox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M10 9v6m4-6v6m7-3a9 9 0 11-18 0 9 9 0 0118 0z" />
             </svg>
           </div>
           <span class="font-bold text-orange-700">Hold</span>
         </button>
         
         <!-- Skip Button -->
-        <button id="skip-btn" class="flex flex-col items-center gap-1.5 px-4 py-3 bg-blue-50 hover:bg-blue-100 rounded-2xl transition-all text-sm hover:scale-110 transform group">
-          <div class="w-11 h-11 rounded-full flex items-center justify-center bg-gradient-to-br from-blue-500 to-blue-600 shadow-md group-hover:shadow-lg transition-all">
-            <svg class="w-6 h-6 text-white" fill="none" stroke="currentColor" viewbox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M13 5l7 7-7 7M5 5l7 7-7 7" />
+        <button id="skip-btn" class="flex flex-col items-center gap-1 px-2 py-2 bg-blue-50 hover:bg-blue-100 rounded-xl transition-all text-xs hover:scale-105 transform group">
+          <div class="w-9 h-9 rounded-full flex items-center justify-center bg-gradient-to-br from-blue-500 to-blue-600 shadow-md group-hover:shadow-lg transition-all">
+            <svg class="w-5 h-5 text-white" fill="none" stroke="currentColor" viewbox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M13 5l7 7-7 7M5 5l7 7-7 7" />
             </svg>
           </div>
           <span class="font-bold text-blue-700">Skip</span>
         </button>
         
+        <!-- Next Button - CENTER & HIGHLIGHTED -->
+        <button id="call-next-btn" class="flex flex-col items-center gap-1.5 px-3 py-2.5 bg-indigo-100 hover:bg-indigo-200 rounded-xl transition-all text-sm hover:scale-105 transform group scale-105 shadow-lg ring-2 ring-indigo-400 ring-opacity-50">
+          <div class="w-11 h-11 rounded-full flex items-center justify-center bg-gradient-to-br from-indigo-500 to-indigo-600 shadow-lg group-hover:shadow-xl transition-all">
+            <svg class="w-6 h-6 text-white" fill="none" stroke="currentColor" viewbox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M13 9l3 3m0 0l-3 3m3-3H8m13 0a9 9 0 11-18 0 9 9 0 0118 0z" />
+            </svg>
+          </div>
+          <span class="font-bold text-indigo-800">Next</span>
+        </button>
+        
         <!-- Transfer Button -->
-        <button id="transfer-btn" class="flex flex-col items-center gap-1.5 px-4 py-3 bg-fuchsia-50 hover:bg-fuchsia-100 rounded-2xl transition-all text-sm hover:scale-110 transform group">
-          <div class="w-11 h-11 rounded-full flex items-center justify-center bg-gradient-to-br from-fuchsia-500 to-fuchsia-600 shadow-md group-hover:shadow-lg transition-all">
-            <svg class="w-6 h-6 text-white" fill="none" stroke="currentColor" viewbox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M8 7h12m0 0l-4-4m4 4l-4 4m0 6H4m0 0l4 4m-4-4l4-4" />
+        <button id="transfer-btn" class="flex flex-col items-center gap-1 px-2 py-2 bg-fuchsia-50 hover:bg-fuchsia-100 rounded-xl transition-all text-xs hover:scale-105 transform group">
+          <div class="w-9 h-9 rounded-full flex items-center justify-center bg-gradient-to-br from-fuchsia-500 to-fuchsia-600 shadow-md group-hover:shadow-lg transition-all">
+            <svg class="w-5 h-5 text-white" fill="none" stroke="currentColor" viewbox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M8 7h12m0 0l-4-4m4 4l-4 4m0 6H4m0 0l4 4m-4-4l4-4" />
             </svg>
           </div>
           <span class="font-bold text-fuchsia-700">Transfer</span>
         </button>
         
         <!-- Cancel Button -->
-        <button id="cancel-btn" class="flex flex-col items-center gap-1.5 px-4 py-3 bg-red-50 hover:bg-red-100 rounded-2xl transition-all text-sm hover:scale-110 transform group">
-          <div class="w-11 h-11 rounded-full flex items-center justify-center bg-gradient-to-br from-red-500 to-red-600 shadow-md group-hover:shadow-lg transition-all">
-            <svg class="w-6 h-6 text-white" fill="none" stroke="currentColor" viewbox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M6 18L18 6M6 6l12 12" />
+        <button id="cancel-btn" class="flex flex-col items-center gap-1 px-2 py-2 bg-red-50 hover:bg-red-100 rounded-xl transition-all text-xs hover:scale-105 transform group">
+          <div class="w-9 h-9 rounded-full flex items-center justify-center bg-gradient-to-br from-red-500 to-red-600 shadow-md group-hover:shadow-lg transition-all">
+            <svg class="w-5 h-5 text-white" fill="none" stroke="currentColor" viewbox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M6 18L18 6M6 6l12 12" />
             </svg>
           </div>
           <span class="font-bold text-red-700">Cancel</span>
         </button>
         
         <!-- Recall Button -->
-        <button id="recall-btn" class="flex flex-col items-center gap-1.5 px-4 py-3 bg-green-50 hover:bg-green-100 rounded-2xl transition-all text-sm hover:scale-110 transform group">
-          <div class="w-11 h-11 rounded-full flex items-center justify-center bg-gradient-to-br from-green-500 to-green-600 shadow-md group-hover:shadow-lg transition-all">
-            <svg class="w-6 h-6 text-white" fill="none" stroke="currentColor" viewbox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M3 5a2 2 0 012-2h3.28a1 1 0 01.948.684l1.498 4.493a1 1 0 01-.502 1.21l-2.257 1.13a11.042 11.042 0 005.516 5.516l1.13-2.257a1 1 0 011.21-.502l4.493 1.498a1 1 0 01.684.949V19a2 2 0 01-2 2h-1C9.716 21 3 14.284 3 6V5z" />
+        <button id="recall-btn" class="flex flex-col items-center gap-1 px-2 py-2 bg-green-50 hover:bg-green-100 rounded-xl transition-all text-xs hover:scale-105 transform group">
+          <div class="w-9 h-9 rounded-full flex items-center justify-center bg-gradient-to-br from-green-500 to-green-600 shadow-md group-hover:shadow-lg transition-all">
+            <svg class="w-5 h-5 text-white" fill="none" stroke="currentColor" viewbox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M3 5a2 2 0 012-2h3.28a1 1 0 01.948.684l1.498 4.493a1 1 0 01-.502 1.21l-2.257 1.13a11.042 11.042 0 005.516 5.516l1.13-2.257a1 1 0 011.21-.502l4.493 1.498a1 1 0 01.684.949V19a2 2 0 01-2 2h-1C9.716 21 3 14.284 3 6V5z" />
             </svg>
           </div>
           <span class="font-bold text-green-700">Recall</span>
         </button>
         
         <!-- Move Back Button -->
-        <button id="moveback-btn" class="flex flex-col items-center gap-1.5 px-4 py-3 bg-slate-50 hover:bg-slate-100 rounded-2xl transition-all text-sm hover:scale-110 transform group">
-          <div class="w-11 h-11 rounded-full flex items-center justify-center bg-gradient-to-br from-slate-500 to-slate-600 shadow-md group-hover:shadow-lg transition-all">
-            <svg class="w-6 h-6 text-white" fill="none" stroke="currentColor" viewbox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M11 15l-3-3m0 0l3-3m-3 3h8M3 12a9 9 0 1118 0 9 9 0 01-18 0z" />
+        <button id="moveback-btn" class="flex flex-col items-center gap-1 px-2 py-2 bg-slate-50 hover:bg-slate-100 rounded-xl transition-all text-xs hover:scale-105 transform group">
+          <div class="w-9 h-9 rounded-full flex items-center justify-center bg-gradient-to-br from-slate-500 to-slate-600 shadow-md group-hover:shadow-lg transition-all">
+            <svg class="w-5 h-5 text-white" fill="none" stroke="currentColor" viewbox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M11 15l-3-3m0 0l3-3m-3 3h8M3 12a9 9 0 1118 0 9 9 0 01-18 0z" />
             </svg>
           </div>
           <span class="font-bold text-slate-700">Move Back</span>
