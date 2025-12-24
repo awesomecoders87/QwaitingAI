@@ -43,6 +43,11 @@ class ServiceController extends Controller
 
         $services = Category::getFirstCategorybooking($teamId, $locationId);
         
+        // Filter services where service_time is not empty
+        $services = $services->filter(function ($s) {
+            return !empty($s->service_time);
+        });
+        
         $queryName = trim($request->input('service_name', ''));
         
         // If service_name is provided, search for it
