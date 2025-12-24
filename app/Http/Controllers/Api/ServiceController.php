@@ -42,33 +42,81 @@ class ServiceController extends Controller
         $locationId = $request->input('location_id');
 
         $services = Category::getFirstCategorybooking($teamId, $locationId);
-		print_r($services->toArray());exit;
-        $queryName = strtolower(trim($request->input('service_name')));
+        
+        $queryName = trim($request->input('service_name', ''));
+        
+        // If service_name is provided, search for it
+        if (!empty($queryName)) {
+            $queryNameLower = strtolower($queryName);
+            
+            // First try exact match
+            $service = $services->first(function ($s) use ($queryNameLower) {
+                return strtolower($s->name) === $queryNameLower ||
+                       strtolower($s->other_name ?? '') === $queryNameLower;
+            });
+            
+            // If exact match not found, try partial search
+            if (!$service) {
+                $service = $services->first(function ($s) use ($queryNameLower) {
+                    return strpos(strtolower($s->name), $queryNameLower) !== false ||
+                           (!empty($s->other_name) && strpos(strtolower($s->other_name), $queryNameLower) !== false);
+                });
+            }
+            
+            if ($service) {
+                return response()->json([
+                    'status'  => 'success',
+                    'message' => 'Service found',
+                    'service' => [
+                        'id'                  => $service->id,
+                        'name'                => $service->name,
+                        'img'                 => $service->img,
+                        'other_name'          => $service->other_name,
+                        'redirect_url'        => $service->redirect_url,
+                        'service_time'        => $service->service_time,
+                        'is_service_template' => $service->is_service_template,
+                        'note'                => $service->note,
+                        'description'         => $service->description,
+                        'bg_color'            => $service->bg_color,
+                    ]
+                ]);
+            }
 
-        $service = $services->first(function ($s) use ($queryName) {
-            return strtolower($s->name) === $queryName ||
-                   strtolower($s->other_name ?? '') === $queryName;
-        });
-
-        if ($service) {
             return response()->json([
-                'status'  => 'success',
-                'message' => 'Service found',
-                'service' => [
-                    'id'   => $service->id,
-                    'name' => $service->name
-                ]
-            ]);
+                'status'  => 'error',
+                'message' => 'Service not found',
+                'services' => $services->map(fn($s) => [
+                    'id'                  => $s->id,
+                    'name'                => $s->name,
+                    'img'                 => $s->img,
+                    'other_name'          => $s->other_name,
+                    'redirect_url'        => $s->redirect_url,
+                    'service_time'        => $s->service_time,
+                    'is_service_template' => $s->is_service_template,
+                    'note'                => $s->note,
+                    'description'         => $s->description,
+                    'bg_color'            => $s->bg_color,
+                ])->values()
+            ], 404);
         }
-
+        
+        // If no service_name provided, return all services
         return response()->json([
-            'status'  => 'error',
-            'message' => 'Service not found',
+            'status'  => 'success',
+            'message' => 'All services retrieved',
             'services' => $services->map(fn($s) => [
-                'id'   => $s->id,
-                'name' => $s->name
+                'id'                  => $s->id,
+                'name'                => $s->name,
+                'img'                 => $s->img,
+                'other_name'          => $s->other_name,
+                'redirect_url'        => $s->redirect_url,
+                'service_time'        => $s->service_time,
+                'is_service_template' => $s->is_service_template,
+                'note'                => $s->note,
+                'description'         => $s->description,
+                'bg_color'            => $s->bg_color,
             ])->values()
-        ], 404);
+        ]);
     }
 
     /**
