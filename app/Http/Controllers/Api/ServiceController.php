@@ -42,7 +42,7 @@ class ServiceController extends Controller
         $locationId = $request->input('location_id');
 
         $services = Category::getFirstCategorybooking($teamId, $locationId);
-		print_r($services);exit;
+		print_r($services->toArray());exit;
         $queryName = strtolower(trim($request->input('service_name')));
 
         $service = $services->first(function ($s) use ($queryName) {
