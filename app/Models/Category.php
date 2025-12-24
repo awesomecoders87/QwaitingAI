@@ -175,24 +175,7 @@ class Category extends Model
         'level_id' => self::STEP_1,
         'team_id' => $teamId,
     ]);
-    // ->whereIn('display_on', ['Display on Transfer & Ticket Screen', 'Ticket Screen']);
-
-    // Check that booking_category_show_for is not null or empty
-    $query->whereNotNull('booking_category_show_for')
-          ->where('booking_category_show_for', '!=', '');
-
-    // Conditionally apply booking_category_show_for based on user login
-    // if (auth()->check()) {
-    //     $query->whereIn('booking_category_show_for', [
-    //         'Backend & Online Appointment Screen',
-    //         'Backend',
-    //     ]);
-    // } else {
-        $query->whereIn('booking_category_show_for', [
-            'Backend & Online Appointment Screen',
-            'Online',
-        ]);
-    // }
+    
 
     if ($location !== null) {
         $query->whereJsonContains('category_locations', "$location");
