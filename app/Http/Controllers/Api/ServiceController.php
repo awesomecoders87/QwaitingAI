@@ -45,7 +45,7 @@ class ServiceController extends Controller
 
         $queryName = strtolower(trim($request->input('service_name')));
 
-        $service = $services->first(function ($s) use ($queryName) {
+        $service = $services->filter(function ($s) use ($queryName) {
             return strtolower($s->name) === $queryName ||
                    strtolower($s->other_name ?? '') === $queryName;
         });
