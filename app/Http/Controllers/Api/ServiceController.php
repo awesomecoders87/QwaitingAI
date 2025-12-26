@@ -1419,4 +1419,188 @@ if ($request->time) {
     ]);
 }
 
+/**
+     * Get available dates for a specific service
+     * API: Returns available dates based on service name
+     */
+    public function getAvailableDates(Request $request)
+    {
+        $validator = \Validator::make($request->all(), [
+            'service_name' => 'required|string',
+        ]);
+
+        if ($validator->fails()) {
+            return response()->json([
+                'status'  => 'error',
+                'message' => $validator->errors()->first()
+            ], 400);
+        }
+
+        $teamId = 3;
+        $locationId = 80;
+
+        // Step 1: Find the service
+        $services = Category::getFirstCategorybooking($teamId, $locationId);
+        $queryName = strtolower($request->service_name);
+        
+        $service = $services->first(function ($s) use ($queryName) {
+            return strtolower($s->name) === $queryName ||
+                   strtolower($s->other_name ?? '') === $queryName;
+        });
+
+        if (!$service) {
+            return response()->json([
+                'status'  => 'error',
+                'message' => 'Service not found',
+                'available_services' => $services->map(fn($s) => [
+                    'id'   => $s->id,
+                    'name' => $s->name
+                ])->values()
+            ], 404);
+        }
+
+        $serviceId = $service->id;
+
+        // Step 2: Get Site Settings
+        $siteSetting = SiteDetail::where('team_id', $teamId)
+            ->where('location_id', $locationId)
+            ->first();
+
+        if (!$siteSetting) {
+            return response()->json([
+                'status' => 'error',
+                'message' => 'Site setting not found'
+            ], 500);
+        }
+
+        // Step 3: Get Booking Settings
+        $bookingSetting = AccountSetting::where('team_id', $teamId)
+            ->where('location_id', $locationId)
+            ->where('slot_type', AccountSetting::BOOKING_SLOT)
+            ->first();
+
+        // Step 4: Get Available Dates
+        // We reuse the existing helper function. 
+        // Note: It searches starting from "tomorrow" by default logic in that function if no date provided, 
+        // but let's check its implementation again. 
+        // It starts from Carbon::now()->addDay(). If we want today included, we might need a different approach 
+        // or modifying the helper. But for now, we'll stick to the existing helper logic which seems standard for this app.
+        // Actually, let's look at getAvailableDatesForNextWeek: $startDate = Carbon::now()->addDay();
+        // If the user wants "today", the helper skips it.
+        // However, the requirement is just "return available dates". We will use the existing helper to be consistent.
+        
+        $availableDates = $this->getAvailableDatesForNextWeek($teamId, $locationId, $serviceId, $siteSetting, $bookingSetting);
+
+        return response()->json([
+            'status' => 'success',
+            'service' => [
+                'id' => $service->id,
+                'name' => $service->name
+            ],
+            'available_dates' => $availableDates
+        ]);
+    }
+
+    /**
+     * Get available time slots for a specific service and date
+     * API: Returns available time slots
+     */
+    public function getAvailableTimes(Request $request)
+    {
+        $validator = \Validator::make($request->all(), [
+            'service_name' => 'required|string',
+            'date' => 'required|date',
+        ]);
+
+        if ($validator->fails()) {
+            return response()->json([
+                'status'  => 'error',
+                'message' => $validator->errors()->first()
+            ], 400);
+        }
+
+        $teamId = 3;
+        $locationId = 80;
+        $appointmentDate = Carbon::parse($request->date);
+        $dateString = $appointmentDate->toDateString();
+
+        // Step 1: Find the service
+        $services = Category::getFirstCategorybooking($teamId, $locationId);
+        $queryName = strtolower($request->service_name);
+        
+        $service = $services->first(function ($s) use ($queryName) {
+            return strtolower($s->name) === $queryName ||
+                   strtolower($s->other_name ?? '') === $queryName;
+        });
+
+        if (!$service) {
+            return response()->json([
+                'status'  => 'error',
+                'message' => 'Service not found',
+                'available_services' => $services->map(fn($s) => [
+                    'id'   => $s->id,
+                    'name' => $s->name
+                ])->values()
+            ], 404);
+        }
+
+        $serviceId = $service->id;
+
+        // Step 2: Get Site Settings
+        $siteSetting = SiteDetail::where('team_id', $teamId)
+            ->where('location_id', $locationId)
+            ->first();
+
+        if (!$siteSetting) {
+            return response()->json([
+                'status' => 'error',
+                'message' => 'Site setting not found'
+            ], 500);
+        }
+
+        // Step 3: Get Available Slots
+        $slots = [];
+        if ($siteSetting->choose_time_slot != 'staff') {
+            $slots = AccountSetting::checktimeslot($teamId, $locationId, $appointmentDate, $serviceId, $siteSetting);
+        } else {
+            $staffIds = User::whereHas('categories', fn($q) => $q->where('categories.id', $serviceId))
+                            ->pluck('id')->toArray();
+
+            if (!empty($staffIds)) {
+                $slots = AccountSetting::checkStafftimeslot($teamId, $locationId, $appointmentDate, $serviceId, $siteSetting, $staffIds);
+            }
+        }
+
+        $availableSlots = $slots['start_at'] ?? [];
+
+        // Filter out past times if date is today
+        if ($appointmentDate->isToday()) {
+            $now = Carbon::now();
+            $availableSlots = array_values(array_filter($availableSlots, function($slot) use ($now) {
+                try {
+                    // Extract start time "09:00 AM" or "09:00 AM-10:00 AM"
+                    $parts = explode('-', $slot);
+                    $startTime = trim($parts[0]);
+                    $slotTime = Carbon::parse($startTime);
+                    
+                    // Allow slot if it's in the future (plus maybe a buffer, but standard is just future)
+                    return $slotTime->gt($now);
+                } catch (\Exception $e) {
+                    return true;
+                }
+            }));
+        }
+
+        
+        return response()->json([
+            'status' => 'success',
+            'service' => [
+                'id' => $service->id,
+                'name' => $service->name
+            ],
+            'date' => $dateString,
+            'available_times' => $availableSlots
+        ]);
+    }
+
 }

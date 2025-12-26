@@ -108,4 +108,6 @@ Route::post('/check-date', [ServiceController::class, 'checkDate']);
 Route::post('/check-datetime-availability', [ServiceController::class, 'checkDateTimeAvailability']);	
 Route::post('/check-time', [ServiceController::class, 'checkTime']);
 Route::post('/check-and-book', [ServiceController::class, 'checkAndBook']);
+Route::post('/get-available-dates', [ServiceController::class, 'getAvailableDates']);
+Route::post('/get-available-times', [ServiceController::class, 'getAvailableTimes']);
 Route::post('/chatbot-book', [ServiceController::class, 'chatbotBook'])->name('api.chatbot-book');
