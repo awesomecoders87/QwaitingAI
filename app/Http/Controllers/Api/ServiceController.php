@@ -28,6 +28,7 @@ class ServiceController extends Controller
             'service_name' => 'nullable|string',
             'team_id'      => 'nullable|integer',
             'location_id'  => 'nullable|integer',
+            'type'         => 'nullable|string',
         ]);
 
         if ($validator->fails()) {
@@ -47,6 +48,14 @@ class ServiceController extends Controller
         $services = $services->filter(function ($s) {
             return !empty($s->service_time);
         });
+
+        // Filter by type if provided (e.g., 'appointment' or 'service')
+        if ($request->has('type') && !empty($request->type)) {
+            $requestedType = $request->type;
+            $services = $services->filter(function ($s) use ($requestedType) {
+                return isset($s->type) && $s->type === $requestedType;
+            });
+        }
         
         $queryName = trim($request->input('service_name', ''));
         
