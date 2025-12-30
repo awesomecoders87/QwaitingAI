@@ -198,7 +198,7 @@ class Category extends Model
         $query->whereJsonContains('category_locations', "$location");
     }
 
-    return $query->get(['id', 'name', 'img', 'other_name','redirect_url','service_time','is_service_template','note','description','bg_color']);
+    return $query->get(['id', 'name', 'img', 'other_name','redirect_url','service_time','is_service_template','note','description','bg_color','type']);
 }
 
     public static function viewCategoryName( $categoryId ) {
