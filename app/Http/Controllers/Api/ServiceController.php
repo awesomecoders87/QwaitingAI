@@ -11,6 +11,23 @@ use App\Models\SiteDetail;
 use App\Models\Booking;
 use App\Models\ServiceSetting;
 use Carbon\Carbon;
+use App\Models\Queue;
+use App\Models\QueueStorage;
+use App\Models\Location;
+use App\Models\Customer;
+use App\Models\CustomerActivityLog;
+use App\Models\MessageDetail;
+use App\Models\Counter;
+use App\Models\SmsAPI;
+use App\Models\SmtpDetails;
+use App\Models\SalesforceSetting;
+use App\Models\SalesforceConnection;
+use App\Services\SalesforceService;
+use App\Events\QueueCreated;
+use App\Events\QueueNotification;
+use SimpleSoftwareIO\QrCode\Facades\QrCode;
+use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Log;
 
 class ServiceController extends Controller
 {
@@ -1612,4 +1629,455 @@ if ($request->time) {
         ]);
     }
 
+    public function ConvertBookToQueue(Request $request)
+    {
+        $booking_refID = $request->booking_refID;
+
+        if (empty($booking_refID)) {
+             return response('Id is required', 400)->header('Content-Type', 'text/plain');
+        }
+
+        $booking = Booking::where('refID', $booking_refID)
+            ->whereDate('booking_date', date('Y-m-d'))
+            ->where('is_convert', Booking::STATUS_NO)
+            ->where('status', '!=', Booking::STATUS_CANCELLED)
+            ->first();
+
+        if (!$booking) {
+             return response('Booking not found or already converted or not for today', 404)->header('Content-Type', 'text/plain');
+        }
+        
+        $teamId = $booking->team_id;
+        $locationId = $booking->location_id;
+        $siteDetails = SiteDetail::where('team_id', $teamId)->where('location_id', $locationId)->first();
+
+        // Check Ticket Limit
+        $checkTicketLimit = SiteDetail::checkTicketLimit($teamId, $locationId, $siteDetails);
+        if($checkTicketLimit)
+        {
+             return response('Ticket limit exceeded', 400)->header('Content-Type', 'text/plain');
+        }
+
+        // Check if already queue
+        $isAsQueue = QueueStorage::isBookExist($booking->id);
+        if ($isAsQueue) {
+             return response('Already converted', 400)->header('Content-Type', 'text/plain');
+        }
+
+        DB::beginTransaction();
+        try {
+            // Acronym Logic
+            $acronym = SiteDetail::DEFAULT_APPOINTMENT_A;
+            $selectedCategoryId = $booking->category_id ?? null;
+            $secondChildId = $booking->sub_category_id ?? null;
+            $thirdChildId = $booking->child_category_id ?? null;
+            
+            $acronym_level = $siteDetails->acronym_level ?? 0;
+            if((int)$acronym_level == 1 && !empty($selectedCategoryId)){
+                $acronym = Category::viewAcronym($selectedCategoryId);
+            }elseif((int)$acronym_level == 2 && !empty($secondChildId)){
+                $acronym = Category::viewAcronym($secondChildId);
+            }elseif((int)$acronym_level == 3 && !empty($thirdChildId)){
+                $acronym = Category::viewAcronym($thirdChildId);
+            }
+
+            // Last Category Logic
+            $lastcategory = $selectedCategoryId;
+            if(!empty($thirdChildId)){
+                $lastcategory = $thirdChildId;
+            }elseif(!empty($secondChildId)){
+                $lastcategory = $secondChildId;
+            }
+
+            // Token Generation
+            if($siteDetails?->count_by_service){
+                 $lastToken = Queue::getLastToken($teamId, null, $locationId);
+            }else{
+                 $lastToken = Queue::getLastToken($teamId, $acronym, $locationId, $lastcategory);
+            }
+            
+            $token_digit = $siteDetails?->token_digit ?? 4;
+            $isExistToken = true;
+            $token_start = "";
+
+            while ($isExistToken) {
+                $newToken = QueueStorage::newGeneratedToken($lastToken, $siteDetails?->token_start, $token_digit);
+                
+                $isExistToken = Queue::checkToken($teamId, $acronym, $newToken, $locationId);
+                if ($isExistToken) {
+                    $lastToken = $newToken;
+                } else {
+                    $token_start = $newToken;
+                    $isExistToken = false;
+                }
+            }
+            
+            $todayDateTime = Carbon::now();
+
+            // Determine assigned staff based on setting
+            $assigned_staff_id = null;
+            if (($siteDetails->assigned_staff_id ?? 0) == 1 && is_numeric($booking->staff_id)) {
+                $assigned_staff_id = (int)$booking->staff_id;
+            } else {
+                $assigned_staff_id = is_numeric($booking->staff_id) ? (int)$booking->staff_id : null;
+            }
+
+            $enablePriority = $siteDetails->priority_enable ?? false; 
+
+            $nextPrioritySort = $this->getNextPrioritySortDirect($teamId, $locationId, $booking->category_id);
+            if ($enablePriority && empty($assigned_staff_id)) {
+                $assigned_staff_id = User::getNextAgent($booking->team_id, $booking->location_id);
+            }
+
+            $is_virtual_meeting = 0;
+            if($booking->json){
+                $decodedJson = json_decode($booking->json, true);
+                if (isset($decodedJson['type']) && $decodedJson['type'] === 'Virtual') {
+                    $is_virtual_meeting = 1;
+                }
+            }
+            
+            $phone_full = (!empty($booking->phone_code) && !empty($booking->phone)) ? $booking->phone_code . $booking->phone : null;
+
+            $storeData = [
+                'name' => $booking->name,
+                'phone' => $booking->phone ?? '',
+                'phone_code' => $booking->phone_code ?? '91',
+                'category_id' => $booking->category_id ?? null,
+                'sub_category_id' => $booking->sub_category_id ?? null,
+                'child_category_id' => $booking->child_category_id ?? null,
+                'team_id' => $teamId,
+                'token' => $token_start,
+                'token_with_acronym' => Queue::LABEL_NO,
+                'json' => $booking->json,
+                'arrives_time' => $todayDateTime,
+                'datetime' => $todayDateTime,
+                'start_acronym' => $acronym,
+                'locations_id' => $booking->location_id,
+                'booking_id' => $booking->id,
+                'priority_sort' => $nextPrioritySort ?? 0,
+                'served_by' =>  $assigned_staff_id,
+                'assign_staff_id' =>  $assigned_staff_id,
+                'campaign_id' => is_numeric($booking->campaign_id) ? (int)$booking->campaign_id : null,
+                'full_phone_number' => $phone_full,
+                'is_virtual_meeting' =>$is_virtual_meeting,
+            ];
+
+            $queueCreated = Queue::storeQueue([
+                'team_id' => $teamId,
+                'token' => $token_start,
+                'token_with_acronym' => Queue::LABEL_NO,
+                'locations_id' => $booking->location_id,
+                'arrives_time' => $todayDateTime,
+                'last_category' => $lastcategory,
+            ]);
+
+            if ($is_virtual_meeting) {
+                $room = 'room_' . base64_encode($queueCreated->id);
+                $queueId = base64_encode($queueCreated->id);
+                $storeData['meeting_link'] = url("meeting/{$room}/{$queueId}");
+            } else {
+                $storeData['meeting_link'] = null;
+            }
+
+            $queueStorage = QueueStorage::storeQueue(array_merge($storeData, ['queue_id' => $queueCreated->id]));
+
+            $booking->is_convert = Booking::STATUS_YES;
+            $booking->status = Booking::STATUS_COMPLETED;
+            $booking->convert_datetime = $todayDateTime;
+            $booking->save();
+
+            // Salesforce
+             try {
+                $salesforcessettings = SalesforceSetting::where('team_id',  $teamId)
+                    ->where('location_id', $booking->location_id)
+                    ->first();
+
+                $clientId = $salesforcessettings->client_id ?? null;
+                $clientSecret = $salesforcessettings->client_secret ?? null;
+                $tokenUrl = 'https://login.salesforce.com/services/oauth2/token';
+
+                $refreshToken = SalesforceConnection::where('team_id', $teamId)
+                    ->where('location_id', $booking->location_id)
+                    ->where('status', 1)
+                    ->value('salesforce_refresh_token');
+
+                if (!empty($clientId) && !empty($clientSecret) && !empty($refreshToken)) {
+                     $datetimeUtc = new \DateTime($queueStorage->arrives_time);
+                    $datetimeUtc->setTimezone(new \DateTimeZone('UTC'));
+                    $Qwaiting_Sync_Date__c = $datetimeUtc->format('Y-m-d\TH:i:s\Z');
+                    
+                    $assignUserSfId = null;
+                     if (($siteDetails->assigned_staff_id ?? 0) == 1 && is_numeric($booking->staff_id)) {
+                        $assignUserSfId = User::where('id', (int)$booking->staff_id)->value('saleforce_user_id');
+                    } elseif (!empty($assigned_staff_id)) {
+                        $assignUserSfId = User::where('id', $assigned_staff_id)->value('saleforce_user_id');
+                    }
+
+                    $customFields = json_decode($booking->json, true) ?: [];
+                    $customFields = array_change_key_case($customFields, CASE_LOWER);
+                    
+                     $salesForceData = [
+                        'refresh_token' => $refreshToken,
+                        'FirstName' => $queueStorage->name ?? 'Guest',
+                        'Phone' => $queueStorage->phone ?? '',
+                        'Email' => $booking->email ?? '',
+                        'Qwaiting_Sync_Date__c' => $Qwaiting_Sync_Date__c,
+                        'Token' => $queueStorage->token ?? '',
+                        'Page' => 'BookQueue',
+                        'Created' => $queueStorage->created_at ?? now(),
+                        'queue_storage_id' => $queueStorage->id,
+                        'AssignId' => $assignUserSfId ?: '005Hu00000SBZ8bIAH',
+                    ];
+                    
+                    $sfService = new SalesforceService($clientId, $clientSecret, $tokenUrl);
+                    $leadResponse = $sfService->createLead($salesForceData);
+                    $queueStorage->salesforce_lead = json_encode($leadResponse);
+                    $queueStorage->save();
+                }
+            } catch (\Throwable $e) {
+                 Log::error('Salesforce Error: ' . $e->getMessage());
+            }
+
+            QueueNotification::dispatch($queueStorage);
+            QueueCreated::dispatch($queueStorage);
+            
+            // Calculate Wait Time & Pending
+            $categoryName = "";
+            if (!empty($queueStorage->category_id))
+                $categoryName =  Category::viewCategoryName($queueStorage->category_id);
+            if (!empty($queueStorage->sub_category_id))
+                $categoryName = Category::viewCategoryName($queueStorage->sub_category_id); 
+             if (!empty($queueStorage->child_category_id))
+                $categoryName = Category::viewCategoryName($queueStorage->child_category_id); 
+
+            // Determining Pending Count
+            $pendingCount = 0;
+            $waitingTime = 0;
+            
+            $countCatID = $selectedCategoryId;
+            $fieldCatName = 'category_id';
+
+             // determineCategoryColumn logic
+             if (!empty($thirdChildId)) {
+                if ($siteDetails?->category_level_est == 'automatic') {
+                    $fieldCatName = 'child_category_id';
+                    $countCatID =  $thirdChildId;
+                } elseif ($siteDetails?->category_level_est == 'child') {
+                    $fieldCatName = 'sub_category_id';
+                    $countCatID =  $secondChildId;
+                }
+            } else if (!empty($secondChildId)) {
+                if ($siteDetails?->category_level_est == 'child') {
+                    $fieldCatName = 'sub_category_id';
+                    $countCatID =  $secondChildId;
+                }
+            }
+            
+            if($siteDetails->category_estimated_time == SiteDetail::STATUS_YES &&  $siteDetails?->count_by_service == 0 ){
+                  $estimatedetail = QueueStorage::countPendingByCategory($teamId, $queueStorage->id, $countCatID, $fieldCatName, '', $locationId);
+                  if($estimatedetail == false){
+                    $pendingCount = QueueStorage::countPending($teamId, $queueStorage->id, $countCatID, $fieldCatName, '', $locationId);
+                  }else{
+                    $pendingCount =$estimatedetail['customers_before_me'] ?? 0;
+                    $pendingwaiting =$estimatedetail['estimated_wait_time'] ?? 0;
+                  }
+            }else{
+                $pendingCountget = (int)QueueStorage::countPending($teamId, $queueStorage->id, '', '', '', $locationId);
+                $counterCount = Counter::where('team_id',$teamId)->whereJsonContains('counter_locations', "$locationId")->where('show_checkbox',1)->count();
+                if((int)$pendingCountget > 0 && (int)$counterCount > 0){
+                     $pendingCount = floor((int)$pendingCountget / (int)$counterCount);
+                }
+            }
+            
+            $estimate_time = $siteDetails->estimate_time ?? 0;
+             if($siteDetails->category_estimated_time == SiteDetail::STATUS_YES){ 
+                 $waitingTime =  $pendingwaiting ?? $estimate_time * $pendingCount;
+             }else{  
+                 $waitingTime =  $estimate_time * $pendingCount;
+             }
+
+             // Handle Customer Creation Logs
+             if (empty($booking->created_by)) {
+                 if (!empty($queueStorage->phone)) {
+                    $existingCustomer = Customer::where('phone', $queueStorage->phone)
+                        ->where('team_id', $teamId)
+                        ->where('location_id', $booking->location_id)
+                        ->first();
+                    if (!$existingCustomer) {
+                        $existingCustomer = Customer::create([
+                            'team_id' => $teamId,
+                            'location_id' => $booking->location_id,
+                            'name' => $booking->name ?? null,
+                            'phone' => $queueStorage->phone,
+                            'json_data' => $booking->json ?? '', 
+                        ]);
+                    }
+                    CustomerActivityLog::create([
+                        'team_id' => $teamId,
+                        'location_id' => $booking->location_id,
+                        'queue_id' => $queueStorage->id,
+                        'booking_id' => null, 
+                        'type' => 'queue',
+                        'customer_id' => $existingCustomer->id,
+                        'note' => 'Customer joined the queue.',
+                    ]);
+                    $queueStorage->created_by = $existingCustomer->id;
+                    $queueStorage->save();
+                 }
+             } else {
+                 $queueStorage->created_by = $booking->created_by;
+                 $queueStorage->save();
+             }
+             
+             $queueStorage->waiting_time = $waitingTime;
+             $queueStorage->queue_count = $pendingCount;
+             $queueStorage->save();
+             
+             $this->sendNotification($teamId, $booking, $queueStorage, $queueCreated, $acronym, $locationId);
+
+            DB::commit();
+
+            // QR Code
+            $baseencodeQueueId = base64_encode($queueCreated->id);
+            $customUrl = url("/visits/{$baseencodeQueueId}");
+            
+            $formatted_response = "Queue No.: $token_start\n";
+            $formatted_response .= "Arrived: " . $todayDateTime->format('d-m-Y H:i:s') . "\n";
+            $formatted_response .= "$categoryName\n";
+            $formatted_response .= "$pendingCount Queue before you\n";
+            $formatted_response .= "Your estimated waiting time is $waitingTime\n";
+            $formatted_response .= "$customUrl";
+
+            return response($formatted_response, 200)->header('Content-Type', 'text/plain');
+
+        } catch (\Exception $ex) {
+            DB::rollBack();
+            Log::error($ex);
+             return response('Error: ' . $ex->getMessage(), 500)->header('Content-Type', 'text/plain');
+        }
+    }
+
+    private function getNextPrioritySortDirect($teamId, $location, $categoryId)
+    {
+        $category = Category::find($categoryId);
+        if(!$category) return 0;
+        
+         $categories = Category::where('team_id', $teamId)
+        ->where(function ($query) {
+            $query->whereNull('parent_id')
+                  ->orWhere('parent_id', '');
+        })
+        ->whereJsonContains('category_locations', (string)$location)
+        ->orderBy('sort')
+        ->pluck('visitor_in_queue', 'id');
+        
+        $sequencePattern = $categories;
+
+        $nextserial = 1;
+        $filteredCategories = $sequencePattern->except($category->id);
+        $sumVisitorInQueue = $filteredCategories->sum() + ($sequencePattern[$category->id] ?? 0);
+        
+        $queues = QueueStorage::where('team_id', $teamId)
+            ->where('locations_id', $location)
+            ->where('category_id', $category->id)
+            ->whereNotNull('priority_sort')
+            ->orderBy('priority_sort')
+            ->whereDate('created_at', Carbon::today())
+            ->pluck('priority_sort')
+            ->toArray();
+
+         if (!empty($queues)) {
+            $maxValue = max($queues);
+            if ($maxValue == 0) {
+                $maxValue = $nextserial;
+                $queues = [];
+            }
+        } else {
+            $maxValue = $nextserial;
+        }
+        
+         if (($sequencePattern[$category->id] ?? 0) == 1) {
+            if (!empty($queues)) {
+                return $nextserial = $maxValue + $sumVisitorInQueue;
+            } else {
+                $categoriesArray = $sequencePattern->toArray();
+                $slicedArray = array_slice($categoriesArray, 0, array_search($category->id, array_keys($categoriesArray)));
+                $sumBefore = array_sum($slicedArray);
+                return $nextserial = $maxValue + $sumBefore;
+            }
+        } elseif (($sequencePattern[$category->id] ?? 0) > 1) {
+              $countserial = 0;
+            if (!empty($queues)) {
+                for ($i = $maxValue; $i >= 1; $i--) {
+                     $checkSort = QueueStorage::where('team_id', $teamId)
+                        ->where('locations_id', $location)
+                        ->where('category_id', $category->id)
+                        ->whereNotNull('priority_sort')
+                        ->whereDate('created_at', Carbon::today())
+                        ->where('priority_sort', $i)
+                        ->exists();
+                    if ($checkSort) {
+                        $countserial += 1;
+                    } else {
+                        break;
+                    }
+                }
+                if ($countserial == $sequencePattern[$category->id]) {
+                    return $nextserial = $maxValue + $sumVisitorInQueue - 1;
+                } else {
+                    return $nextserial = $maxValue + 1;
+                }
+            } else {
+                $categoriesArray = $sequencePattern->toArray();
+                $slicedArray = array_slice($categoriesArray, 0, array_search($category->id, array_keys($categoriesArray)));
+                $sumBefore = array_sum($slicedArray);
+                return $nextserial = $maxValue + $sumBefore;
+            }
+        }
+        return $nextserial;
+    }
+    
+     public function sendNotification($teamId, $booking, $queueStorage, $queueCreated, $acronym, $locationId)
+     {
+         $data = [
+                'name' => $queueStorage->name ?? '',
+                'phone' => $queueStorage->phone ?? '',
+                'phone_code' => $queueStorage->phone_code ?? '91',
+                'queue_no' => $queueCreated->id,
+                'arrives_time' => Carbon::parse($queueCreated->created_at)->format(AccountSetting::showDateTimeFormat()),
+                'token' => $queueCreated->token,
+                'token_with_acronym' => $queueCreated->start_acronym,
+                'to_mail' => $booking->email ?? '',
+                'locations_id' => $booking->location_id,
+                'team_id' => $teamId
+         ];
+         
+         $logData = [
+                'team_id' => $teamId,
+                'location_id' => $locationId,
+                'user_id' => $queueStorage->served_by,
+                'customer_id' => $queueStorage->created_by,
+                'queue_id' => $queueStorage->queue_id,
+                'queue_storage_id' => $queueStorage->id,
+                'email' => $booking->email ?? '',
+                'contact' => $queueStorage->phone,
+                'type' => MessageDetail::TRIGGERED_TYPE,
+                'event_name' => 'Ticket Generate',
+            ];
+            
+         $data['location_id'] = $locationId;
+         $type = 'ticket created';
+         
+          if (isset($data['to_mail']) && $data['to_mail'] != '') {
+                $logData['channel'] = 'email';
+                $logData['status'] = MessageDetail::SENT_STATUS;
+                SmtpDetails::sendMail($data, $type, 'ticket-created', $teamId,$logData);
+            }
+
+            if (!empty($data['phone'])) {
+                SmsAPI::sendSms( $teamId, $data,$type,$type,$logData);
+            }
+     }
 }
+
