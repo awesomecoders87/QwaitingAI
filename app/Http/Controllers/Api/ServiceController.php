@@ -1634,7 +1634,7 @@ if ($request->time) {
         $booking_refID = $request->booking_refID;
 
         if (empty($booking_refID)) {
-             return response('Id is required', 400)->header('Content-Type', 'text/plain');
+             return response()->json(['status' => 'error', 'message' => 'Id is required'], 400);
         }
 
         // $booking = Booking::where('refID', $booking_refID)
@@ -1649,7 +1649,7 @@ if ($request->time) {
         ->first();
 
         if (!$booking) {
-             return response('Booking not found or already converted or not for today', 404)->header('Content-Type', 'text/plain');
+             return response()->json(['status' => 'error', 'message' => 'Booking not found or already converted or not for today'], 404);
         }
         
         $teamId = $booking->team_id;
@@ -1660,13 +1660,13 @@ if ($request->time) {
         $checkTicketLimit = SiteDetail::checkTicketLimit($teamId, $locationId, $siteDetails);
         if($checkTicketLimit)
         {
-             return response('Ticket limit exceeded', 400)->header('Content-Type', 'text/plain');
+             return response()->json(['status' => 'error', 'message' => 'Ticket limit exceeded'], 400);
         }
 
         // Check if already queue
         $isAsQueue = QueueStorage::isBookExist($booking->id);
         if ($isAsQueue) {
-             return response('Already converted', 400)->header('Content-Type', 'text/plain');
+             return response()->json(['status' => 'error', 'message' => 'Already converted'], 400);
         }
 
         DB::beginTransaction();
@@ -1954,12 +1954,15 @@ if ($request->time) {
             $formatted_response .= "Your estimated waiting time is $waitingTime\n";
             $formatted_response .= "$customUrl";
 
-            return response($formatted_response, 200)->header('Content-Type', 'text/plain');
+            return response()->json([
+                'status' => 'success',
+                'data' => $formatted_response,
+            ]);
 
         } catch (\Exception $ex) {
             DB::rollBack();
             Log::error($ex);
-             return response('Error: ' . $ex->getMessage(), 500)->header('Content-Type', 'text/plain');
+             return response()->json(['status' => 'error', 'message' => 'Error: ' . $ex->getMessage()], 500);
         }
     }
 
