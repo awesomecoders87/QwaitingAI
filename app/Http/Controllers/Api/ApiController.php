@@ -68,7 +68,7 @@ class ApiController extends Controller
         try {
             $request->validate([
                 'email' => 'required',
-                'password' => 'required|string|min:2',
+                'password' => 'required|string|min:2', 
             ]);
         } catch (ValidationException $e) {
             return response()->json([
