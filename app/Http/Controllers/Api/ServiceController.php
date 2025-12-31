@@ -1637,11 +1637,16 @@ if ($request->time) {
              return response('Id is required', 400)->header('Content-Type', 'text/plain');
         }
 
+        // $booking = Booking::where('refID', $booking_refID)
+        //     ->whereDate('booking_date', date('Y-m-d'))
+        //     ->where('is_convert', Booking::STATUS_NO)
+        //     ->where('status', '!=', Booking::STATUS_CANCELLED)
+        //     ->first();
+
         $booking = Booking::where('refID', $booking_refID)
-            ->whereDate('booking_date', date('Y-m-d'))
-            ->where('is_convert', Booking::STATUS_NO)
-            ->where('status', '!=', Booking::STATUS_CANCELLED)
-            ->first();
+        ->where('is_convert', Booking::STATUS_NO)
+        ->where('status', '!=', Booking::STATUS_CANCELLED)
+        ->first();
 
         if (!$booking) {
              return response('Booking not found or already converted or not for today', 404)->header('Content-Type', 'text/plain');
