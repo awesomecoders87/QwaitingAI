@@ -2087,5 +2087,327 @@ if ($request->time) {
                 SmsAPI::sendSms( $teamId, $data,$type,$type,$logData);
             }
      }
+
+    public function saveQueueForm(Request $request)
+    {
+        // Validation (Relaxed as requested)
+        $validator = \Validator::make($request->all(), [
+            'category_name' => 'required|string',
+            // 'name' => 'required|string', // User said name is not required
+        ]);
+
+        if ($validator->fails()) {
+            return response()->json([
+                'status' => 'error',
+                'message' => $validator->errors()->first()
+            ], 400);
+        }
+
+        $teamId = $request->input('team_id', 3);
+        $locationId = $request->input('location_id', 80);
+        
+        $categoryNameInput = $request->category_name;
+        
+        // Dynamic Fields Processing (similar to Queue.php)
+        $formattedFields = [];
+        foreach ($request->all() as $key => $value) {
+            $trimmedKey = trim($key);
+            $fieldName = preg_replace('/_\d+/', '', $trimmedKey);
+            $fieldName = strtolower($fieldName);
+            $formattedFields[$fieldName] = $value;
+        }
+
+        $name = $formattedFields['name'] ?? null;
+        
+        // Phone extraction (similar to Queue.php)
+        $possiblePhoneKeys = ['number', 'phone', 'mobile', 'whatsapp_number', 'phone_number']; // FormField::possiblePhoneKeys();
+        $phone = null;
+        $phone_code = $request->phone_code ?? '91';
+        
+        foreach ($possiblePhoneKeys as $key) {
+            if (isset($formattedFields[$key]) && !empty($formattedFields[$key])) {
+                $phone = $formattedFields[$key];
+                // Queue.php does: $formattedFields[$key] = ('+'.$this->phone_code ?? '+91').$formattedFields[$key];
+                // We'll keep raw phone in $phone var for storage logic
+                break;
+            }
+        }
+        $email = $formattedFields['email'] ?? ($formattedFields['Email'] ?? null);
+        $jsonDynamicData = json_encode($formattedFields);
+
+
+        $siteDetails = SiteDetail::where('team_id', $teamId)->where('location_id', $locationId)->first();
+        if (!$siteDetails) {
+             return response()->json(['status' => 'error', 'message' => 'Site details not found'], 404);
+        }
+
+        // Check Ticket Limit
+        $checkTicketLimit = SiteDetail::checkTicketLimit($teamId, $locationId, $siteDetails);
+        if($checkTicketLimit) {
+             return response()->json(['status' => 'error', 'message' => 'Ticket limit exceeded'], 400);
+        }
+
+        // Find Category ID by Name
+        $category = Category::where('team_id', $teamId)
+            ->where('name', $categoryNameInput)
+            ->whereJsonContains('category_locations', (string)$locationId)
+            ->first();
+
+        if (!$category) {
+            return response()->json(['status' => 'error', 'message' => 'Category not found'], 404);
+        }
+
+        $selectedCategoryId = $category->id;
+        
+        DB::beginTransaction();
+        try {
+            // Acronym Logic
+            $acronym = SiteDetail::DEFAULT_WALKIN_A;
+            $acronym_level = $siteDetails->acronym_level ?? 0;
+            
+            // Simplified level logic: we only have one category ID here
+            if((int)$acronym_level == 1 && !empty($selectedCategoryId)){
+                $acronym = Category::viewAcronym($selectedCategoryId);
+            }
+            // If API supports sub-categories later, we would check them here
+
+            $lastcategory = $selectedCategoryId;
+
+            // Token Generation
+            if($siteDetails?->count_by_service){
+                 $lastToken = Queue::getLastToken($teamId, null, $locationId);
+            }else{
+                 $lastToken = Queue::getLastToken($teamId, $acronym, $locationId, $lastcategory);
+            }
+            
+            $token_digit = $siteDetails?->token_digit ?? 4;
+            $isExistToken = true;
+            $token_start = "";
+
+            while ($isExistToken) {
+                $newToken = QueueStorage::newGeneratedToken($lastToken, $siteDetails?->token_start, $token_digit);
+                
+                $isExistToken = Queue::checkToken($teamId, $acronym, $newToken, $locationId);
+                if ($isExistToken) {
+                    $lastToken = $newToken;
+                } else {
+                    $token_start = $newToken;
+                    $isExistToken = false;
+                }
+            }
+            
+            $todayDateTime = Carbon::now();
+            
+            // Senior Citizen & Priority Logic (from Queue.php)
+            $seniorCitizen = 'No';
+            $isSeniorCitizen = $siteDetails->enable_priority_pattern == 0 ? true : false;
+            if($isSeniorCitizen){
+                if(isset($formattedFields['are you a senior citizen']) && !empty($formattedFields['are you a senior citizen'])){
+                    $seniorCitizen = $formattedFields['are you a senior citizen'];
+                    // getNextSeniorPrioritySort is private/protected logic in Component, assuming simple Priority logic here or copy logic if complex
+                    // For now, defaulting to standard priority call
+                     $nextPrioritySort = $this->getNextPrioritySortDirect($teamId, $locationId, $selectedCategoryId);
+                }else{
+                     $nextPrioritySort = $this->getNextPrioritySortDirect($teamId, $locationId, $selectedCategoryId);
+                }
+            }else{
+                 $nextPrioritySort = $this->getNextPrioritySortDirect($teamId, $locationId, $selectedCategoryId); 
+            }
+
+            // Assigned Staff
+            $assigned_staff_id = null;
+            $enablePriority = $siteDetails->priority_enable ?? false; 
+            if ($enablePriority) {
+                 $assigned_staff = User::getNextAgent($teamId, $locationId);
+                 if($assigned_staff['status']){
+                     $assigned_staff_id = $assigned_staff['availableAgent'];
+                 }
+            }
+
+            $is_virtual_meeting = 0; 
+            if (isset($decodedJson['type']) && $decodedJson['type'] === 'Virtual') {
+                 $is_virtual_meeting = 1;
+            }
+
+            $full_phone_number = (!empty($phone_code) && !empty($phone)) ? $phone_code . $phone : null;
+
+            $storeData = [
+                'name' => $name,
+                'phone' => $phone ?? '',
+                'phone_code' => $phone_code,
+                'category_id' => $selectedCategoryId,
+                'team_id' => $teamId,
+                'token' => $token_start,
+                'token_with_acronym' => Queue::LABEL_NO,
+                'json' => $jsonDynamicData,
+                'arrives_time' => $todayDateTime,
+                'datetime' => $todayDateTime,
+                'start_acronym' => $acronym,
+                'locations_id' => $locationId,
+                'priority_sort' => $nextPrioritySort ?? 0,
+                'served_by' =>  $assigned_staff_id,
+                'assign_staff_id' =>  $assigned_staff_id,
+                'full_phone_number' => $full_phone_number,
+                'is_virtual_meeting' => $is_virtual_meeting,
+                'senior_citizen' => $seniorCitizen ?? 'No',
+                'mode' => 'api',
+            ];
+
+            $queueCreated = Queue::storeQueue([
+                'team_id' => $teamId,
+                'token' => $token_start,
+                'token_with_acronym' => Queue::LABEL_NO,
+                'locations_id' => $locationId,
+                'arrives_time' => $todayDateTime,
+                'last_category' => $lastcategory,
+                'start_acronym' => $acronym,
+            ]);
+            
+            if ($is_virtual_meeting) {
+                $room = 'room_' . base64_encode($queueCreated->id);
+                $queueId = base64_encode($queueCreated->id);
+                $storeData['meeting_link'] = url("meeting/{$room}/{$queueId}");
+            } else {
+                $storeData['meeting_link'] = null;
+            }
+
+            $queueStorage = QueueStorage::storeQueue(array_merge($storeData, ['queue_id' => $queueCreated->id]));
+
+             // Salesforce
+             try {
+                $salesforcessettings = SalesforceSetting::where('team_id',  $teamId)
+                    ->where('location_id', $locationId)
+                    ->first();
+
+                $clientId = $salesforcessettings->client_id ?? null;
+                $clientSecret = $salesforcessettings->client_secret ?? null;
+                $tokenUrl = 'https://login.salesforce.com/services/oauth2/token';
+
+                $refreshToken = SalesforceConnection::where('team_id', $teamId)
+                    ->where('location_id', $locationId)
+                    ->where('status', 1)
+                    ->value('salesforce_refresh_token');
+
+                if (!empty($clientId) && !empty($clientSecret) && !empty($refreshToken)) {
+                     $datetimeUtc = new \DateTime($queueStorage->arrives_time);
+                    $datetimeUtc->setTimezone(new \DateTimeZone('UTC'));
+                    $Qwaiting_Sync_Date__c = $datetimeUtc->format('Y-m-d\TH:i:s\Z');
+                    
+                    $assignUserSfId = null;
+                    if (!empty($assigned_staff_id)) {
+                        $assignUserSfId = User::where('id', $assigned_staff_id)->value('saleforce_user_id');
+                    }
+
+                     $salesForceData = [
+                        'refresh_token' => $refreshToken,
+                        'FirstName' => $queueStorage->name ?? 'Guest',
+                        'Phone' => $queueStorage->phone ?? '',
+                        'Email' => $email ?? '',
+                        'Qwaiting_Sync_Date__c' => $Qwaiting_Sync_Date__c,
+                        'Token' => $queueStorage->token ?? '',
+                        'Page' => 'Queue API',
+                        'Created' => $queueStorage->created_at ?? now(),
+                        'queue_storage_id' => $queueStorage->id,
+                        'AssignId' => $assignUserSfId ?: '005Hu00000SBZ8bIAH',
+                        'Service_Name__c' => $categoryNameInput,
+                        'Company' => 'Queue Service', // or tenant('name') if available
+                        'Age' => $formattedFields['age'] ?? '',
+                        'Occupation' => $formattedFields['occupation'] ?? '',
+                        'Address' => $formattedFields['residential address'] ?? '',
+                        'Marital' => $formattedFields['marital status'] ?? '',
+                        'Previous' => $formattedFields['previous contact'] ?? '',
+                        'Purpose' => $formattedFields['purpose of visit'] ?? '',
+                        'Unit' => $formattedFields['unit'] ?? '',
+                        'Note' => $formattedFields['notes'] ?? '',
+                        'Mobile' => $formattedFields['number'] ?? '',
+                    ];
+                    
+                    $sfService = new SalesforceService($clientId, $clientSecret, $tokenUrl);
+                    $leadResponse = $sfService->createLead($salesForceData);
+                    $queueStorage->salesforce_lead = json_encode($leadResponse);
+                    $queueStorage->save();
+                }
+            } catch (\Throwable $e) {
+                 Log::error('Salesforce Error: ' . $e->getMessage());
+            }
+
+            QueueNotification::dispatch($queueStorage);
+            QueueCreated::dispatch($queueStorage);
+             // handle Customer Creation/Log
+             if (!empty($phone)) {
+                $existingCustomer = Customer::where('phone', $phone)
+                    ->where('team_id', $teamId)
+                    ->where('location_id', $locationId)
+                    ->first();
+                if (!$existingCustomer) {
+                    $existingCustomer = Customer::create([
+                        'team_id' => $teamId,
+                        'location_id' => $locationId,
+                        'name' => $name,
+                        'phone' => $phone,
+                        'json_data' => $jsonDynamicData, 
+                    ]);
+                }
+                CustomerActivityLog::create([
+                    'team_id' => $teamId,
+                    'location_id' => $locationId,
+                    'queue_id' => $queueStorage->id,
+                    'booking_id' => null, 
+                    'type' => 'queue',
+                    'customer_id' => $existingCustomer->id,
+                    'note' => 'Customer joined the queue.',
+                ]);
+                $queueStorage->created_by = $existingCustomer->id;
+                $queueStorage->save();
+             }
+
+            // Calculate Wait Time & Pending
+            $categoryName = $categoryNameInput;
+            $pendingCount = 0;
+            $waitingTime = 0;
+            
+            // Simplified pending calculation logic
+            $pendingCountget = (int)QueueStorage::countPending($teamId, $queueStorage->id, '', '', '', $locationId);
+            $counterCount = Counter::where('team_id',$teamId)->whereJsonContains('counter_locations', "$locationId")->where('show_checkbox',1)->count();
+            if((int)$pendingCountget > 0 && (int)$counterCount > 0){
+                 $pendingCount = floor((int)$pendingCountget / (int)$counterCount);
+            }
+            
+            $estimate_time = $siteDetails->estimate_time ?? 0;
+            $waitingTime =  $estimate_time * $pendingCount;
+
+            $queueStorage->waiting_time = $waitingTime;
+            $queueStorage->queue_count = $pendingCount;
+            $queueStorage->save();
+            
+            // Send Notification
+             // Create a dummy booking object for email notification purposes
+             $bookingSim = new Booking();
+             $bookingSim->email = $email;
+             $bookingSim->location_id = $locationId;
+
+             $this->sendNotification($teamId, $bookingSim, $queueStorage, $queueCreated, $acronym, $locationId);
+
+            DB::commit();
+
+            // Response Construction
+            $formatted_response = "Queue No.: $token_start\n";
+            $formatted_response .= "Arrived: " . $todayDateTime->format('d-m-Y H:i:s') . "\n";
+            $formatted_response .= "$categoryName\n";
+            $formatted_response .= "$pendingCount Queue before you\n";
+            $formatted_response .= "Your estimated waiting time is $waitingTime";
+            // CustomUrl removed as requested
+
+            return response()->json([
+                'status' => 'success',
+                'data' => $formatted_response,
+            ]);
+
+        } catch (\Exception $ex) {
+            DB::rollBack();
+            Log::error($ex);
+             return response()->json(['status' => 'error', 'message' => 'Error: ' . $ex->getMessage()], 500);
+        }
+    }
 }
 

@@ -112,3 +112,4 @@ Route::post('/get-available-dates', [ServiceController::class, 'getAvailableDate
 Route::post('/get-available-times', [ServiceController::class, 'getAvailableTimes']);
 Route::post('/chatbot-book', [ServiceController::class, 'chatbotBook'])->name('api.chatbot-book');
 Route::post('/convert-book-to-queue', [ServiceController::class, 'ConvertBookToQueue']);
+Route::post('/save-queue-form', [ServiceController::class, 'saveQueueForm']);
