@@ -1951,8 +1951,8 @@ if ($request->time) {
             $formatted_response .= "Arrived: " . $todayDateTime->format('d-m-Y H:i:s') . "\n";
             $formatted_response .= "$categoryName\n";
             $formatted_response .= "$pendingCount Queue before you\n";
-            $formatted_response .= "Your estimated waiting time is $waitingTime\n";
-            $formatted_response .= "$customUrl";
+            $formatted_response .= "Your estimated waiting time is $waitingTime";
+            // $formatted_response .= "$customUrl";
 
             return response()->json([
                 'status' => 'success',
