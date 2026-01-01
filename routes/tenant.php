@@ -47,6 +47,7 @@ use App\Livewire\StaffSettingComponent;
 use App\Livewire\CategoryManagement;
 use App\Livewire\CategoryCreateComponent;
 use App\Livewire\CategorySettingComponent;
+use App\Livewire\CategorySettingV2Component;
 use App\Livewire\EmailSettings;
 use App\Livewire\FeedbackForm;
 use App\Livewire\FeedbackSettings;
@@ -293,11 +294,10 @@ Route::middleware([
         Route::get('/whatsapp-templates', WhatsappTemplate::class)->name('whatsapp-templates');
         Route::get('/notification-templates', NotificationTemplates::class)->name('notification-templates');
         Route::get('/category-management', CategoryManagement::class)->name('category-management');
-        Route::get('/category/{level}/setting', CategorySettingComponent::class)->name('category.setting');
-        Route::get('/category/{level}/setting/edit', CategorySettingComponent::class)->name('category.setting.edit');
         Route::get('/category/{level}/create', CategoryCreateComponent::class)->name('category.create');
         Route::get('/category/{level}/edit/{categoryId}', CategoryCreateComponent::class)->name('category.edit');
-        Route::get('/category/{level}/setting/{categoryId}', CategorySettingComponent::class)->name('category.setting')->where('categoryId', '[0-9]+');
+        Route::get('/category/{level}/setting/{categoryId}', CategorySettingComponent::class)->name('category.setting');
+        Route::get('/category/{level}/settingv2/{categoryId}', CategorySettingV2Component::class)->name('category.settingv2');
         Route::get('/qr-code', QrCode::class)->name('qr-code');
         Route::get('/email-settings', EmailSettings::class)->name('email-settings');
         Route::get('/sms-api', SmsApi::class)->name('sms-api');
@@ -572,22 +572,6 @@ Route::get('/bright-test', function () {
    return view('bright-sign');
 });
 
-
-Route::get('/queue-management-dashboard', function () {
-   return view('queue-management-dashboard');
-});
-
-Route::get('/queue-management-display', function () {
-   return view('queue-management-display');
-});
-
-Route::get('/admin-pricing-module', function () {
-   return view('admin-pricing-module');
-});
-
-Route::get('/admin-pricing-module-v2', function () {
-   return view('admin-pricing-module-v2');
-});
 
 Route::get('/heartbeat', fn() => response()->noContent());
 
