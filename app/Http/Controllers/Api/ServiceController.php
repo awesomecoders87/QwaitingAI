@@ -1123,6 +1123,12 @@ class ServiceController extends Controller
             }
 
             $availableSlots = $slots['start_at'] ?? [];
+            
+            // Filter using valid logic
+            if (!empty($availableSlots)) {
+                $availableSlots = $this->filterValidSlots($availableSlots, $teamId, $locationId, $serviceId, $date, $bookingSetting);
+            }
+
             if (!empty($availableSlots)) {
                 $availableDates[] = $dateString;
             }
@@ -1167,6 +1173,41 @@ class ServiceController extends Controller
                 return '10:00 AM';
             }
         }
+    }
+
+    /**
+     * Filter slots to ensure they are truly available based on Booking existence
+     * (Matches checkAndBook strict logic: if ANY booking exists, reject)
+     */
+    private function filterValidSlots($slots, $teamId, $locationId, $serviceId, $date, $bookingSetting = null)
+    {
+        if (empty($slots)) return [];
+        
+        $dateString = $date instanceof Carbon ? $date->toDateString() : $date;
+        
+        // Fetch all bookings for this date/team/location strictly
+        // We only care if meaningful bookings exist that are NOT cancelled
+        $bookedStartTimes = Booking::where('team_id', $teamId)
+            ->where('location_id', $locationId)
+            ->where('booking_date', $dateString)
+            ->where('status', '!=', Booking::STATUS_CANCELLED)
+            ->pluck('start_time')
+            ->toArray();
+            
+        // Normalize keys (times) to be safe
+        $bookedStartTimesNormalized = array_map(function($t) {
+            return $this->normalizeTime($t);
+        }, $bookedStartTimes);
+        
+        // Filter slots
+        return array_values(array_filter($slots, function($slot) use ($bookedStartTimesNormalized) {
+            $parts = explode('-', $slot);
+            $startTime = trim($parts[0]);
+            $normalizedStart = $this->normalizeTime($startTime);
+            
+            // If start time is found in bookings, it is taken
+            return !in_array($normalizedStart, $bookedStartTimesNormalized);
+        }));
     }
 
     /**
@@ -1271,7 +1312,18 @@ class ServiceController extends Controller
         }
 
         // Check if date has available time slots
-        if (empty($slots['start_at'])) {
+        $availableSlots = $slots['start_at'] ?? [];
+
+        if (!empty($availableSlots)) {
+            $bookingSetting = AccountSetting::where('team_id', $teamId)
+                ->where('location_id', $locationId)
+                ->where('slot_type', AccountSetting::BOOKING_SLOT)
+                ->first();
+                
+            $availableSlots = $this->filterValidSlots($availableSlots, $teamId, $locationId, $serviceId, $date, $bookingSetting);
+        }
+
+        if (empty($availableSlots)) {
             return response()->json([
                 'status'  => 'error',
                 'message' => 'Date not available for this service - no time slots available',
@@ -1291,7 +1343,7 @@ class ServiceController extends Controller
                 'name' => $service->name ?? null
             ],
             'date'    => $dateString,
-            'available_times' => $slots['start_at']
+            'available_times' => $availableSlots
         ]);
     }
 
@@ -1377,7 +1429,18 @@ class ServiceController extends Controller
     }
 
     // Check if no slots at all
-    if (empty($slots['start_at'])) {
+    $availableSlots = $slots['start_at'] ?? [];
+
+    if (!empty($availableSlots)) {
+        $bookingSetting = AccountSetting::where('team_id', $teamId)
+            ->where('location_id', $locationId)
+            ->where('slot_type', AccountSetting::BOOKING_SLOT)
+            ->first();
+            
+        $availableSlots = $this->filterValidSlots($availableSlots, $teamId, $locationId, $serviceId, $date, $bookingSetting);
+    }
+
+    if (empty($availableSlots)) {
         return response()->json([
             'status'  => 'error',
             'message' => 'No time slots available for this date',
@@ -1388,12 +1451,12 @@ class ServiceController extends Controller
     }
 
     // STEP 4: Time Conflict Check (BOOKING VALIDATION)
-if ($request->time) {
+    if ($request->time) {
 
     // Normalize user input
     try {
         $requestedTime = trim($request->time);
-        $parsedTime = Carbon::parse($requestedTime)->format('h:i A');
+        $normalizedRequestedTime = $this->normalizeTime($requestedTime);
     } catch (\Exception $e) {
         return response()->json([
             'status' => 'error',
@@ -1401,33 +1464,28 @@ if ($request->time) {
         ], 400);
     }
 
-    // Get booked start_times from DB
-    $bookedSlots = \DB::table('bookings')
-        ->where('team_id', $teamId)
-        ->where('location_id', $locationId)
-        ->where('category_id', $serviceId)
-        ->where('booking_date', $date->toDateString())
-        ->pluck('start_time')
-        ->toArray();
-
-    // Extract only start times from all generated slots
-    $generatedStartTimes = array_map(function ($slot) {
-        return trim(explode('-', $slot)[0]);  // "02:00 PM-02:30 PM" → "02:00 PM"
-    }, $slots['start_at']);
-
-    // Remove booked times from available list
-    $availableStartTimes = array_values(array_filter($generatedStartTimes, function ($t) use ($bookedSlots) {
-        return !in_array($t, $bookedSlots);
-    }));
+    // Check availability against filtered slots
+    $timeExists = false;
+    foreach ($availableSlots as $slot) {
+        // Extract start time "09:00 AM" or "09:00 AM-10:00 AM"
+        $parts = explode('-', $slot);
+        $startTime = trim($parts[0]);
+        $normalizedStart = $this->normalizeTime($startTime);
+        
+        if ($normalizedStart === $normalizedRequestedTime) {
+            $timeExists = true;
+            break;
+        }
+    }
 
     // If user-selected time is not available → booked
-    if (!in_array($parsedTime, $availableStartTimes)) {
+    if (!$timeExists) {
         return response()->json([
             'status'  => 'error',
             'message' => 'This time slot is already booked for the selected service.',
-            'requested_time' => $parsedTime,
+            'requested_time' => $normalizedRequestedTime,
             'date'    => $dateString,
-            'available_times' => $availableStartTimes
+            'available_times' => $availableSlots
         ], 409);
     }
 }
@@ -1442,7 +1500,7 @@ if ($request->time) {
             'name' => $service->name
         ],
         'date'    => $dateString,
-        'available_times' => $slots['start_at']
+        'available_times' => $availableSlots
     ]);
 }
 
@@ -1599,6 +1657,17 @@ if ($request->time) {
         }
 
         $availableSlots = $slots['start_at'] ?? [];
+
+        // Fetch booking setting for capacity check
+        $bookingSetting = AccountSetting::where('team_id', $teamId)
+            ->where('location_id', $locationId)
+            ->where('slot_type', AccountSetting::BOOKING_SLOT)
+            ->first();
+
+        // Filter using valid logic
+        if (!empty($availableSlots) && isset($bookingSetting)) {
+            $availableSlots = $this->filterValidSlots($availableSlots, $teamId, $locationId, $serviceId, $appointmentDate, $bookingSetting);
+        }
 
         // Filter out past times if date is today
         if ($appointmentDate->isToday()) {
