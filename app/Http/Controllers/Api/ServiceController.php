@@ -1717,7 +1717,15 @@ if ($request->time) {
                 }
             }
             
-            $todayDateTime = Carbon::now();
+            $siteData = SiteDetail::where('team_id', $teamId)->where('location_id', $locationId)->first();
+            $timezone = $siteData->select_timezone ?? 'UTC';
+            Config::set('app.timezone', $timezone);
+            date_default_timezone_set($timezone);
+
+            $todayDateTime = Carbon::now($timezone);
+
+            // Commented old line
+            // $todayDateTime = Carbon::now();
 
             // Determine assigned staff based on setting
             $assigned_staff_id = null;
@@ -2195,9 +2203,15 @@ if ($request->time) {
                     $isExistToken = false;
                 }
             }
+            $siteData = SiteDetail::where('team_id', $teamId)->where('location_id', $locationId)->first();
+            $timezone = $siteData->select_timezone ?? 'UTC';
+            Config::set('app.timezone', $timezone);
+            date_default_timezone_set($timezone);
+
+            $todayDateTime = Carbon::now($timezone);
             
-            $todayDateTime = Carbon::now();
-            
+            // Commented old line
+            // $todayDateTime = Carbon::now();
             // Senior Citizen & Priority Logic (from Queue.php)
             $seniorCitizen = 'No';
             $isSeniorCitizen = $siteDetails->enable_priority_pattern == 0 ? true : false;
