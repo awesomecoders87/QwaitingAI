@@ -63,9 +63,9 @@ class ServiceController extends Controller
         $services = Category::getFirstCategorybooking($teamId, $locationId);
         
         // Filter services where service_time is not empty
-        $services = $services->filter(function ($s) {
-            return !empty($s->service_time);
-        });
+        // $services = $services->filter(function ($s) {
+        //     return !empty($s->service_time);
+        // });
 
         // Filter by type if provided (e.g., 'appointment' or 'service')
         if ($request->has('type') && !empty($request->type)) {
@@ -1699,6 +1699,9 @@ class ServiceController extends Controller
         ]);
     }
 
+    /**
+     * Convert Booking to Queue this is for check-in
+     */
     public function ConvertBookToQueue(Request $request)
     {
         $booking_refID = $request->booking_refID;
@@ -1937,82 +1940,97 @@ class ServiceController extends Controller
             // Determining Pending Count
             $pendingCount = 0;
             $waitingTime = 0;
-            
+            $pendingwaiting = 0;
+
             $countCatID = $selectedCategoryId;
             $fieldCatName = 'category_id';
 
              // determineCategoryColumn logic
              if (!empty($thirdChildId)) {
-                if ($siteDetails?->category_level_est == 'automatic') {
+                if ($siteDetails->category_level_est == 'automatic') {
                     $fieldCatName = 'child_category_id';
                     $countCatID =  $thirdChildId;
-                } elseif ($siteDetails?->category_level_est == 'child') {
+                } elseif ($siteDetails->category_level_est == 'child') {
                     $fieldCatName = 'sub_category_id';
                     $countCatID =  $secondChildId;
+                } else {
+                     $fieldCatName = 'category_id';
+                     $countCatID =  $selectedCategoryId;
                 }
             } else if (!empty($secondChildId)) {
-                if ($siteDetails?->category_level_est == 'child') {
+                if ($siteDetails->category_level_est == 'child') {
                     $fieldCatName = 'sub_category_id';
                     $countCatID =  $secondChildId;
+                } else {
+                     $fieldCatName = 'category_id';
+                     $countCatID =  $selectedCategoryId;
                 }
+            } else {
+                $fieldCatName = 'category_id';
+                $countCatID =  $selectedCategoryId;
             }
             
-            if($siteDetails->category_estimated_time == SiteDetail::STATUS_YES &&  $siteDetails?->count_by_service == 0 ){
-                  $estimatedetail = QueueStorage::countPendingByCategory($teamId, $queueStorage->id, $countCatID, $fieldCatName, '', $locationId);
-                  if($estimatedetail == false){
-                    $pendingCount = QueueStorage::countPending($teamId, $queueStorage->id, $countCatID, $fieldCatName, '', $locationId);
-                  }else{
-                    $pendingCount =$estimatedetail['customers_before_me'] ?? 0;
-                    $pendingwaiting =$estimatedetail['estimated_wait_time'] ?? 0;
-                  }
-            }else{
+            if ($siteDetails->category_estimated_time == SiteDetail::STATUS_YES) {
+ 
+                if($siteDetails->estimate_time_mode == 1){ //check pending according to service and staff availablilty
+                  $estimatedetail = QueueStorage::countPendingByCategorywithstaff($teamId, $queueStorage->id, $countCatID, $fieldCatName, '', $locationId);
+                    if ($estimatedetail == false) {
+                        $pendingCount = QueueStorage::countPending($teamId, $queueStorage->id, $countCatID, $fieldCatName, '', $locationId);
+                    } else {
+                        $pendingCount = $estimatedetail['customers_before_me'] ?? 0;
+                        $pendingwaiting = $estimatedetail['estimated_wait_time'] ?? 0;
+                        if($enablePriority == false){
+                            $assigned_staff_id = $estimatedetail['assigned_staff_id'] ?? null;
+                            $queueStorage->assign_staff_id = $assigned_staff_id;
+                        }
+                    }
+                }elseif($siteDetails->estimate_time_mode == 2){ //check pending according to service only
+                        if($siteDetails->count_all_services == 2){
+                            $estimatedetail = QueueStorage::countAllPendingQueues($teamId, $queueStorage->id, $countCatID,$locationId);
+                            $pendingCount = $estimatedetail['customers_before_me'] ?? 0;
+                        }else{
+                            $estimatedetail = QueueStorage::countPendingByCategory($teamId, $queueStorage->id, $countCatID, $fieldCatName,$locationId);
+                            $pendingCount = $estimatedetail['customers_before_me'] ?? 0;
+                            $pendingwaiting = $estimatedetail['estimated_wait_time'] ?? 0;
+                        }
+
+                }else{
+                    //  $serviceTime = $siteDetails->estimate_time ?? 0;
+                    $estimatedetail = QueueStorage::countPendingByStaff($teamId, $queueStorage->id,$countCatID,$locationId);
+                      if ($estimatedetail == false) {
+                          $pendingCount = 0;
+                        } else {
+                            $pendingCount = $estimatedetail['customers_before_me'] ?? 0;
+                            $pendingwaiting = $estimatedetail['estimated_wait_time'] ?? 0;
+                            if($enablePriority == false){
+                                $assigned_staff_id = $estimatedetail['assigned_staff_id'] ?? null;
+                                $queueStorage->assign_staff_id = $assigned_staff_id;
+                            }
+                        }
+                }
+
+            } else {
+
                 $pendingCountget = (int)QueueStorage::countPending($teamId, $queueStorage->id, '', '', '', $locationId);
                 $counterCount = Counter::where('team_id',$teamId)->whereJsonContains('counter_locations', "$locationId")->where('show_checkbox',1)->count();
                 if((int)$pendingCountget > 0 && (int)$counterCount > 0){
-                     $pendingCount = floor((int)$pendingCountget / (int)$counterCount);
-                }
+                        $pendingCount = floor((int)$pendingCountget / (int)$counterCount);
+
+                    }
             }
             
             $estimate_time = $siteDetails->estimate_time ?? 0;
-             if($siteDetails->category_estimated_time == SiteDetail::STATUS_YES){ 
-                 $waitingTime =  $pendingwaiting ?? $estimate_time * $pendingCount;
-             }else{  
-                 $waitingTime =  $estimate_time * $pendingCount;
-             }
 
-             // Handle Customer Creation Logs
-             if (empty($booking->created_by)) {
-                 if (!empty($queueStorage->phone)) {
-                    $existingCustomer = Customer::where('phone', $queueStorage->phone)
-                        ->where('team_id', $teamId)
-                        ->where('location_id', $booking->location_id)
-                        ->first();
-                    if (!$existingCustomer) {
-                        $existingCustomer = Customer::create([
-                            'team_id' => $teamId,
-                            'location_id' => $booking->location_id,
-                            'name' => $booking->name ?? null,
-                            'phone' => $queueStorage->phone,
-                            'json_data' => $booking->json ?? '', 
-                        ]);
-                    }
-                    CustomerActivityLog::create([
-                        'team_id' => $teamId,
-                        'location_id' => $booking->location_id,
-                        'queue_id' => $queueStorage->id,
-                        'booking_id' => null, 
-                        'type' => 'queue',
-                        'customer_id' => $existingCustomer->id,
-                        'note' => 'Customer joined the queue.',
-                    ]);
-                    $queueStorage->created_by = $existingCustomer->id;
-                    $queueStorage->save();
-                 }
-             } else {
-                 $queueStorage->created_by = $booking->created_by;
-                 $queueStorage->save();
-             }
-             
+             if ($siteDetails->category_estimated_time == SiteDetail::STATUS_YES) { // get estimate time of category wise
+                   if($siteDetails->estimate_time_mode == 2 && $siteDetails->count_all_services == 2){ //check pending according to service only
+                    $waitingTime =  $estimate_time * $pendingCount;
+                   }else{
+                       $waitingTime =  $pendingwaiting != 0 ? $pendingwaiting : ($estimate_time * $pendingCount);
+                   }
+                } else {  // get estimate time of globally set
+                    $waitingTime =  $estimate_time * $pendingCount;
+                }
+
              $queueStorage->waiting_time = $waitingTime;
              $queueStorage->queue_count = $pendingCount;
              $queueStorage->save();
@@ -2449,16 +2467,94 @@ class ServiceController extends Controller
             $categoryName = $categoryNameInput;
             $pendingCount = 0;
             $waitingTime = 0;
+            $pendingwaiting = 0;
             
-            // Simplified pending calculation logic
-            $pendingCountget = (int)QueueStorage::countPending($teamId, $queueStorage->id, '', '', '', $locationId);
-            $counterCount = Counter::where('team_id',$teamId)->whereJsonContains('counter_locations', "$locationId")->where('show_checkbox',1)->count();
-            if((int)$pendingCountget > 0 && (int)$counterCount > 0){
-                 $pendingCount = floor((int)$pendingCountget / (int)$counterCount);
+            $secondChildId = null; 
+            $thirdChildId = null;
+
+            $countCatID = $selectedCategoryId;
+            $fieldCatName = 'category_id';
+
+             // determineCategoryColumn logic
+             if (!empty($thirdChildId)) {
+                if ($siteDetails->category_level_est == 'automatic') {
+                    $fieldCatName = 'child_category_id';
+                    $countCatID =  $thirdChildId;
+                } elseif ($siteDetails->category_level_est == 'child') {
+                    $fieldCatName = 'sub_category_id';
+                    $countCatID =  $secondChildId;
+                } else {
+                     $fieldCatName = 'category_id';
+                     $countCatID =  $selectedCategoryId;
+                }
+            } else if (!empty($secondChildId)) {
+                if ($siteDetails->category_level_est == 'child') {
+                    $fieldCatName = 'sub_category_id';
+                    $countCatID =  $secondChildId;
+                } else {
+                     $fieldCatName = 'category_id';
+                     $countCatID =  $selectedCategoryId;
+                }
+            } else {
+                $fieldCatName = 'category_id';
+                $countCatID =  $selectedCategoryId;
             }
             
+            if ($siteDetails->category_estimated_time == SiteDetail::STATUS_YES) {
+                if($siteDetails->estimate_time_mode == 1){ //check pending according to service and staff availablilty
+                  $estimatedetail = QueueStorage::countPendingByCategorywithstaff($teamId, $queueStorage->id, $countCatID, $fieldCatName, '', $locationId);
+                    if ($estimatedetail == false) {
+                        $pendingCount = QueueStorage::countPending($teamId, $queueStorage->id, $countCatID, $fieldCatName, '', $locationId);
+                    } else {
+                        $pendingCount = $estimatedetail['customers_before_me'] ?? 0;
+                        $pendingwaiting = $estimatedetail['estimated_wait_time'] ?? 0;
+                        if($enablePriority == false){
+                            $assigned_staff_id = $estimatedetail['assigned_staff_id'] ?? null;
+                            $queueStorage->assign_staff_id = $assigned_staff_id;
+                        }
+                    }
+                }elseif($siteDetails->estimate_time_mode == 2){ //check pending according to service only
+                        if($siteDetails->count_all_services == 2){
+                            $estimatedetail = QueueStorage::countAllPendingQueues($teamId, $queueStorage->id, $countCatID,$locationId);
+                            $pendingCount = $estimatedetail['customers_before_me'] ?? 0;
+                        }else{
+                            $estimatedetail = QueueStorage::countPendingByCategory($teamId, $queueStorage->id, $countCatID, $fieldCatName,$locationId);
+                            $pendingCount = $estimatedetail['customers_before_me'] ?? 0;
+                            $pendingwaiting = $estimatedetail['estimated_wait_time'] ?? 0;
+                        }
+
+                }else{
+                    //  $serviceTime = $siteDetails->estimate_time ?? 0;
+                    $estimatedetail = QueueStorage::countPendingByStaff($teamId, $queueStorage->id,$countCatID,$locationId);
+                      if ($estimatedetail == false) {
+                          $pendingCount = 0;
+                        } else {
+                            $pendingCount = $estimatedetail['customers_before_me'] ?? 0;
+                            $pendingwaiting = $estimatedetail['estimated_wait_time'] ?? 0;
+                            if($enablePriority == false){
+                                $assigned_staff_id = $estimatedetail['assigned_staff_id'] ?? null;
+                                $queueStorage->assign_staff_id = $assigned_staff_id;
+                            }
+                        }
+                }
+            } else {
+                $pendingCountget = (int)QueueStorage::countPending($teamId, $queueStorage->id, '', '', '', $locationId);
+                $counterCount = Counter::where('team_id',$teamId)->whereJsonContains('counter_locations', "$locationId")->where('show_checkbox',1)->count();
+                if((int)$pendingCountget > 0 && (int)$counterCount > 0){
+                        $pendingCount = floor((int)$pendingCountget / (int)$counterCount);
+                    }
+            }
+
             $estimate_time = $siteDetails->estimate_time ?? 0;
-            $waitingTime =  $estimate_time * $pendingCount;
+            if ($siteDetails->category_estimated_time == SiteDetail::STATUS_YES) { // get estimate time of category wise
+                   if($siteDetails->estimate_time_mode == 2 && $siteDetails->count_all_services == 2){ //check pending according to service only
+                    $waitingTime =  $estimate_time * $pendingCount;
+                   }else{
+                       $waitingTime =  $pendingwaiting != 0 ? $pendingwaiting : ($estimate_time * $pendingCount);
+                   }
+                } else {  // get estimate time of globally set
+                    $waitingTime =  $estimate_time * $pendingCount;
+                }
 
             $queueStorage->waiting_time = $waitingTime;
             $queueStorage->queue_count = $pendingCount;
