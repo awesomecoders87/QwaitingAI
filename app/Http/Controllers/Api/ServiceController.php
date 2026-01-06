@@ -2189,6 +2189,8 @@ class ServiceController extends Controller
         // Validation (Relaxed as requested)
         $validator = \Validator::make($request->all(), [
             'category_name' => 'required|string',
+            'phone' => 'nullable',
+            'phone_code' => 'nullable',
             // 'name' => 'required|string', // User said name is not required
         ]);
 
@@ -2216,15 +2218,14 @@ class ServiceController extends Controller
         $name = $formattedFields['name'] ?? null;
         
         // Phone extraction (similar to Queue.php)
-        $possiblePhoneKeys = ['number', 'phone', 'mobile', 'whatsapp_number', 'phone_number']; // FormField::possiblePhoneKeys();
+        $possiblePhoneKeys = \App\Models\FormField::possiblePhoneKeys();
         $phone = null;
         $phone_code = $request->phone_code ?? '91';
         
         foreach ($possiblePhoneKeys as $key) {
             if (isset($formattedFields[$key]) && !empty($formattedFields[$key])) {
                 $phone = $formattedFields[$key];
-                // Queue.php does: $formattedFields[$key] = ('+'.$this->phone_code ?? '+91').$formattedFields[$key];
-                // We'll keep raw phone in $phone var for storage logic
+                $formattedFields[$key] = ('+' . ($phone_code ?? '91')) . $formattedFields[$key];
                 break;
             }
         }
@@ -2326,6 +2327,7 @@ class ServiceController extends Controller
                  }
             }
 
+            $decodedJson = json_decode($jsonDynamicData, true);
             $is_virtual_meeting = 0; 
             if (isset($decodedJson['type']) && $decodedJson['type'] === 'Virtual') {
                  $is_virtual_meeting = 1;
