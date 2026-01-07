@@ -57,7 +57,7 @@
                 @forelse($userDetails as $key => $userD)
                     <div class="flex justify-between py-1 flex-wrap gap-3">
                         <div class="text-gray-500">{{ App\Models\FormField::viewLabel($teamId, $key) }}</div>
-                        <div class="font-semibolds text-right">{{ $userD }}</div>
+                        <div class="font-semibolds text-right"></div>
                     </div>
                 @empty
                     No user details

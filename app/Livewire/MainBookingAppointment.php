@@ -1112,14 +1112,19 @@ class MainBookingAppointment extends Component
                                 'external_user_email' => $this->email,
                                 'external_user_name' => $this->name ?? 'Qmeeting Client',
                             ]);
+                    $jsonDynamicData=[];
                     if ($response->successful()) {
-                        $meetingData = $response->json();
+                        $meetingData = $response->json(); // array
+
                         $meetingLink = $meetingData['data']['join_link'] ?? null;
 
-                        // Save to JSON data
+                        $jsonDynamicData = $meetingData;
                         if ($meetingLink) {
                             $jsonDynamicData['meeting_link'] = $meetingLink;
                         }
+
+                        // 🔥 IMPORTANT: encode before DB save
+                        $jsonDynamicData = json_encode($jsonDynamicData);
                     } else {
                         // Handle error (log it, but maybe don't stop booking creation?)
                         \Log::error('Video Meeting API Error: ' . $response->body());
@@ -1249,7 +1254,9 @@ class MainBookingAppointment extends Component
             }
 
 
-            $meetingLink = $booking->json['meeting_link'] ?? null;
+            // $meetingLink = $booking->json['meeting_link'] ?? null;
+            $json = json_decode($booking->json, true);
+            $meetingLink = $json['meeting_link'] ?? null;
             $data = array_merge($data, ['to_mail' => $booking->email, 'service_time' => $this->enable_service_time, 'service_note' => $this->note, 'meeting_link' => $meetingLink]);
 
             $message = 'Appointment request has been successfully sent.But Email is not sent';
