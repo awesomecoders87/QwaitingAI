@@ -70,4 +70,9 @@ return [
     'password' => env('SALESFORCE_PASSWORD'),
 ],
 
+ 'meeting' => [
+        'base_url' => env('MEETING_BASE_URL'),
+        'api_key' => env('MEETING_API_KEY'),
+    ],
+
 ];

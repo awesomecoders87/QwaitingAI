@@ -10,7 +10,7 @@
 
     <ul>
         @php
-        $timeInMinutes = (int) $servingTime;
+            $timeInMinutes = (int) $servingTime;
         @endphp
 
         <li><strong>Serving Time:</strong>
@@ -21,6 +21,9 @@
             @endif
         </li>
         <li><strong>Note:</strong> {{ $note }}</li>
+        @if(!empty($meeting_link))
+            <li><strong>Join Meeting:</strong> <a href="{{ $meeting_link }}">{{ $meeting_link }}</a></li>
+        @endif
     </ul>
 
     <p>We look forward to seeing you!</p>

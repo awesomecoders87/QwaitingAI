@@ -176,7 +176,7 @@ use App\Livewire\StaffRatingSummary;
 use App\Livewire\LocationMapSettings;
 //use App\Livewire\LocationMap;
 use App\Livewire\QueueResetSetting;
-
+use App\Livewire\BookingTypeSelection;
 
 /*
 |--------------------------------------------------------------------------
@@ -400,6 +400,7 @@ Route::middleware([
     Route::get('prefer-booking-list', PreferBookingList::class)->name('prefer-booking-list');
     // Route::get('main/booking', MainBooking::class);
     Route::get('/book-appointment/{location_id?}', MainBookingAppointment::class)->name('book-appointment');
+    Route::get('/select-booking-type', BookingTypeSelection::class)->name('booking.select-type');
     Route::get('convert-to-queue', ConvertBookToQueue::class)->name('convert-to-queue');
     Route::get('/booking-confirmed/{id}', BookingConfirmed::class)->name('booking-confirmed');
     Route::get('/booking-cancelled/{id}', BookingCancelled::class);

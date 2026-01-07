@@ -98,6 +98,7 @@ class MainBookingAppointment extends Component
     public $years = [];
     public $appointment_date;
     public $appointment_time;
+    public $booking_type;
     public $disabledDate = [];
     public $allCategories = [];
     public $allLocations = [];
@@ -167,7 +168,7 @@ class MainBookingAppointment extends Component
 
     public function mount(Request $request, $location_id = null)
     {
-
+        $this->booking_type = $request->query('booking_type');
         $this->utm_source = $request->query('utm_source');
         $this->utm_medium = $request->query('utm_medium');
         $this->utm_campaign = $request->query('utm_campaign');
@@ -176,8 +177,8 @@ class MainBookingAppointment extends Component
 
         $this->timezone = Session::get('timezone_set') ?? 'UTC';
         $this->showFormQueue = false;
-        $this->user =  Auth::user();
-        $this->teamId =  tenant('id');
+        $this->user = Auth::user();
+        $this->teamId = tenant('id');
         $this->userAuth = Auth::user();
         //    dd(App::getLocale());
         //  $videoLink = 'https://teams.microsoft.com/l/meetup-join/' . Str::uuid();
@@ -282,16 +283,16 @@ class MainBookingAppointment extends Component
         $this->location = Location::find($this->locationId);
 
         // get Account detail of current location
-        $locationSlotsDetail =  AccountSetting::where('team_id', $this->teamId)
+        $locationSlotsDetail = AccountSetting::where('team_id', $this->teamId)
             ->where('location_id', $this->locationId)
             ->where('slot_type', AccountSetting::LOCATION_SLOT)
             ->select('id', 'business_hours')
             ->first();
 
-        $this->locationslots =  json_decode($locationSlotsDetail['business_hours'], true);
+        $this->locationslots = json_decode($locationSlotsDetail['business_hours'], true);
 
         //fetch parent Category
-        $this->parentCategory =  Category::getFirstCategorybooking($this->teamId, $this->locationId);
+        $this->parentCategory = Category::getFirstCategorybooking($this->teamId, $this->locationId);
 
         $this->colorSetting = ColorSetting::where('team_id', $this->teamId)->first();
         $this->totalLevelCount = Category::STEP_1;
@@ -302,7 +303,7 @@ class MainBookingAppointment extends Component
 
         $this->isCustomerLogin = $this->siteSetting->is_customer_login == 1 ? true : false;
         $this->showPreferButton = $this->siteSetting->is_prefer_time_slot == 1 ? true : false;
-        $this->selectedCountryCode = !empty($this->siteSetting->country_code) ?  $this->siteSetting->country_code : null;
+        $this->selectedCountryCode = !empty($this->siteSetting->country_code) ? $this->siteSetting->country_code : null;
         $this->phone_code = !empty($this->selectedCountryCode) ? $this->selectedCountryCode : '91';
 
         if (Session::has('login_customer_detail')) {
@@ -315,11 +316,11 @@ class MainBookingAppointment extends Component
         Config::set('app.timezone', $timezone);
         date_default_timezone_set($timezone);
 
-         $this->country_phone_mode = $this->siteSetting->country_options ?? 1;
+        $this->country_phone_mode = $this->siteSetting->country_options ?? 1;
 
-        $this->allowed_Countries = AllowedCountry::where('team_id',  $this->teamId)
-                ->where('location_id', $this->locationId)->select('id','name','phone_code')->get();
-        if( $this->country_phone_mode != 1 && !empty($this->allowed_Countries)){
+        $this->allowed_Countries = AllowedCountry::where('team_id', $this->teamId)
+            ->where('location_id', $this->locationId)->select('id', 'name', 'phone_code')->get();
+        if ($this->country_phone_mode != 1 && !empty($this->allowed_Countries)) {
             $this->phone_code = $this->allowed_Countries[0]->phone_code;
         }
 
@@ -335,10 +336,10 @@ class MainBookingAppointment extends Component
         switch ($page) {
 
             case Category::STEP_2:
-                $this->secondChildId =  $this->thirdChildId  = null;
+                $this->secondChildId = $this->thirdChildId = null;
                 $this->resetallpages();
                 $this->totalLevelCount = Category::STEP_1;
-                $this->firstpage  = true;
+                $this->firstpage = true;
                 break;
             case Category::STEP_3:
                 $this->resetallpages();
@@ -362,7 +363,7 @@ class MainBookingAppointment extends Component
                 $this->formfieldSection = true;
                 break;
             default:
-                $this->secondChildId = $this->selectedCategoryId =    $this->thirdChildId  = null;
+                $this->secondChildId = $this->selectedCategoryId = $this->thirdChildId = null;
                 $this->resetallpages();
                 $this->totalLevelCount = Category::STEP_1;
                 $this->firstpage = true;
@@ -390,7 +391,7 @@ class MainBookingAppointment extends Component
             $this->start_time = null;
             $this->end_time = null;
         } else {
-            $interval = (int)$this->accountSetting?->slot_period ?? 10;
+            $interval = (int) $this->accountSetting?->slot_period ?? 10;
             $this->start_time = $timeslotsExlplode;
             $this->end_time = null;
         }
@@ -550,7 +551,7 @@ class MainBookingAppointment extends Component
             $this->start_time = null;
             $this->end_time = null;
         } else {
-            $interval = (int)$this->accountSetting?->slot_period ?? 10;
+            $interval = (int) $this->accountSetting?->slot_period ?? 10;
             $this->start_time = $timeslotsExlplode[0];
             $this->end_time = $timeslotsExlplode[1];
         }
@@ -576,22 +577,22 @@ class MainBookingAppointment extends Component
     {
 
         if ($this->siteSetting->category_slot_level == 1 && $this->selectedCategoryId) {
-            $categoryId =  $this->selectedCategoryId;
-        } elseif ($this->siteSetting->category_slot_level == 2 &&  $this->secondChildId) {
+            $categoryId = $this->selectedCategoryId;
+        } elseif ($this->siteSetting->category_slot_level == 2 && $this->secondChildId) {
             $categoryId = $this->secondChildId;
-        } elseif ($this->siteSetting->category_slot_level == 3 &&  $this->thirdChildId) {
+        } elseif ($this->siteSetting->category_slot_level == 3 && $this->thirdChildId) {
             $categoryId = $this->thirdChildId;
         } else {
-            $categoryId =  $this->selectedCategoryId;
+            $categoryId = $this->selectedCategoryId;
         }
         if ($this->siteSetting->category_level_est == "parent" && $this->selectedCategoryId) {
-            $estimatecategoryId =  $this->selectedCategoryId;
-        } elseif ($this->siteSetting->category_level_est == "child" &&  $this->secondChildId) {
+            $estimatecategoryId = $this->selectedCategoryId;
+        } elseif ($this->siteSetting->category_level_est == "child" && $this->secondChildId) {
             $estimatecategoryId = $this->secondChildId;
-        } elseif ($this->siteSetting->category_level_est == "automatic" &&  $this->thirdChildId) {
+        } elseif ($this->siteSetting->category_level_est == "automatic" && $this->thirdChildId) {
             $estimatecategoryId = $this->thirdChildId;
         } else {
-            $estimatecategoryId =  $this->selectedCategoryId;
+            $estimatecategoryId = $this->selectedCategoryId;
         }
 
         if ($this->siteSetting->choose_time_slot != 'staff') {
@@ -691,7 +692,7 @@ class MainBookingAppointment extends Component
 
 
             if (count($staffAvailability) > 0) {
-                $capacityPerSlot = (int)$this->accountSetting->req_per_slot ?? 1;
+                $capacityPerSlot = (int) $this->accountSetting->req_per_slot ?? 1;
 
                 // 6. Get already booked staff for this date and time
                 $bookedStaffs = Booking::where('booking_date', $this->appointment_date)
@@ -861,21 +862,21 @@ class MainBookingAppointment extends Component
 
 
     public function resetDynamic()
-        {
-            $this->allCategories = [
-                'thirdChildId' => $this->thirdChildId ?? '',
-                'secondChildId' => $this->secondChildId ?? '',
-                'selectedCategoryId' => $this->selectedCategoryId,
-            ];
-            $this->dynamicForm = FormField::getFieldsbooking($this->teamId,true,$this->locationId,$this->allCategories);
+    {
+        $this->allCategories = [
+            'thirdChildId' => $this->thirdChildId ?? '',
+            'secondChildId' => $this->secondChildId ?? '',
+            'selectedCategoryId' => $this->selectedCategoryId,
+        ];
+        $this->dynamicForm = FormField::getFieldsbooking($this->teamId, true, $this->locationId, $this->allCategories);
 
 
-            foreach ($this->dynamicForm as $field) {
-                $propertyName = $field['title'] . '_' . $field['id'];
-                $this->dynamicProperties[$propertyName] = '';
-            }
-            // dd($this->dynamicProperties);
+        foreach ($this->dynamicForm as $field) {
+            $propertyName = $field['title'] . '_' . $field['id'];
+            $this->dynamicProperties[$propertyName] = '';
         }
+        // dd($this->dynamicProperties);
+    }
 
     public function rules()
     {
@@ -950,40 +951,40 @@ class MainBookingAppointment extends Component
         }
 
         $this->name = $formattedFields['name'] ?? null;
-            $possiblePhoneKeys = [
-                'phone',
-                'phone number',
-                'phonenumber',
-                'phone_no',
-                'phoneno',
-                'mobile',
-                'mobile number',
-                'mobileno',
-                'cell',
-                'cellphone',
-                'telephone',
-                'tel',
-                'contact',
-                'contact number',
-                'whatsapp',
-            ];
+        $possiblePhoneKeys = [
+            'phone',
+            'phone number',
+            'phonenumber',
+            'phone_no',
+            'phoneno',
+            'mobile',
+            'mobile number',
+            'mobileno',
+            'cell',
+            'cellphone',
+            'telephone',
+            'tel',
+            'contact',
+            'contact number',
+            'whatsapp',
+        ];
 
-            $this->phone = null;
+        $this->phone = null;
 
-            foreach ($possiblePhoneKeys as $key) {
-                if (isset($formattedFields[$key]) && !empty($formattedFields[$key])) {
-                    $this->phone = $formattedFields[$key];
-                    // $formattedFields[$key] = $this->phone_code.$formattedFields[$key];
-                    break;
-                }
+        foreach ($possiblePhoneKeys as $key) {
+            if (isset($formattedFields[$key]) && !empty($formattedFields[$key])) {
+                $this->phone = $formattedFields[$key];
+                // $formattedFields[$key] = $this->phone_code.$formattedFields[$key];
+                break;
             }
+        }
         $this->email = isset($formattedFields['email']) ? $formattedFields['email'] : (isset($formattedFields['email address']) ? $formattedFields['email address'] : null);
 
         $jsonDynamicData = json_encode($formattedFields);
 
         try {
             DB::beginTransaction();
-             $capacityPerSlot = (int)$this->accountSetting->req_per_slot ?? 1;
+            $capacityPerSlot = (int) $this->accountSetting->req_per_slot ?? 1;
 
             if (($this->siteSetting->choose_time_slot == 'staff') || ($this->siteSetting->assigned_staff_id == 1)) {
 
@@ -1012,37 +1013,37 @@ class MainBookingAppointment extends Component
 
 
             $last_category = $this->selectedCategoryId;
-             if(!empty($this->secondChildId)){
-                 $last_category = $this->secondChildId;
-             }
+            if (!empty($this->secondChildId)) {
+                $last_category = $this->secondChildId;
+            }
 
-             if(!empty($this->thirdChildId)){
-                 $last_category = $this->thirdChildId;
-             }
+            if (!empty($this->thirdChildId)) {
+                $last_category = $this->thirdChildId;
+            }
 
 
 
             $limitData = [
-                        'team_id'=>$this->teamId,
-                        'location_id'=>$this->locationId,
-                        'category_id' => $this->selectedCategoryId,
-                        'last_category' =>  $last_category,
-                        'appointment_date' => $this->appointment_date,
-                        'start_time' => $this->start_time,
-                        'end_time' => $this->end_time,
-                        'staff_id' => $this->assignedStaffId ?? null,
-                        'capacity_per_slot' => $capacityPerSlot,
+                'team_id' => $this->teamId,
+                'location_id' => $this->locationId,
+                'category_id' => $this->selectedCategoryId,
+                'last_category' => $last_category,
+                'appointment_date' => $this->appointment_date,
+                'start_time' => $this->start_time,
+                'end_time' => $this->end_time,
+                'staff_id' => $this->assignedStaffId ?? null,
+                'capacity_per_slot' => $capacityPerSlot,
             ];
 
             $count = 1;
             $freeslotId = '';
-        //     $checkcount = Booking::checkBookingSlotsLimit($limitData);
-		// if($checkcount['status'] == true){
-        //     $count = $checkcount['count'];
-        // }else{
+            //     $checkcount = Booking::checkBookingSlotsLimit($limitData);
+            // if($checkcount['status'] == true){
+            //     $count = $checkcount['count'];
+            // }else{
 
 
-        // }
+            // }
 
             $status = Booking::STATUS_PENDING;
             if ($this->accountSetting?->req_accept_mode == Booking::AUTO_CONFIRM && $this->preferTimeBooking == false) {
@@ -1079,7 +1080,54 @@ class MainBookingAppointment extends Component
                 $campaignId = $getCampaign->id;
             }
 
+            // dd($this->appointment_date, $this->start_time, $this->end_time);
+            // 1. Prepare Request Data
 
+            $meetingLink = null;
+
+            if ($this->booking_type === 'virtual') {
+                $baseUrl = config('services.meeting.base_url');
+                $apiKey = config('services.meeting.api_key');
+                // Combine Date and Time
+                // Assuming $this->appointment_date is a Carbon instance or date string
+                $dateStr = \Carbon\Carbon::parse($this->appointment_date)->format('Y-m-d');
+                $combinedStart = $dateStr . ' ' . $this->start_time; // e.g., "2026-01-07 04:00 PM"
+                // Calculate Duration
+                $startTime = \Carbon\Carbon::parse($this->start_time);
+                $endTime = \Carbon\Carbon::parse($this->end_time);
+                $durationMinutes = $startTime->diffInMinutes($endTime);
+
+                // dd($combinedStart, $durationMinutes, $this->email, $this->name);
+                // 2. Call the API
+                try {
+                    $response = \Illuminate\Support\Facades\Http::withHeaders([
+                        'X-API-Key' => $apiKey,
+                        'Accept' => 'application/json',
+                    ])->post($baseUrl . '/api/external/meeting/schedule', [
+                                'title' => 'Meeting with ' . ($this->name ?? 'Client'),
+                                'description' => 'Scheduled via Booking System',
+                                'scheduled_at' => $combinedStart,
+                                'duration_minutes' => $durationMinutes,
+                                'timezone' => 'Asia/Kolkata', // Matches your +05:30 offset
+                                'external_user_email' => $this->email,
+                                'external_user_name' => $this->name ?? 'Qmeeting Client',
+                            ]);
+                    if ($response->successful()) {
+                        $meetingData = $response->json();
+                        $meetingLink = $meetingData['data']['join_link'] ?? null;
+
+                        // Save to JSON data
+                        if ($meetingLink) {
+                            $jsonDynamicData['meeting_link'] = $meetingLink;
+                        }
+                    } else {
+                        // Handle error (log it, but maybe don't stop booking creation?)
+                        \Log::error('Video Meeting API Error: ' . $response->body());
+                    }
+                } catch (\Exception $e) {
+                    \Log::error('Video Meeting Phone Call Failed: ' . $e->getMessage());
+                }
+            }
             if ($this->preferTimeBooking == false) {
                 $booking = Booking::create([
                     'team_id' => $this->teamId,
@@ -1134,11 +1182,11 @@ class MainBookingAppointment extends Component
             if (!empty($this->secondChildId))
                 $this->secondCategoryName = Category::viewCategoryName($this->secondChildId);
             if (!empty($this->selectedCategoryId))
-                $this->categoryName =  Category::viewCategoryName($this->selectedCategoryId);
+                $this->categoryName = Category::viewCategoryName($this->selectedCategoryId);
 
             $url = url('booking-confirmed', ['id' => base64_encode($booking->id)]);
             // $cleanedUrl = str_replace('/', '', $url);
-            $cleanedUrl =  $url;
+            $cleanedUrl = $url;
 
             //store customer data and activity log
             if (!empty($this->phone)) {
@@ -1201,7 +1249,8 @@ class MainBookingAppointment extends Component
             }
 
 
-            $data = array_merge($data, ['to_mail' => $booking->email, 'service_time' => $this->enable_service_time, 'service_note' => $this->note]);
+            $meetingLink = $booking->json['meeting_link'] ?? null;
+            $data = array_merge($data, ['to_mail' => $booking->email, 'service_time' => $this->enable_service_time, 'service_note' => $this->note, 'meeting_link' => $meetingLink]);
 
             $message = 'Appointment request has been successfully sent.But Email is not sent';
             // Send email
@@ -1217,12 +1266,12 @@ class MainBookingAppointment extends Component
                     'type' => MessageDetail::TRIGGERED_TYPE,
                     'event_name' => 'Booking Confirmed',
                 ];
-                  \Log::info('step 2');
+                \Log::info('step 2');
 
 
                 if ($status == Booking::STATUS_CONFIRMED) {
                     $message = 'Appointment Booked Successfully';
-                      \Log::info('step 4');
+                    \Log::info('step 4');
                     // $this->sendEmail( $data, 'Appointment Booked Successfully', 'booking-confirmation', $this->teamId );
                     $this->sendNotification($data, 'booking confirmed', $message, $logData);
                 } else {
@@ -1241,13 +1290,13 @@ class MainBookingAppointment extends Component
             $this->preferStartTime = '';
             $this->resetForm();
 
-             //delete freeslot data
+            //delete freeslot data
             //  if($checkcount['status'] == true && !empty($checkcount['freeslotId'])){
             //        QueueFreeSlotCount::where('id',$checkcount['freeslotId'])->delete();
             //  }
 
-            if ($status == Booking::STATUS_CONFIRMED  && $this->accountSetting->booking_confirmation_page == 1) {
-                return  $this->redirect($cleanedUrl);
+            if ($status == Booking::STATUS_CONFIRMED && $this->accountSetting->booking_confirmation_page == 1) {
+                return $this->redirect($cleanedUrl);
             } else {
                 $this->dispatch('swal:saved-booking', [
                     'title' => $message,
@@ -1281,7 +1330,7 @@ class MainBookingAppointment extends Component
     }
 
 
-  
+
     public function resetForm()
     {
         $this->name = $this->phone = $this->start_time = $this->end_time = $this->appointment_date = null;
@@ -1297,11 +1346,11 @@ class MainBookingAppointment extends Component
             \Log::info('email send', ['message' => 'booking email send']);
 
             if (!empty($logData)) {
-               $logData['channel'] = 'email';
-               $logData['status'] = MessageDetail::SENT_STATUS;
-               // MessageDetail::storeLog($logData);
-           }
-            SmtpDetails::sendMail($data, $title, $template, $this->teamId,$logData);
+                $logData['channel'] = 'email';
+                $logData['status'] = MessageDetail::SENT_STATUS;
+                // MessageDetail::storeLog($logData);
+            }
+            SmtpDetails::sendMail($data, $title, $template, $this->teamId, $logData);
 
         } else {
             \Log::error('email not send', ['message' => 'no booking email send']);
@@ -1309,12 +1358,12 @@ class MainBookingAppointment extends Component
         \Log::info('sms first', ['message' => 'booking first sms send']);
         $data['location'] = Location::find($this->locationId)->value('location_name');
         if (!empty($data['phone'])) {
-              \Log::info('step 6 sms');
+            \Log::info('step 6 sms');
             \Log::info('sms send', ['message' => 'booking sms send']);
             $logData['channel'] = 'sms';
             $logData['status'] = MessageDetail::SENT_STATUS;
             SmsAPI::sendSms($this->teamId, $data, $title, $title, $logData);
-   \Log::info('sms end', ['message' => 'booking end sms send']);
+            \Log::info('sms end', ['message' => 'booking end sms send']);
             // SmsAPI::sendSmsWhatsApp( $this->teamId, $data );
         } else {
             \Log::error('sms no send', ['message' => 'no booking sms send']);
@@ -1412,7 +1461,7 @@ class MainBookingAppointment extends Component
 
             $stripeResponse = StripeResponse::create([
                 'team_id' => $this->teamId,
-                'location_id' =>  $this->locationId,
+                'location_id' => $this->locationId,
                 'category_id' => $this->stripeCategory,
                 'payment_intent_id' => $paymentIntent->id,
                 'customer_email' => $this->email,
@@ -1451,7 +1500,7 @@ class MainBookingAppointment extends Component
         $this->meetingLink = $meeting->getJoinWebUrl(); // e.g. https://teams.live.com/meet/...
     }
 
-   
+
 
 
     public function render()
