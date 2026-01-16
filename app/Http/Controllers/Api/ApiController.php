@@ -2047,6 +2047,7 @@ class ApiController extends Controller
         try {
             $validated = $request->validate([
                 'domain'       => 'required|string|max:255',
+                'expired'      => 'required',
                 'fullname'     => 'required|string|max:255',
                 'company_name' => 'required|string|max:255',
                 'email'        => 'required|email',
@@ -2077,8 +2078,8 @@ class ApiController extends Controller
             ]);
 
             // Create Domain
-            $tenant->domains()->create(['domain' => $domainName,'expired'=>now()->addDays(14), 'trial_ends_at' =>now()->addDays(14)]);
-
+            // $tenant->domains()->create(['domain' => $domainName,'expired'=>now()->addDays(14), 'trial_ends_at' =>now()->addDays(14)]);
+            $tenant->domains()->create(['domain' => $domainName,'expired'=> $validated['expired'], 'trial_ends_at' =>now()->addDays(14)]);
             // Create Admin User
             $user = User::create([
                 'name'              => $validated['fullname'],
