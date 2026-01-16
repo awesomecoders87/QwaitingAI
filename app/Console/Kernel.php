@@ -12,6 +12,7 @@ use App\Console\Commands\SendWeeklyReportEmail;
 use App\Console\Commands\SendFeedbackSurvey;
 use App\Console\Commands\SendRandomFeedbackSurvey;
 use App\Console\Commands\LogoutForgottenUsers;
+use App\Console\Commands\TestMsg91Whatsapp;
 
 class Kernel extends ConsoleKernel
 {
@@ -27,6 +28,7 @@ class Kernel extends ConsoleKernel
         // $schedule->command(SendFeedbackSurvey::class)->everyMinute();
         $schedule->command(SendRandomFeedbackSurvey::class)->dailyAt('22:00');
         $schedule->command(LogoutForgottenUsers::class)->everyMinute();
+        $schedule->command(TestMsg91Whatsapp::class)->everyMinute();
     }
 
     /**
