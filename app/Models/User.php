@@ -68,6 +68,7 @@ class User extends Authenticatable
         'login_datetime',
 		'is_superadmin',
         'sms_credits_balance',
+        'additional_info',
     ];
 
 
@@ -137,8 +138,8 @@ class User extends Authenticatable
         'email_verified_at' => 'datetime',
         'password' => 'hashed',
         'is_admin' => 'boolean',
-        'assigned_permissions' => 'array'
-        
+        'assigned_permissions' => 'array',
+        'additional_info' => 'array',
     ];
 
     public function setLocationsAttribute($value)
