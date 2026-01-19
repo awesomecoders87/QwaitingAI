@@ -71,7 +71,7 @@ class User extends Authenticatable
     ];
 
 
-
+    // M-DEV
     protected $dates = ['deleted_at'];
     public static function getLanguages()
     {
