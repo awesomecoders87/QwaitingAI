@@ -207,7 +207,7 @@ class MainBookingAppointment extends Component
         }
 
         $setting = LanguageSetting::where('team_id', $this->teamId)
-            ->where('location_id', $this->location)
+            ->where('location_id', $this->locationId)
             ->first();
 
 
@@ -234,27 +234,45 @@ class MainBookingAppointment extends Component
         Session::forget('selectedLocation');
         Session::put('selectedLocation', $this->locationId);
 
-        $this->locationName = Location::locationName($this->locationId);
+        // Eager load relationships into a LOCAL variable
+        $locationWithRel = Location::with([
+            'siteDetail',
+            'paymentSetting',
+            'accountSettings' => function ($query) {
+                // Fetch both BOOKING_SLOT and LOCATION_SLOT to avoid separate queries
+                $query->whereIn('slot_type', [AccountSetting::BOOKING_SLOT, AccountSetting::LOCATION_SLOT]);
+            }
+        ])->find($this->locationId);
+
+        if (!$locationWithRel) {
+            $this->locationName = '';
+            // Handle case where location is not found if necessary
+            $this->location = null;
+        } else {
+            $this->locationName = $locationWithRel->location_name;
+            $this->location = $locationWithRel->withoutRelations();
+        }
+
         $this->locationStep = false;
         $this->firstpage = true;
         $currentYear = date('Y');
         $this->years = range($currentYear, $currentYear + 1);
         $this->selectedYear = $currentYear;
 
-        $this->siteSetting = SiteDetail::where('team_id', $this->teamId)
-            ->where('location_id', $this->locationId)
-            ->first();
+        // Extract from eager loaded relations
+        $this->siteSetting = $locationWithRel->siteDetail ?? null;
 
         if (!$this->siteSetting) {
             abort(402);
         }
-        $this->accountSetting = AccountSetting::where('team_id', $this->teamId)
-            ->where('location_id', $this->locationId)
-            ->where('slot_type', AccountSetting::BOOKING_SLOT)->first();
 
-        $this->paymentSetting = PaymentSetting::where('team_id', $this->teamId)
-            ->where('location_id', $this->locationId)
+        // Filter collection for BOOKING_SLOT
+        $this->accountSetting = $locationWithRel->accountSettings
+            ->where('slot_type', AccountSetting::BOOKING_SLOT)
             ->first();
+
+        // Filter collection for PaymentSetting (HasOne)
+        $this->paymentSetting = $locationWithRel->paymentSetting;
 
         if ($this->paymentSetting) {
             config([
@@ -279,17 +297,17 @@ class MainBookingAppointment extends Component
             $this->borderWidth = $this->siteSetting->category_border_size ?? $this->borderWidth;
             $this->fontFamily = $this->siteSetting->ticket_font_family ?? $this->fontFamily;
         }
-        //get location detail
-        $this->location = Location::find($this->locationId);
 
-        // get Account detail of current location
-        $locationSlotsDetail = AccountSetting::where('team_id', $this->teamId)
-            ->where('location_id', $this->locationId)
+        // Filter collection for LOCATION_SLOT
+        $locationSlotsDetail = $locationWithRel->accountSettings
             ->where('slot_type', AccountSetting::LOCATION_SLOT)
-            ->select('id', 'business_hours')
             ->first();
 
-        $this->locationslots = json_decode($locationSlotsDetail['business_hours'], true);
+        if ($locationSlotsDetail) {
+            $this->locationslots = json_decode($locationSlotsDetail->business_hours, true);
+        } else {
+            $this->locationslots = [];
+        }
 
         //fetch parent Category
         $this->parentCategory = Category::getFirstCategorybooking($this->teamId, $this->locationId);
@@ -321,7 +339,10 @@ class MainBookingAppointment extends Component
         $this->allowed_Countries = AllowedCountry::where('team_id', $this->teamId)
             ->where('location_id', $this->locationId)->select('id', 'name', 'phone_code')->get();
         if ($this->country_phone_mode != 1 && !empty($this->allowed_Countries)) {
-            $this->phone_code = $this->allowed_Countries[0]->phone_code;
+            // Check if allowed_Countries has elements before accessing index 0 to avoid error
+            if ($this->allowed_Countries->isNotEmpty()) {
+                $this->phone_code = $this->allowed_Countries[0]->phone_code;
+            }
         }
 
 
@@ -400,7 +421,7 @@ class MainBookingAppointment extends Component
 
         if (!empty($this->preferStartTime)) {
 
-            $this->locations = false;
+            $this->locationStep = false;
             $this->firstpage = false;
             $this->secondpage = false;
             $this->thirdpage = false;
@@ -440,103 +461,54 @@ class MainBookingAppointment extends Component
 
     public function showFirstChild($categoryId)
     {
-
-        $this->selectedCategoryId = $categoryId;
-
-        $this->firstChildren = Category::getchildDetailBooking($categoryId, $this->locationId);
-        $this->totalLevelIncFn();
-        if (count($this->firstChildren) > 0) {
-            $this->firstpage = false;
-            $this->thirdpage = false;
-            $this->calendarpage = false;
-            $this->formfieldSection = false;
-            $this->paymentStep = false;
-            $this->secondpage = true;
-        } else {
-
-            $this->firstpage = false;
-            $this->secondpage = false;
-            $this->thirdpage = false;
-            $this->formfieldSection = false;
-            $this->paymentStep = false;
-            $this->calendarpage = true;
-            $this->timeSlots();
-            $category = Category::find($this->selectedCategoryId);
-
-            $this->note = $category?->note ?? '';
-            $this->enable_service = $category?->is_service_template ?? '';
-            $this->enable_service_time = $category?->service_time ?? 'N/A';
-            $this->dispatch('update-calendar', [
-                'year' => now()->year,  // Get current year dynamically
-                'month' => now()->month - 1,
-                'disabledDate' => $this->disabledDate,
-            ]);
-        }
+        $this->handleCategorySelection($categoryId, 1, 'selectedCategoryId', 'firstChildren', 'secondpage');
     }
-
-
 
     public function showSecondChild($categoryId)
     {
-
-        $this->secondChildId = $categoryId;
-
-        $this->secondChildren = Category::getchildDetailBooking($categoryId, $this->locationId);
-        $this->totalLevelIncFn();
-
-        if (count($this->secondChildren) > 0) {
-            $this->firstpage = false;
-            $this->secondpage = false;
-            $this->calendarpage = false;
-            $this->formfieldSection = false;
-            $this->paymentStep = false;
-            $this->thirdpage = true;
-        } else {
-            $this->firstpage = false;
-            $this->secondpage = false;
-            $this->thirdpage = false;
-            $this->formfieldSection = false;
-            $this->paymentStep = false;
-
-            $category = Category::find($this->secondChildId);
-
-            $this->note = $category?->note ?? '';
-            $this->enable_service = $category?->is_service_template ?? '';
-            $this->enable_service_time = $category?->service_time ?? 0;
-
-            $this->calendarpage = true;
-            $this->timeSlots();
-
-            $this->dispatch('update-calendar', [
-                'year' => now()->year,  // Get current year dynamically
-                'month' => now()->month - 1,
-                'disabledDate' => $this->disabledDate,
-            ]);
-        }
+        $this->handleCategorySelection($categoryId, 2, 'secondChildId', 'secondChildren', 'thirdpage');
     }
+
     public function showThirdChild($categoryId)
     {
-        $this->thirdChildId = $categoryId;
-        $this->thirdChildren = Category::getchildDetailBooking($categoryId, $this->locationId);
-        if (count($this->thirdChildren) == 0) {
-            $this->firstpage = false;
-            $this->secondpage = false;
-            $this->thirdpage = false;
-            $this->paymentStep = false;
-            $this->formfieldSection = false;
-            $category = Category::find($this->thirdChildId);
+        $this->handleCategorySelection($categoryId, 3, 'thirdChildId', 'thirdChildren', null);
+    }
+
+    private function handleCategorySelection($categoryId, $level, $idProperty, $childrenProperty, $nextPage)
+    {
+        $this->$idProperty = $categoryId;
+
+        // Fetch children
+        $children = Category::getchildDetailBooking($categoryId, $this->locationId);
+        $this->$childrenProperty = $children;
+
+        $this->totalLevelIncFn();
+
+        // Check if children exist
+        if (count($children) > 0 && $nextPage) {
+            $this->resetallpages(); // Helper to set all false
+            $this->$nextPage = true;
+        } else {
+            // No children or last level -> Go to Calendar
+            $this->resetallpages();
+            $this->calendarpage = true;
+
+            $this->timeSlots();
+
+            $category = Category::find($categoryId);
+
             $this->note = $category?->note ?? '';
             $this->enable_service = $category?->is_service_template ?? '';
-            $this->enable_service_time = $category?->service_time ?? 0;
-            $this->calendarpage = true;
-            $this->timeSlots();
+            $this->enable_service_time = $category?->service_time ?? ($level === 1 ? 'N/A' : 0);
+
             $this->dispatch('update-calendar', [
-                'year' => now()->year,  // Get current year dynamically
+                'year' => now()->year,
                 'month' => now()->month - 1,
                 'disabledDate' => $this->disabledDate,
             ]);
         }
     }
+
 
     public function updatedAppointmentTime($value)
     {
@@ -560,7 +532,7 @@ class MainBookingAppointment extends Component
 
         if (!empty($value)) {
 
-            $this->locations = false;
+            $this->locationStep = false;
             $this->firstpage = false;
             $this->secondpage = false;
             $this->thirdpage = false;
@@ -679,22 +651,28 @@ class MainBookingAppointment extends Component
                 $query->whereIn('categories.id', $selectedCategories);
             })->pluck('id')->toArray();
 
-            if (!empty($staffIds)) {
-                $staffAvailability = [];
-
-                foreach ($staffIds as $staffId) {
-                    // if ($this->CheckstaffAvailabilty($staffId)) {
-                    //     $staffAvailability[] = $staffId;
-                    // }
-                    $staffAvailability[] = $staffId;
-                }
-            }
-
+            $staffAvailability = $staffIds;
 
             if (count($staffAvailability) > 0) {
+                // Filter available staff using the helper function
+                $staffAvailability = array_filter($staffAvailability, function ($staffId) {
+                    return checkStaffAvailability(
+                        $staffId,
+                        $this->appointment_date,
+                        $this->accountSetting->slot_period ?: '10',
+                        $this->teamId,
+                        $this->locationId,
+                        $this->start_time,
+                        $this->end_time
+                    );
+                });
+
+                // Re-index array after filtering
+                $staffAvailability = array_values($staffAvailability);
                 $capacityPerSlot = (int) $this->accountSetting->req_per_slot ?? 1;
 
                 // 6. Get already booked staff for this date and time
+                // Optimized: Single query using whereIn for checking capacity
                 $bookedStaffs = Booking::where('booking_date', $this->appointment_date)
                     ->where('team_id', $this->teamId)
                     ->where('location_id', $this->locationId)
@@ -736,74 +714,7 @@ class MainBookingAppointment extends Component
 
 
 
-    public function CheckstaffAvailabilty($staffId)
-    {
 
-        $availableSlots = [];
-        $date = $this->appointment_date;
-        $periodOfSlot = $this->accountSetting->slot_period ?: '10';
-        $type = "staff";
-        // Check for custom slots
-        $customSlotQuery = CustomSlot::whereDate('selected_date', $this->appointment_date)
-            ->where('slots_type', $type)->where('team_id', $this->teamId)->where('location_id', $this->locationId);
-
-        // Apply additional filtering based on $type
-        if ($type == "staff") {
-            $customSlotQuery->where('user_id', $staffId);
-        }
-
-        $customSlot = $customSlotQuery->first();
-
-        $dayOfWeek = Carbon::parse($this->appointment_date)->format('l');
-
-        // Use business hours from custom slots if available
-        if (isset($customSlot)) {
-            $businessHours_get = json_decode($customSlot->business_hours, true);
-            $businessHours = $businessHours_get[0];
-        } else {
-
-            // Retrieve all account settings for the staff
-            $staffAccount = AccountSetting::where('team_id', $this->teamId)
-                ->where('location_id', $this->locationId)
-                ->where('user_id', $staffId)
-                ->where('slot_type', AccountSetting::STAFF_SLOT)
-                ->first();
-
-            $businessHours = json_decode($staffAccount->business_hours, true);
-            $indexedBusinessHours = collect($businessHours)->keyBy('day');
-            $businessHours = $indexedBusinessHours[$dayOfWeek];
-        }
-
-        if (isset($businessHours) && $businessHours['is_closed'] == ServiceSetting::SERVICE_OPEN) {
-            $availableSlots = new Collection();
-            $mainSlots = AccountSetting::generateSlots($businessHours['start_time'], $businessHours['end_time'], $periodOfSlot);
-            $availableSlots = $availableSlots->concat($mainSlots);
-
-            if (!empty($businessHours['day_interval'])) {
-                foreach ($businessHours['day_interval'] as $interval) {
-                    $intervalSlots = AccountSetting::generateSlots($interval['start_time'], $interval['end_time'], $periodOfSlot);
-                    $availableSlots = $availableSlots->concat($intervalSlots);
-                }
-            }
-
-            // Now check if the selected slot is fully within available slots
-            $selectedStart = Carbon::parse($this->start_time)->format('H:i');
-            $selectedEnd = Carbon::parse($this->end_time)->format('H:i');
-            $slotRange = AccountSetting::generateSlots($selectedStart, $selectedEnd, $periodOfSlot);
-
-            $allAvailable = true;
-            foreach ($slotRange as $slot) {
-                if (!$availableSlots->contains($slot)) {
-                    $allAvailable = false;
-                    break;
-                }
-            }
-
-            return $allAvailable;
-        }
-
-        return false;
-    }
 
 
     public function changemonthandyear($month, $year)
@@ -1104,15 +1015,15 @@ class MainBookingAppointment extends Component
                         'X-API-Key' => $apiKey,
                         'Accept' => 'application/json',
                     ])->post($baseUrl . '/api/external/meeting/schedule', [
-                                'title' => 'Meeting with ' . ($this->name ?? 'Client'),
-                                'description' => 'Scheduled via Booking System',
-                                'scheduled_at' => $combinedStart,
-                                'duration_minutes' => $durationMinutes,
-                                'timezone' => 'Asia/Kolkata', // Matches your +05:30 offset
-                                'external_user_email' => $this->email,
-                                'external_user_name' => $this->name ?? 'Qmeeting Client',
-                            ]);
-                    $jsonDynamicData=[];
+                        'title' => 'Meeting with ' . ($this->name ?? 'Client'),
+                        'description' => 'Scheduled via Booking System',
+                        'scheduled_at' => $combinedStart,
+                        'duration_minutes' => $durationMinutes,
+                        'timezone' => 'Asia/Kolkata', // Matches your +05:30 offset
+                        'external_user_email' => $this->email,
+                        'external_user_name' => $this->name ?? 'Qmeeting Client',
+                    ]);
+                    $jsonDynamicData = [];
                     if ($response->successful()) {
                         $meetingData = $response->json(); // array
 
@@ -1288,19 +1199,10 @@ class MainBookingAppointment extends Component
                 }
             }
 
-
-
-
-
             DB::commit();
             $this->preferTimeBooking = false;
             $this->preferStartTime = '';
             $this->resetForm();
-
-            //delete freeslot data
-            //  if($checkcount['status'] == true && !empty($checkcount['freeslotId'])){
-            //        QueueFreeSlotCount::where('id',$checkcount['freeslotId'])->delete();
-            //  }
 
             if ($status == Booking::STATUS_CONFIRMED && $this->accountSetting->booking_confirmation_page == 1) {
                 return $this->redirect($cleanedUrl);
@@ -1358,7 +1260,6 @@ class MainBookingAppointment extends Component
                 // MessageDetail::storeLog($logData);
             }
             SmtpDetails::sendMail($data, $title, $template, $this->teamId, $logData);
-
         } else {
             \Log::error('email not send', ['message' => 'no booking email send']);
         }
@@ -1506,9 +1407,6 @@ class MainBookingAppointment extends Component
 
         $this->meetingLink = $meeting->getJoinWebUrl(); // e.g. https://teams.live.com/meet/...
     }
-
-
-
 
     public function render()
     {

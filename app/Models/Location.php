@@ -54,7 +54,7 @@ class Location extends Model
         //         $model->ip_address = LocationResource::getUserIpAddr();
         //     }
 
-            // Optionally, you can set user_id if it's not already set
+        // Optionally, you can set user_id if it's not already set
         //     if (empty($model->user_id)) {
         //         $model->user_id = Auth::id();
         //     }
@@ -75,57 +75,64 @@ class Location extends Model
     {
         return $this->belongsTo(City::class);
     }
-    public static function locationName($id){
-        return  self::where('id',$id)->value('location_name');
-
+    public static function locationName($id)
+    {
+        return  self::where('id', $id)->value('location_name');
     }
 
-    public static function getLocations($teamId){
-    return  self::where('team_id', $teamId)->where('status',1)->pluck('location_name', 'id');
+    public static function getLocations($teamId)
+    {
+        return  self::where('team_id', $teamId)->where('status', 1)->pluck('location_name', 'id');
     }
 
 
-    public static function adminLocation($teamId = null ,$locationId = null){
+    public static function adminLocation($teamId = null, $locationId = null)
+    {
         return self::where('team_id', $teamId)
-        ->where('id',$locationId)
-        ->value('address');
-
+            ->where('id', $locationId)
+            ->value('address');
     }
 
-    public static function setConfig($teamId,$location){
+    public static function setConfig($teamId, $location)
+    {
 
         Queue::timezoneSet();
 
         $timezone = Session::get('timezone_set') ?? 'UTC';
 
-          Config::set('app.timezone', $timezone);
+        Config::set('app.timezone', $timezone);
         date_default_timezone_set($timezone);
 
-       $details = SmtpDetails::where('team_id', $teamId)->where('location_id',$location)->first();
-        if(!empty($details->hostname) && !empty($details->port) &&  !empty($details->username) && !empty($details->password) && !empty($details->from_email) &&  !empty($details->from_name)){
-                    Config::set('mail.mailers.smtp.transport', 'smtp');
-                    Config::set('mail.mailers.smtp.host', trim($details->hostname));
-                    Config::set('mail.mailers.smtp.port', trim($details->port));
-                    Config::set('mail.mailers.smtp.encryption', trim($details->encryption ?? 'ssl'));
-                    Config::set('mail.mailers.smtp.username', trim($details->username));
-                    Config::set('mail.mailers.smtp.password', trim($details->password));
-                    Config::set('mail.from.address', trim($details->from_email));
-                    Config::set('mail.from.name', trim($details->from_name));
-
+        $details = SmtpDetails::where('team_id', $teamId)->where('location_id', $location)->first();
+        if (!empty($details->hostname) && !empty($details->port) &&  !empty($details->username) && !empty($details->password) && !empty($details->from_email) &&  !empty($details->from_name)) {
+            Config::set('mail.mailers.smtp.transport', 'smtp');
+            Config::set('mail.mailers.smtp.host', trim($details->hostname));
+            Config::set('mail.mailers.smtp.port', trim($details->port));
+            Config::set('mail.mailers.smtp.encryption', trim($details->encryption ?? 'ssl'));
+            Config::set('mail.mailers.smtp.username', trim($details->username));
+            Config::set('mail.mailers.smtp.password', trim($details->password));
+            Config::set('mail.from.address', trim($details->from_email));
+            Config::set('mail.from.name', trim($details->from_name));
         }
-
-
-
     }
 
     public function groups()
-{
-    return $this->belongsToMany(LocationsGrouping::class, 'location_group_location');
-}
+    {
+        return $this->belongsToMany(LocationsGrouping::class, 'location_group_location');
+    }
 
-public function siteDetail()
-{
-    return $this->hasOne(SiteDetail::class, 'location_id', 'id');
-}
+    public function siteDetail()
+    {
+        return $this->hasOne(SiteDetail::class, 'location_id', 'id');
+    }
 
+    public function accountSettings()
+    {
+        return $this->hasMany(AccountSetting::class, 'location_id', 'id');
+    }
+
+    public function paymentSetting()
+    {
+        return $this->hasOne(PaymentSetting::class, 'location_id', 'id');
+    }
 }
