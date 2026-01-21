@@ -6,7 +6,7 @@ use Livewire\Component;
 use Carbon\Carbon;
 use Illuminate\Support\Collection;
 use Livewire\Attributes\On;
-use App\Events\{QueueProgress, QueuePending, QueueCreated, BreakEvent, QueueDisplay, QueueVirtual,QueueSuspension,QueueDepartment,QueueTransfer,DisplayAudio,QueueNotification};
+use App\Events\{QueueProgress, QueuePending, QueueCreated, BreakEvent, QueueDisplay, QueueVirtual, QueueSuspension, QueueDepartment, QueueTransfer, DisplayAudio, QueueNotification};
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\Crypt;
 use Illuminate\Support\Facades\Session;
@@ -53,6 +53,7 @@ use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\Config;
 use App\Models\Translation;
 use App\Services\SalesforceService;
+use App\Jobs\SendSuspensionNotification;
 
 
 
@@ -182,10 +183,10 @@ class QueueCalls extends Component
     public $waiting_minutes;
     public $waiting_innerQueue_token;
     public $enable_doc_file_field = false;
-    public $doc_file_label;	
+    public $doc_file_label;
 
 
-        public function currentTeamId()
+    public function currentTeamId()
     {
         $this->team_id = tenant('id');
         $this->conditionTeam =  ['team_id' =>  $this->team_id];
@@ -197,7 +198,7 @@ class QueueCalls extends Component
         return $this->userAuth->categories->pluck('id')?->toArray();
     }
 
-    
+
 
     public function mount()
     {
@@ -210,10 +211,10 @@ class QueueCalls extends Component
         $this->currentTeamId();
         $this->datetimeFormat = AccountSetting::showDateTimeFormat($this->team_id, $this->location);
         $this->registerqueue = AccountSetting::where('team_id', $this->team_id)
-        ->where('location_id', $this->location)
-        ->where('slot_type', AccountSetting::BOOKING_SLOT)
-        ->select('booking_system', 'id')
-        ->first();
+            ->where('location_id', $this->location)
+            ->where('slot_type', AccountSetting::BOOKING_SLOT)
+            ->select('booking_system', 'id')
+            ->first();
 
 
         $this->siteDetail = SiteDetail::where($this->conditionTeam)->where('location_id', $this->location)->first();
@@ -223,7 +224,7 @@ class QueueCalls extends Component
 
         $this->timezone = Session::get('timezone_set') ?? 'UTC';
 
-        $domain = Domain::where('team_id', $this->team_id)->select('id','hold_queue_feature')->first();
+        $domain = Domain::where('team_id', $this->team_id)->select('id', 'hold_queue_feature')->first();
         $this->hold_queue_feature = $domain['hold_queue_feature'] == 1 ? true : false;
         if ($this->hold_queue_feature == 1) {
 
@@ -252,13 +253,13 @@ class QueueCalls extends Component
 
         $counterId = Auth::user()->counter_id ?? null;
 
-        if(!empty($counterId) && !Session::has('selected_counter')){
-            $this->selectedCounter =$counterId;
-        }else{
-           $this->selectedCounter  = Session::get('selected_counter') ?? null;
+        if (!empty($counterId) && !Session::has('selected_counter')) {
+            $this->selectedCounter = $counterId;
+        } else {
+            $this->selectedCounter  = Session::get('selected_counter') ?? null;
         }
 
-         if (!empty($this->selectedCounter) && !Session::has('selected_counter')) {
+        if (!empty($this->selectedCounter) && !Session::has('selected_counter')) {
             $this->updatedSelectedCounter($this->selectedCounter);
         }
 
@@ -267,26 +268,26 @@ class QueueCalls extends Component
         $this->show_login_counters = $this->siteDetail->login_counters_only ?? false;
         $this->show_transfer_counters = $this->siteDetail->counter_transfer ?? false;
         $this->show_transfer_category = $this->siteDetail->category_transfer ?? false;
-        if($this->show_transfer_counters){
+        if ($this->show_transfer_counters) {
 
-        $this->transfer_counters =  Counter::getAssignedCounter($this->team_id, $this->siteDetail?->counter_option, $this->userAuth, $this->location,$this->show_login_counters);
+            $this->transfer_counters =  Counter::getAssignedCounter($this->team_id, $this->siteDetail?->counter_option, $this->userAuth, $this->location, $this->show_login_counters);
         }
 
         $this->refreshQueues();
 
-        if ($this->showStartBtn == 'HIDE_START_CLOSE'){
+        if ($this->showStartBtn == 'HIDE_START_CLOSE') {
 
             $this->isCloseBtn = true;
-             $this->isStartBtn = false;
+            $this->isStartBtn = false;
         }
 
         if ($this->showStartBtn == 'SHOW_CLOSE')
             $this->isStartBtn = false;
 
 
-         if ($this->showStartBtn == 'SHOW_START_CLOSE'){
-          $this->isStartBtn = true;
-         }
+        if ($this->showStartBtn == 'SHOW_START_CLOSE') {
+            $this->isStartBtn = true;
+        }
 
         $break =  StaffBreak::viewEmptyTimeEnd($this->userAuth->id);
         if (!empty($break)) {
@@ -301,7 +302,7 @@ class QueueCalls extends Component
             $this->selectedCounter = Session::get('selected_counter');
         }
 
-        $this->feedbackSetting = FeedbackSetting::where(['team_id'=>$this->team_id, 'location_id'=>$this->location])->select('id','enable_post_interaction')->first();
+        $this->feedbackSetting = FeedbackSetting::where(['team_id' => $this->team_id, 'location_id' => $this->location])->select('id', 'enable_post_interaction')->first();
         $this->firstCategories = Category::getFirstCategoryN($this->team_id, $this->location);
         $this->updateCategories('secondChildId', $this->selectedCategoryId);
         $this->updateCategories('thirdChildId', $this->secondChildId);
@@ -345,41 +346,39 @@ class QueueCalls extends Component
             ->toArray();
 
         $this->colorSettings = ColorSetting::where('team_id', $this->team_id)->where('location_id', $this->location)->first();
-
-
     }
 
-     public function refreshQueues(): void
+    public function refreshQueues(): void
     {
         \Log::info('🔄 refreshQueues() called');
 
-        if($this->enable_callDepartment){
-            $newQueues = Queue::getPendingQueuesDepartment($this->conditionTeam, ($this->siteDetail?->fixed_visitor_list_queue == SiteDetail::STATUS_YES ? true : false), $this->location, $this->page, $this->term, $this->team_id, $this->queueType,(int)$this->selectedCounter,Auth::id(),true);
-        }else{
-            $newQueues = Queue::getPendingQueues($this->conditionTeam, ($this->siteDetail?->fixed_visitor_list_queue == SiteDetail::STATUS_YES ? true : false), $this->location, $this->page, $this->term, $this->team_id, $this->queueType,(int)$this->selectedCounter);
+        if ($this->enable_callDepartment) {
+            $newQueues = Queue::getPendingQueuesDepartment($this->conditionTeam, ($this->siteDetail?->fixed_visitor_list_queue == SiteDetail::STATUS_YES ? true : false), $this->location, $this->page, $this->term, $this->team_id, $this->queueType, (int)$this->selectedCounter, Auth::id(), true);
+        } else {
+            $newQueues = Queue::getPendingQueues($this->conditionTeam, ($this->siteDetail?->fixed_visitor_list_queue == SiteDetail::STATUS_YES ? true : false), $this->location, $this->page, $this->term, $this->team_id, $this->queueType, (int)$this->selectedCounter);
         }
-        
+
         // Create new collection to ensure Livewire detects change
         $this->queues = collect($newQueues)->values();
-        
+
         \Log::info('📊 Queues refreshed', ['count' => $this->queues->count()]);
-        
-          if(!empty($this->queues)){
-        $this->transferCalls = $this->queues
-            ->filter(function ($queue) {
-                return !is_null($queue->transfer_id) || !is_null($queue->forward_counter_id);
-            })
-            ->map(function ($queue) {
-                return [
-                    'id' => $queue->id,
-                    'queue_id' => $queue->queue_id,
-                    'name' => $queue->name,
-                    'token' => $queue->token,
-                    'start_acronym' => $queue->start_acronym,
-                ];
-            })
-            ->values() // reindex keys from 0
-            ->toArray();
+
+        if (!empty($this->queues)) {
+            $this->transferCalls = $this->queues
+                ->filter(function ($queue) {
+                    return !is_null($queue->transfer_id) || !is_null($queue->forward_counter_id);
+                })
+                ->map(function ($queue) {
+                    return [
+                        'id' => $queue->id,
+                        'queue_id' => $queue->queue_id,
+                        'name' => $queue->name,
+                        'token' => $queue->token,
+                        'start_acronym' => $queue->start_acronym,
+                    ];
+                })
+                ->values() // reindex keys from 0
+                ->toArray();
         }
 
         $this->queuesCount = $this->queues->count();
@@ -466,14 +465,13 @@ class QueueCalls extends Component
         $this->nextStorageId = $this->queues?->value('id') ?? null;
 
         $this->categories =  Category::where(['level_id' => Level::getFirstRecord()->id, 'team_id' => $this->team_id])->whereJsonContains('category_locations', "$this->location")->pluck('name', 'id')->toArray();
-        if($this->enable_callDepartment){
+        if ($this->enable_callDepartment) {
 
-            $this->missedCalls = Queue::getMissedCallId($this->conditionTeam, $this->siteDetail?->show_department_missed_queue, $this->location,true);
-        }else{
-            $this->missedCalls = Queue::getMissedCallId($this->conditionTeam, $this->siteDetail?->show_department_missed_queue, $this->location,false);
-
+            $this->missedCalls = Queue::getMissedCallId($this->conditionTeam, $this->siteDetail?->show_department_missed_queue, $this->location, true);
+        } else {
+            $this->missedCalls = Queue::getMissedCallId($this->conditionTeam, $this->siteDetail?->show_department_missed_queue, $this->location, false);
         }
-        
+
         $this->holdCalls = QueueStorage::getHoldCall($this->conditionTeam, $this->siteDetail?->show_department_missed_queue, $this->location);
 
         // $this->cVRecordFn();
@@ -499,7 +497,7 @@ class QueueCalls extends Component
             $this->currentVisitorRecord =  Queue::currentVisitorRecord($condition, null, null, (int)$this->location, null);
         }
 
-          if ($this->currentVisitorRecord) {
+        if ($this->currentVisitorRecord) {
             $this->notice_sms = $this->currentVisitorRecord->esitmate_note;
             if (empty($this->currentVisitorRecord->start_datetime)) {
                 $this->isStartBtn = true;
@@ -518,18 +516,17 @@ class QueueCalls extends Component
             $this->secondChildId = $this->currentVisitorRecord->sub_category_id;
             $this->selectedCategoryId = $this->currentVisitorRecord->category_id;
             $this->currentStorageID  = $this->currentVisitorRecord->id;
-            $this->queueStorage  =$this->currentVisitorRecord;
+            $this->queueStorage  = $this->currentVisitorRecord;
             $this->resetDynamic();
         }
 
         if (empty($this->counters)) {
             $this->selectedCounter = '';
         }
-
     }
 
 
-   public function updatedSelectedCounter($value)
+    public function updatedSelectedCounter($value)
     {
 
         $this->selectedCounter = $value;
@@ -541,13 +538,12 @@ class QueueCalls extends Component
         $this->currentVisitorRecord =  Queue::currentVisitorRecord($condition, null, null, (int)$this->location, null);
         $this->refreshQueues();
         $this->initialiAfterQueue();
-
     }
 
     public function updatedTerm()
     {
         $this->refreshQueues();
-         $this->queues =  Queue::getPendingQueues($this->conditionTeam, ($this->siteDetail?->fixed_visitor_list_queue == SiteDetail::STATUS_YES ? true : false), $this->location, $this->page, $this->term, $this->team_id, $this->queueType);
+        $this->queues =  Queue::getPendingQueues($this->conditionTeam, ($this->siteDetail?->fixed_visitor_list_queue == SiteDetail::STATUS_YES ? true : false), $this->location, $this->page, $this->term, $this->team_id, $this->queueType);
     }
 
     public function logout()
@@ -575,15 +571,16 @@ class QueueCalls extends Component
     }
 
 
-    public function updatedActionType($value){
+    public function updatedActionType($value)
+    {
 
-        if($value == "appointment"){
-                $this->actionStatus = "Cancelled";
-            }
+        if ($value == "appointment") {
+            $this->actionStatus = "Cancelled";
+        }
     }
 
 
-   public function suspensionSendData()
+    public function suspensionSendData()
     {
         // Remove the dd() debug statement
         // Validate the input
@@ -609,13 +606,13 @@ class QueueCalls extends Component
         $queuestorages = collect();
         $bookings = collect();
         $message = $this->suspensionReason ?? 'Suspended all Appointments';
-           if($this->actionStatus == 'Cancelled'){
-              $subject = "Call Cancellation";
-            }elseif($this->actionStatus == 'Skip'){
-                 $subject = "Call Skipped";
-            }else{
-                $subject = "Call Closed";
-            }
+        if ($this->actionStatus == 'Cancelled') {
+            $subject = "Call Cancellation";
+        } elseif ($this->actionStatus == 'Skip') {
+            $subject = "Call Skipped";
+        } else {
+            $subject = "Call Closed";
+        }
 
         // Get relevant records based on action type
         if ($this->actionType == 'queue' || $this->actionType == 'appointment_and_queue') {
@@ -637,15 +634,16 @@ class QueueCalls extends Component
                 ->where('status', "!=", "Cancelled")
                 ->get();
         }
-        // Process Email notifications
-        if ($this->notificationType == 'email' || $this->notificationType == 'sms_and_email') {
-            $this->processEmailNotifications($queuestorages, $bookings, $message, $suspensionLogId,$subject);
-        }
-
-        // Process SMS notifications
-        if ($this->notificationType == 'sms' || $this->notificationType == 'sms_and_email') {
-            $this->processSmsNotifications($queuestorages, $bookings, $message, $suspensionLogId);
-        }
+        SendSuspensionNotification::dispatch(
+            $queuestorages,
+            $bookings,
+            $message,
+            $suspensionLogId,
+            $subject,
+            $this->notificationType,
+            $this->team_id,
+            $this->location
+        );
 
 
 
@@ -653,9 +651,9 @@ class QueueCalls extends Component
         $this->updateRecordsStatus($queuestorages, $bookings, $message, $suspensionLogId);
         $this->reset('actionType', 'notificationType', 'suspensionReason');
 
-        if(!empty($this->team_id) && !empty($this->location)){
+        if (!empty($this->team_id) && !empty($this->location)) {
 
-            QueueSuspension::dispatch($this->team_id,$this->location);
+            QueueSuspension::dispatch($this->team_id, $this->location);
         }
 
         $this->dispatch('event-success-suspended', ['message' => __('message.SUCCESS002.message')]);
@@ -664,138 +662,22 @@ class QueueCalls extends Component
 
 
 
-    protected function processSmsNotifications($queuestorages, $bookings, $message, $suspensionLogId)
-    {
-        // Process queue storage SMS
-        foreach ($queuestorages as $queuestorage) {
-            if (!empty($queuestorage->phone)) {
-                $phone_code = isset($queuestorage->phone_code) ? ltrim($queuestorage->phone_code, '+') : '91';
-                $contactWithCode = $phone_code . $queuestorage->phone;
-                SmsAPI::currentQueueSms($contactWithCode, $message, $this->team_id, 'suspensions queue');
-            }
-        }
-
-        // Process booking SMS
-        foreach ($bookings as $booking) {
-            if (!empty($booking->phone)) {
-                $phone_code = '91';
-                $contactWithCode = $phone_code . $booking->phone;
-                SmsAPI::currentQueueSms($contactWithCode, $message, $this->team_id, 'suspensions appointment');
-            }
-        }
-    }
-
-    protected function processEmailNotifications($queuestorages, $bookings, $message, $suspensionLogId,$subject)
-    {
-
-        $details = SmtpDetails::where('team_id', $this->team_id)->where('location_id', $this->location)->first();
-        if (!empty($details->hostname) && !empty($details->port) &&  !empty($details->username) && !empty($details->password) && !empty($details->from_email) &&  !empty($details->from_name)) {
-            Config::set('mail.mailers.smtp.transport', 'smtp');
-            Config::set('mail.mailers.smtp.host', trim($details->hostname));
-            Config::set('mail.mailers.smtp.port', trim($details->port));
-            Config::set('mail.mailers.smtp.encryption', trim($details->encryption ?? 'ssl'));
-            Config::set('mail.mailers.smtp.username', trim($details->username));
-            Config::set('mail.mailers.smtp.password', trim($details->password));
-
-            Config::set('mail.from.address', trim($details->from_email));
-            Config::set('mail.from.name', trim($details->from_name));
-        }
-        // Process queue storage emails
-        foreach ($queuestorages as $queuestorage) {
-            $email = $this->extractEmailFromQueueStorage($queuestorage);
-
-            if (!empty($email)) {
-                try {
-                    $recipientName = $this->extractNameFromQueueStorage($queuestorage);
-                    $queueData = [
-                        'arrives_time' => $queuestorage->arrives_time,
-                        'token' => $queuestorage->token ?? null,
-                        'team_id' => $queuestorage->team_id ?? null,
-                        'location_id' => $queuestorage->locations_id ?? null,
-                        // Add other minimal required fields
-                    ];
-
-                    if (!empty($details->hostname) && !empty($details->port) &&  !empty($details->username) && !empty($details->password) && !empty($details->from_email) &&  !empty($details->from_name)) {
-                        // dd( $email,$recipientName,$queueData);
-                        Mail::to($email)->send(new SuspensionNotification(
-                            $message,
-                            $subject,
-                            $queueData
-                        ));
-                    }
-                } catch (\Exception $e) {
-                    Log::error("Failed to send email to queue storage (ID: {$queuestorage->id}): " . $e->getMessage());
-                }
-            }
-        }
 
 
-        // Process booking emails
-        foreach ($bookings as $booking) {
-            if (!empty($booking->email)) {
-                try {
-                    $bookingData = [
-                        'booking_date' => $booking->booking_date,
-                        'booking_time' => $booking->booking_time,
-                        'team_id' => $booking->team_id,
-                        'location_id' => $booking->location_id,
-                    ];
-                    if (!empty($details->hostname) && !empty($details->port) &&  !empty($details->username) && !empty($details->password) && !empty($details->from_email) &&  !empty($details->from_name)) {
-                        Mail::to($booking->email)->send(new SuspensionNotification(
-                            $message,
-                            'Appointment Cancellation',
-                            $bookingData,
-                        ));
-                    }
-                } catch (\Exception $e) {
-                    Log::error("Failed to send email to booking: " . $e->getMessage());
-                }
-            }
-        }
-    }
 
-    protected function extractNameFromQueueStorage($queuestorage)
-    {
-        if ($queuestorage->json) {
-            $jsonData = is_string($queuestorage->json) ? json_decode($queuestorage->json, true) : $queuestorage->json;
-
-            return $jsonData['name'] ??
-                $jsonData['Name'] ??
-                $jsonData['Full Name'] ??
-                $jsonData['full_name'] ?? null;
-        }
-
-        return null;
-    }
-
-    protected function extractEmailFromQueueStorage($queuestorage)
-    {
-        if ($queuestorage->json) {
-            $jsonData = is_string($queuestorage->json) ? json_decode($queuestorage->json, true) : $queuestorage->json;
-
-            return $jsonData['Email'] ??
-                $jsonData['email'] ??
-                $jsonData['Email Address'] ??
-                $jsonData['email_address'] ??
-                $queuestorage->email ?? null;
-        }
-
-        return $queuestorage->email ?? null;
-    }
-
-     protected function updateRecordsStatus($queuestorages, $bookings, $message, $suspensionLogId)
+    protected function updateRecordsStatus($queuestorages, $bookings, $message, $suspensionLogId)
     {
         // Update queue storage records
         foreach ($queuestorages as $queuestorage) {
-            if($this->actionStatus == 'Cancelled'){
+            if ($this->actionStatus == 'Cancelled') {
 
                 $queuestorage->update([
                     'suspension_logs_id' => $suspensionLogId->id,
-                    'status' =>Queue::STATUS_CANCELLED,
+                    'status' => Queue::STATUS_CANCELLED,
                     'cancelled_datetime' => Carbon::now($this->timezone),
                 ]);
-            }elseif($this->actionStatus == 'Skip'){
-                  $queuestorage->update([
+            } elseif ($this->actionStatus == 'Skip') {
+                $queuestorage->update([
                     'suspension_logs_id' => $suspensionLogId->id,
                     'status' => Queue::STATUS_PENDING,
                     'start_datetime' => null,
@@ -809,21 +691,19 @@ class QueueCalls extends Component
                     'served_by' => null,
                     'counter_id' => null,
                 ]);
+            } else {
 
 
-            }else{
-
-
-                 $queuestorage->update([
+                $queuestorage->update([
                     'suspension_logs_id' => $suspensionLogId->id,
-                   'status' => Queue::STATUS_CLOSE,
-                   'called_datetime' => Carbon::now($this->timezone),
-                   'start_datetime' => Carbon::now($this->timezone),
-                   'closed_datetime' => Carbon::now($this->timezone),
-                   'closed_by' => $this->userAuth->id,
-                   'served_by' => $this->userAuth->id,
-                   'counter_id' => $this->selectedCounter ?? auth::user()->counter_id,
-                   'cancelled_datetime' => null,
+                    'status' => Queue::STATUS_CLOSE,
+                    'called_datetime' => Carbon::now($this->timezone),
+                    'start_datetime' => Carbon::now($this->timezone),
+                    'closed_datetime' => Carbon::now($this->timezone),
+                    'closed_by' => $this->userAuth->id,
+                    'served_by' => $this->userAuth->id,
+                    'counter_id' => $this->selectedCounter ?? auth::user()->counter_id,
+                    'cancelled_datetime' => null,
                     'is_missed' => Queue::STATUS_NO,
                     'is_arrived' => Queue::STATUS_NO,
                     'temp_hold' => Queue::STATUS_NO,
@@ -844,7 +724,7 @@ class QueueCalls extends Component
 
 
 
- public function nextCall($vistorId  = null, $nextStorageId = null)
+    public function nextCall($vistorId  = null, $nextStorageId = null)
     {
         try {
             $this->dispatch('close-modal', id: 'menuOverlayRandom');
@@ -877,7 +757,7 @@ class QueueCalls extends Component
             }
 
             if ($this->showStartBtn == 'HIDE_START_CLOSE') {
-                $this->isCloseBtn =false;
+                $this->isCloseBtn = false;
                 $this->closeCall();
 
                 $progressCall = false;
@@ -900,42 +780,43 @@ class QueueCalls extends Component
                 return;
             }
 
-            if(empty($nextStorageId)){
-                  $this->throwError('ERR002');
+            if (empty($nextStorageId)) {
+                $this->throwError('ERR002');
                 return;
             }
-             $this->queueStorage  = QueueStorage::viewQueue($nextStorageId);
+            $this->queueStorage  = QueueStorage::viewQueue($nextStorageId);
 
-              if (empty($this->queueStorage)){
+            if (empty($this->queueStorage)) {
                 $this->throwError('ERR010');
-                    return;
-               }
+                return;
+            }
 
 
 
-          // ✅ Load queue storage once (with relations if you want)
+            // ✅ Load queue storage once (with relations if you want)
 
-                if ($this->queueStorage->is_missed == Queue::STATUS_YES
-                    && !is_null($this->queueStorage->closed_by)
-                    && !is_null($this->queueStorage->closed_datetime))
-                {
-                    // ✅ Directly update model (no `only()`)
-                    $this->queueStorage->is_missed = Queue::STATUS_NO;
-                    $this->queueStorage->save();
+            if (
+                $this->queueStorage->is_missed == Queue::STATUS_YES
+                && !is_null($this->queueStorage->closed_by)
+                && !is_null($this->queueStorage->closed_datetime)
+            ) {
+                // ✅ Directly update model (no `only()`)
+                $this->queueStorage->is_missed = Queue::STATUS_NO;
+                $this->queueStorage->save();
 
-                    // Refresh tokens after updating missed call
-                    $this->tokenMissedRefresh();
+                // Refresh tokens after updating missed call
+                $this->tokenMissedRefresh();
 
-                    return $this->dispatch('event-success-call', [
-                        'message' => __('message.SUCCESS001.message')
-                    ]);
-                }
+                return $this->dispatch('event-success-call', [
+                    'message' => __('message.SUCCESS001.message')
+                ]);
+            }
 
-                $this->currentVisitorId = $vistorId;
-               $this->currentStorageID = $this->queueStorage?->id;
+            $this->currentVisitorId = $vistorId;
+            $this->currentStorageID = $this->queueStorage?->id;
 
-               //when queue call on different call screens.check queue is called or not
-                if (!empty($this->queueStorage->called_datetime)){
+            //when queue call on different call screens.check queue is called or not
+            if (!empty($this->queueStorage->called_datetime)) {
                 // $this->throwError('ERR011');
                 $this->emptyCurrentVisitor();
                 $this->refreshQueues();
@@ -944,14 +825,14 @@ class QueueCalls extends Component
                 $this->nextStorageId = Queue::nextStorage($this->queues?->first(), $this->userAuth, $this->userCategories)?->id ?? null;
                 $this->nextCall($this->nextId, $this->nextStorageId);
                 return;
-               }
+            }
 
-               $nextcalldata = [
+            $nextcalldata = [
                 'queueStorage' => $this->queueStorage,
                 'selectedCounter' => $this->selectedCounter,
                 'userAuth' => $this->userAuth,
                 'isCheckSameCounter' => $this->isCheckSameCounter,
-               ];
+            ];
 
             if ($this->showStartBtn  == 'SHOW_START_CLOSE') {
                 $startCallRes = Queue::nextCalled($nextcalldata);
@@ -960,21 +841,20 @@ class QueueCalls extends Component
                     $this->throwError('ERR004');
                     return;
                 }
-                if(!empty($startCallRes)){
+                if (!empty($startCallRes)) {
 
-                   $this->currentVisitorId = $startCallRes->id;
-                   $this->currentVisitorRecord =  $startCallRes;
+                    $this->currentVisitorId = $startCallRes->id;
+                    $this->currentVisitorRecord =  $startCallRes;
 
                     $this->resetDynamic();
-               }else{
-                   $this->cVRecordFn();
-               }
+                } else {
+                    $this->cVRecordFn();
+                }
 
-                if(!empty($this->queueStorage)){
+                if (!empty($this->queueStorage)) {
 
                     QueueCreated::dispatch($this->queueStorage);
                     QueueProgress::dispatch($this->queueStorage);
-
                 }
 
                 // $this->dispatch('event-success-call', ['message' => __('message.SUCCESS001.message')]);
@@ -986,24 +866,23 @@ class QueueCalls extends Component
                     $this->throwError('ERR004');
                     return;
                 }
-               if(!empty($startCallRes)){
+                if (!empty($startCallRes)) {
 
                     $this->currentVisitorId = $startCallRes->id;
                     $this->currentVisitorRecord =  $startCallRes;
                     $this->notice_sms = $this->currentVisitorRecord->esitmate_note;
 
                     $this->resetDynamic();
-               }else{
-                   $this->cVRecordFn();
-               }
+                } else {
+                    $this->cVRecordFn();
+                }
 
                 // $this->cVRecordFn();
                 $this->compusloryStartNextCall();
 
-                if(!empty($this->queueStorage)){
-                 QueueCreated::dispatch($this->queueStorage);
-                QueueProgress::dispatch($this->queueStorage);
-
+                if (!empty($this->queueStorage)) {
+                    QueueCreated::dispatch($this->queueStorage);
+                    QueueProgress::dispatch($this->queueStorage);
                 }
             } else {
 
@@ -1015,24 +894,23 @@ class QueueCalls extends Component
                     return;
                 }
 
-                if(!empty($startCallRes)){
+                if (!empty($startCallRes)) {
 
-                   $this->currentVisitorId = $startCallRes->id;
-                   $this->currentVisitorRecord =  $startCallRes;
-                     $this->notice_sms = $this->currentVisitorRecord->esitmate_note;
+                    $this->currentVisitorId = $startCallRes->id;
+                    $this->currentVisitorRecord =  $startCallRes;
+                    $this->notice_sms = $this->currentVisitorRecord->esitmate_note;
 
-                        $this->resetDynamic();
-               }else{
-                   $this->cVRecordFn();
-               }
+                    $this->resetDynamic();
+                } else {
+                    $this->cVRecordFn();
+                }
 
                 $this->compusloryStartNextCall();
 
-                if(!empty($this->queueStorage)){
-                QueueCreated::dispatch($this->queueStorage);
-                QueueProgress::dispatch($this->queueStorage);
-
-            }
+                if (!empty($this->queueStorage)) {
+                    QueueCreated::dispatch($this->queueStorage);
+                    QueueProgress::dispatch($this->queueStorage);
+                }
             }
 
 
@@ -1045,12 +923,12 @@ class QueueCalls extends Component
 
             if (!empty($getQueue)) {
 
-               $counter = Counter::where('id', $this->selectedCounter)->value('name');
-               $this->queueStorage['counter_name'] = $counter ?? '';
+                $counter = Counter::where('id', $this->selectedCounter)->value('name');
+                $this->queueStorage['counter_name'] = $counter ?? '';
 
                 QueueDisplay::dispatch($this->queueStorage);
                 // QueueNotification::dispatch($this->queueStorage);
-               $this->dispatch('audio-sound');
+                $this->dispatch('audio-sound');
 
                 $currentQueue = json_decode($getQueue->json, true);
                 $normalizedJsonArray = array_change_key_case($currentQueue, CASE_LOWER);
@@ -1064,7 +942,7 @@ class QueueCalls extends Component
                 $this->updateCategories('thirdChildId', $this->secondChildId);
                 $email = isset($normalizedJsonArray['email']) ? $normalizedJsonArray['email'] : '';
                 $name = isset($normalizedJsonArray['name']) ? $normalizedJsonArray['name'] : '';
-               
+
 
                 $this->getData = [
                     'to_mail' => $email,
@@ -1077,7 +955,7 @@ class QueueCalls extends Component
                     'counter_name' => $counter,
                     'pending_count' => $getQueue->queue_count,
                     'waiting_time' => $getQueue->waiting_time,
-                     'category_name' => $getQueue->category?->name,
+                    'category_name' => $getQueue->category?->name,
                     'secondC_name' => $getQueue->subCategory?->name,
                     'thirdC_name' => $getQueue->childCategory?->name,
                     'locations_id' => $this->location,
@@ -1103,18 +981,17 @@ class QueueCalls extends Component
             }
 
             //SMS Reminder
-             if(!empty($this->currentVisitorId) && !empty($nextStorageId)){
+            if (!empty($this->currentVisitorId) && !empty($nextStorageId)) {
 
-                Queue::smsReminderNumber($this->currentVisitorId,$nextStorageId, $this->team_id);
+                Queue::smsReminderNumber($this->currentVisitorId, $nextStorageId, $this->team_id);
             }
 
             $this->callPendingEvent($this->currentStorageID);
             ActivityLog::storeLog($this->team_id, $this->userAuth->id, $this->currentVisitorId, $this->currentStorageID, ActivityLog::QUEUE_CALLED, $this->location);
-            
+
             // Immediately refresh queues to remove the called queue from waiting list
             $this->refreshQueues();
-        }
-        catch (\Throwable $ex) {
+        } catch (\Throwable $ex) {
 
             $this->dispatch('event-error-call', ['message' => $ex->getMessage()]);
         }
@@ -1125,19 +1002,19 @@ class QueueCalls extends Component
         $this->showModal = true;
     }
 
-     public function startCall()
+    public function startCall()
     {
         try {
 
-              $nextcalldata = [
+            $nextcalldata = [
                 'queueStorage' => $this->queueStorage,
                 'selectedCounter' => $this->selectedCounter,
                 'userAuth' => $this->userAuth,
                 'isCheckSameCounter' => $this->isCheckSameCounter,
                 'isStartBtn' => false,
-               ];
+            ];
 
-                $startCallRes = Queue::startCalled($nextcalldata);
+            $startCallRes = Queue::startCalled($nextcalldata);
 
             if ($startCallRes == 'hold on') {
                 $this->dispatch('event-error-call', ['message' => __('message.ERR005.message')]);
@@ -1149,114 +1026,111 @@ class QueueCalls extends Component
             QueueCreated::dispatch($this->currentVisitorRecord);
             QueueProgress::dispatch($this->currentVisitorRecord);
             QueueDisplay::dispatch($this->currentVisitorRecord);
-
         } catch (\Throwable $ex) {
 
             $this->dispatch('event-error-call', ['message' => $ex->getMessage()]);
         }
     }
 
-   private function updateSalesforceLeadForQueue($queue, $transferId, bool $isCategoryTransfer)
-{
-    try {
-        if (empty($queue) || empty($queue->salesforce_lead)) {
-            return;
-        }
+    private function updateSalesforceLeadForQueue($queue, $transferId, bool $isCategoryTransfer)
+    {
+        try {
+            if (empty($queue) || empty($queue->salesforce_lead)) {
+                return;
+            }
 
-        $leadPayload = json_decode($queue->salesforce_lead, true);
-        if (!is_array($leadPayload)) {
-            return;
-        }
+            $leadPayload = json_decode($queue->salesforce_lead, true);
+            if (!is_array($leadPayload)) {
+                return;
+            }
 
-        // Make sure this is the Salesforce Lead ID
-        $leadId = $leadPayload['id'] ?? ($leadPayload['lead']['id'] ?? null);
-        if (empty($leadId)) {
-            Log::warning("Salesforce lead ID missing for queue {$queue->id}");
-            return;
-        }
+            // Make sure this is the Salesforce Lead ID
+            $leadId = $leadPayload['id'] ?? ($leadPayload['lead']['id'] ?? null);
+            if (empty($leadId)) {
+                Log::warning("Salesforce lead ID missing for queue {$queue->id}");
+                return;
+            }
 
-        // Get Salesforce credentials
-        $sfSettings = SalesforceSetting::where('team_id', $this->team_id)
-            ->where('location_id', $this->location)
-            ->first();
-
-        $connection = SalesforceConnection::where('team_id', $this->team_id)
-            ->where('location_id', $this->location)
-            ->where('status', 1)
-            ->first();
-
-        if (empty($sfSettings) || empty($connection?->salesforce_refresh_token)) {
-            Log::warning("Salesforce settings or connection missing for team {$this->team_id}");
-            return;
-        }
-
-        $clientId = $sfSettings->client_id;
-        $clientSecret = $sfSettings->client_secret;
-        $tokenUrl = 'https://login.salesforce.com/services/oauth2/token';
-
-        // Base fields to update
-        $fields = [
-            'QwaitingSyncDate__c' => now()->toIso8601String(),
-        ];
-
-        // Assign OwnerId based on transfer type
-        $staff = null;
-
-        if ($isCategoryTransfer) {
-            // Update ServiceName__c
-            $fields['ServiceName__c'] = Category::viewCategoryName($transferId) ?? null;
-
-            // Get first Level 3 user for this category (level_id = 3)
-            $staff = Category::find($transferId)
-                ->users()
-                ->where('level_id', 3)
-                 ->select('id','saleforce_user_id')
+            // Get Salesforce credentials
+            $sfSettings = SalesforceSetting::where('team_id', $this->team_id)
+                ->where('location_id', $this->location)
                 ->first();
 
-        } else {
-            // Counter transfer
-            $staff = User::where('team_id', $this->team_id)
-                ->where('level_id', 3)
-                ->where('counter_id', $transferId)
-                ->select('id','saleforce_user_id')
+            $connection = SalesforceConnection::where('team_id', $this->team_id)
+                ->where('location_id', $this->location)
+                ->where('status', 1)
                 ->first();
+
+            if (empty($sfSettings) || empty($connection?->salesforce_refresh_token)) {
+                Log::warning("Salesforce settings or connection missing for team {$this->team_id}");
+                return;
+            }
+
+            $clientId = $sfSettings->client_id;
+            $clientSecret = $sfSettings->client_secret;
+            $tokenUrl = 'https://login.salesforce.com/services/oauth2/token';
+
+            // Base fields to update
+            $fields = [
+                'QwaitingSyncDate__c' => now()->toIso8601String(),
+            ];
+
+            // Assign OwnerId based on transfer type
+            $staff = null;
+
+            if ($isCategoryTransfer) {
+                // Update ServiceName__c
+                $fields['ServiceName__c'] = Category::viewCategoryName($transferId) ?? null;
+
+                // Get first Level 3 user for this category (level_id = 3)
+                $staff = Category::find($transferId)
+                    ->users()
+                    ->where('level_id', 3)
+                    ->select('id', 'saleforce_user_id')
+                    ->first();
+            } else {
+                // Counter transfer
+                $staff = User::where('team_id', $this->team_id)
+                    ->where('level_id', 3)
+                    ->where('counter_id', $transferId)
+                    ->select('id', 'saleforce_user_id')
+                    ->first();
+            }
+
+            if (!empty($staff?->saleforce_user_id)) {
+                $fields['Ownerid'] = $staff->saleforce_user_id;
+
+                // Update queue's assign_staff_id
+                $queue->assign_staff_id = $staff->id;
+                $queue->save();
+            }
+
+            // Filter out null fields
+            $fields = array_filter($fields, fn($v) => !is_null($v));
+
+            if (empty($fields)) {
+                Log::info("No fields to update for Salesforce Lead {$leadId}");
+                return;
+            }
+
+            // Logging before sending
+            Log::info('Updating Salesforce Lead', [
+                'queue_id' => $queue->id,
+                'leadId' => $leadId,
+                'fields' => $fields,
+            ]);
+
+            // Update lead via Salesforce service
+            $service = new SalesforceService($clientId, $clientSecret, $tokenUrl);
+            $result = $service->updateLead($connection->salesforce_refresh_token, $leadId, $fields);
+
+            Log::info('Salesforce update result', $result);
+        } catch (\Throwable $e) {
+            Log::warning('Salesforce lead update failed: ' . $e->getMessage(), [
+                'queue_id' => $queue->id,
+            ]);
         }
-
-        if (!empty($staff?->saleforce_user_id)) {
-            $fields['Ownerid'] = $staff->saleforce_user_id;
-
-            // Update queue's assign_staff_id
-            $queue->assign_staff_id = $staff->id;
-            $queue->save();
-        }
-
-        // Filter out null fields
-        $fields = array_filter($fields, fn($v) => !is_null($v));
-
-        if (empty($fields)) {
-            Log::info("No fields to update for Salesforce Lead {$leadId}");
-            return;
-        }
-
-        // Logging before sending
-        Log::info('Updating Salesforce Lead', [
-            'queue_id' => $queue->id,
-            'leadId' => $leadId,
-            'fields' => $fields,
-        ]);
-
-        // Update lead via Salesforce service
-        $service = new SalesforceService($clientId, $clientSecret, $tokenUrl);
-        $result = $service->updateLead($connection->salesforce_refresh_token, $leadId, $fields);
-
-        Log::info('Salesforce update result', $result);
-
-    } catch (\Throwable $e) {
-        Log::warning('Salesforce lead update failed: '.$e->getMessage(), [
-            'queue_id' => $queue->id,
-        ]);
     }
-}
 
     public  function compusloryStartNextCall()
     {
@@ -1268,7 +1142,7 @@ class QueueCalls extends Component
         $this->dispatch('event-success-call', ['message' => __('message.SUCCESS003.message')]);
     }
 
-  public function closeCall()
+    public function closeCall()
     {
 
         try {
@@ -1279,30 +1153,30 @@ class QueueCalls extends Component
 
             if (!empty($this->currentVisitorId)) {
 
-   if($this->enable_callDepartment){
+                if ($this->enable_callDepartment) {
 
-                    $nextdepartmentcall = QueueStorage::where('queue_id',$this->currentVisitorRecord->queue_id)->where('called','no')->whereNull('called_datetime')->first();
-                    $remaindepartmentcall = QueueStorage::where('queue_id',$this->currentVisitorRecord->queue_id)->update(['temp_hold'=>1]);
+                    $nextdepartmentcall = QueueStorage::where('queue_id', $this->currentVisitorRecord->queue_id)->where('called', 'no')->whereNull('called_datetime')->first();
+                    $remaindepartmentcall = QueueStorage::where('queue_id', $this->currentVisitorRecord->queue_id)->update(['temp_hold' => 1]);
 
 
-                    if(!empty($nextdepartmentcall)){
-                      $nextdepartmentcall->update(['called' =>'yes','temp_hold'=>0]);
+                    if (!empty($nextdepartmentcall)) {
+                        $nextdepartmentcall->update(['called' => 'yes', 'temp_hold' => 0]);
 
-                      QueueDepartment::dispatch($nextdepartmentcall);
+                        QueueDepartment::dispatch($nextdepartmentcall);
                     }
                 }
 
-                    if(!empty($this->currentVisitorRecord)){
-                        QueueCreated::dispatch($this->currentVisitorRecord);
-                 QueueProgress::dispatch($this->currentVisitorRecord);
-                QueueDisplay::dispatch($this->currentVisitorRecord);
-                $getType = json_decode($this->currentVisitorRecord->json, true);
-                if (isset($getType['type']) && $getType['type'] == 'Virtual') {
-                // if ($this->enableVirtual) {
+                if (!empty($this->currentVisitorRecord)) {
+                    QueueCreated::dispatch($this->currentVisitorRecord);
+                    QueueProgress::dispatch($this->currentVisitorRecord);
+                    QueueDisplay::dispatch($this->currentVisitorRecord);
+                    $getType = json_decode($this->currentVisitorRecord->json, true);
+                    if (isset($getType['type']) && $getType['type'] == 'Virtual') {
+                        // if ($this->enableVirtual) {
 
-                    QueueVirtual::dispatch($this->currentVisitorRecord);
-                    $this->dispatch('close-virtual-call');
-                }
+                        QueueVirtual::dispatch($this->currentVisitorRecord);
+                        $this->dispatch('close-virtual-call');
+                    }
                 }
 
 
@@ -1365,10 +1239,9 @@ class QueueCalls extends Component
                 } else {
 
                     $this->callPendingEvent($this->currentStorageID);
-                     if (!empty($data['phone'])) {
-                    // $this->sendNotification($data, 'rating survey', $logData);
-                }
-
+                    if (!empty($data['phone'])) {
+                        // $this->sendNotification($data, 'rating survey', $logData);
+                    }
                 }
 
                 //unhold the remaining calls of same queue id when the current call closed
@@ -1385,16 +1258,13 @@ class QueueCalls extends Component
                 }
 
                 $this->dispatch('event-success-call', ['message' => __('message.SUCCESS004.message')]);
-
-
-
             }
         } catch (\Throwable $ex) {
 
             $this->dispatch('event-error-call', ['message' => $ex->getMessage()]);
         }
     }
-    
+
     public function removQueue()
     {
         $this->queues = $this->queues->reject(
@@ -1429,14 +1299,13 @@ class QueueCalls extends Component
             } else if (!empty($this->currentVisitorRecord->start_datetime)) {
                 $this->isStartBtn = false;
                 $this->isServingTime = true;
-                if ($this->showStartBtn == 'HIDE_START_CLOSE'){
+                if ($this->showStartBtn == 'HIDE_START_CLOSE') {
 
                     $this->isCloseBtn = false;
-                }
-                else{
+                } else {
 
                     $this->isCloseBtn = true;
-                $this->dispatch('event-serving-time');
+                    $this->dispatch('event-serving-time');
                 }
             }
             $this->thirdChildId   = $this->currentVisitorRecord->child_category_id;
@@ -1461,19 +1330,19 @@ class QueueCalls extends Component
 
                 $this->moveBackMQVL();
                 $getQueue = $this->currentVisitorRecord;
-                 $getType = json_decode($this->currentVisitorRecord->json, true);
+                $getType = json_decode($this->currentVisitorRecord->json, true);
 
-              if (isset($getType['type']) && $getType['type'] == 'Virtual') {
+                if (isset($getType['type']) && $getType['type'] == 'Virtual') {
                     QueueVirtual::dispatch($this->currentVisitorRecord);
                     $this->dispatch('close-virtual-call');
                 }
             }
 
-             if(!empty($this->currentVisitorRecord)){
-            QueueCreated::dispatch($this->currentVisitorRecord);
-            QueueProgress::dispatch($this->currentVisitorRecord);
-            QueueDisplay::dispatch($this->currentVisitorRecord);
-             }
+            if (!empty($this->currentVisitorRecord)) {
+                QueueCreated::dispatch($this->currentVisitorRecord);
+                QueueProgress::dispatch($this->currentVisitorRecord);
+                QueueDisplay::dispatch($this->currentVisitorRecord);
+            }
             $this->callPendingEvent($this->currentStorageID);
             ActivityLog::storeLog($this->team_id, $this->userAuth->id, $this->currentVisitorId, $this->currentStorageID, ActivityLog::CALL_SKIPPED, $this->location);
 
@@ -1485,13 +1354,12 @@ class QueueCalls extends Component
 
             // $this->missedCalls = Queue::getMissedCallId($this->conditionTeam, $this->siteDetail?->show_department_missed_queue, $this->location);
 
-            if($this->enable_callDepartment){
+            if ($this->enable_callDepartment) {
 
-            $this->missedCalls = Queue::getMissedCallId($this->conditionTeam, $this->siteDetail?->show_department_missed_queue, $this->location,true);
-        }else{
-            $this->missedCalls = Queue::getMissedCallId($this->conditionTeam, $this->siteDetail?->show_department_missed_queue, $this->location,false);
-
-        }
+                $this->missedCalls = Queue::getMissedCallId($this->conditionTeam, $this->siteDetail?->show_department_missed_queue, $this->location, true);
+            } else {
+                $this->missedCalls = Queue::getMissedCallId($this->conditionTeam, $this->siteDetail?->show_department_missed_queue, $this->location, false);
+            }
             if (!empty($getQueue)) {
 
                 $currentQueue = json_decode($getQueue->json, true);
@@ -1518,7 +1386,7 @@ class QueueCalls extends Component
                     'token_with_acronym' => $getQueue->start_acronym,
                     'pending_count' => $getQueue->queue_count,
                     'waiting_time' => $getQueue->waiting_time,
-                     'category_name' => $getQueue->category?->name,
+                    'category_name' => $getQueue->category?->name,
                     'secondC_name' => $getQueue->subCategory?->name,
                     'thirdC_name' => $getQueue->childCategory?->name,
                 ];
@@ -1546,7 +1414,7 @@ class QueueCalls extends Component
         }
     }
 
-     public function transferCall($transferId)
+    public function transferCall($transferId)
     {
 
         try {
@@ -1562,18 +1430,16 @@ class QueueCalls extends Component
                 $this->updateSalesforceLeadForQueue($this->randomCurrentQueue, $transferId, true);
                 $queueID = $this->randomCurrentQueue?->queue_id;
                 $currentStorageID = $this->randomCurrentQueue->id;
-                if(!empty($this->randomCurrentQueue)){
+                if (!empty($this->randomCurrentQueue)) {
 
-                   QueueCreated::dispatch($this->randomCurrentQueue);
+                    QueueCreated::dispatch($this->randomCurrentQueue);
                     QueueProgress::dispatch($this->randomCurrentQueue);
                     QueueTransfer::dispatch($this->randomCurrentQueue);
                     QueueDisplay::dispatch($this->randomCurrentQueue);
-
                 }
 
                 $transferCategoryname  = Category::viewCategoryName($this->randomCurrentQueue?->transfer_id) ?? '';
-            $transfer_remark = "and transfer to ".$transferCategoryname;
-
+                $transfer_remark = "and transfer to " . $transferCategoryname;
             } else {
                 if (!empty($this->currentVisitorRecord)) {
                     $this->isRandomTransfer = false;
@@ -1582,7 +1448,7 @@ class QueueCalls extends Component
                         'called_datetime' => null,
                         'status' => Queue::STATUS_PENDING,
                         'transfer_id' => $transferId,
-                         'transfer_by' => Auth::id(),
+                        'transfer_by' => Auth::id(),
                         'forward_counter_id' => null,
                         'datetime' => Carbon::now($this->timezone)
 
@@ -1596,15 +1462,14 @@ class QueueCalls extends Component
                     QueueCreated::dispatch($this->currentVisitorRecord);
                     QueueProgress::dispatch($this->currentVisitorRecord);
                     QueueTransfer::dispatch($this->currentVisitorRecord);
-                     QueueDisplay::dispatch($this->currentVisitorRecord);
+                    QueueDisplay::dispatch($this->currentVisitorRecord);
 
                     $getType = json_decode($this->currentVisitorRecord->json, true);
 
-                   if (isset($getType['type']) && $getType['type'] == 'Virtual') {
-                       QueueVirtual::dispatch($this->currentVisitorRecord);
-                    $this->dispatch('close-virtual-call');
+                    if (isset($getType['type']) && $getType['type'] == 'Virtual') {
+                        QueueVirtual::dispatch($this->currentVisitorRecord);
+                        $this->dispatch('close-virtual-call');
                     }
-
                 }
                 $this->nextId = $this->queues->first()?->queue_id;
                 $this->nextStorageId = Queue::nextStorage($this->queues?->first(), $this->userAuth, $this->userCategories)?->id ?? null;
@@ -1613,18 +1478,17 @@ class QueueCalls extends Component
                 $currentStorageID = $this->currentVisitorRecord?->id;
                 $this->emptyCurrentVisitor();
                 $transferCategoryname  = Category::viewCategoryName($this->currentVisitorRecord?->transfer_id) ?? '';
-                $transfer_remark = "and transfer to ".$transferCategoryname;
+                $transfer_remark = "and transfer to " . $transferCategoryname;
             }
 
             $this->callPendingEvent($currentStorageID);
 
-            ActivityLog::storeLog($this->team_id, $this->userAuth->id, $queueID, $currentStorageID, ActivityLog::SERVICE_TRANSFER, $this->location,null,$transfer_remark);
+            ActivityLog::storeLog($this->team_id, $this->userAuth->id, $queueID, $currentStorageID, ActivityLog::SERVICE_TRANSFER, $this->location, null, $transfer_remark);
 
             $this->modelclose();
             $this->modelmyModalTransfer = false;
             // $this->dispatch('close-modal', id: 'myModalTransfer');
             $this->dispatch('event-success-call', ['message' => __('message.SUCCESS005.message')]);
-
         } catch (\Throwable $ex) {
 
             $this->dispatch('event-error-call', ['message' => $ex->getMessage()]);
@@ -1640,24 +1504,23 @@ class QueueCalls extends Component
                 $this->randomCurrentQueue->forward_counter_id = $transferId;
                 $this->randomCurrentQueue->transfer_id = null;
                 $this->randomCurrentQueue->counter_id = $transferId;
-                 $this->randomCurrentQueue->transfer_by = Auth::id();
+                $this->randomCurrentQueue->transfer_by = Auth::id();
                 $this->randomCurrentQueue->datetime = Carbon::now($this->timezone);
                 $this->randomCurrentQueue->save();
                 // Update Salesforce lead for this queue (owner change)
                 $this->updateSalesforceLeadForQueue($this->randomCurrentQueue, $transferId, false);
                 $queueID = $this->randomCurrentQueue?->queue_id;
                 $currentStorageID = $this->randomCurrentQueue->id;
-                if(!empty($this->randomCurrentQueue)){
+                if (!empty($this->randomCurrentQueue)) {
 
                     QueueCreated::dispatch($this->randomCurrentQueue);
                     QueueProgress::dispatch($this->randomCurrentQueue);
                     QueueTransfer::dispatch($this->randomCurrentQueue);
-                     QueueDisplay::dispatch($this->randomCurrentQueue);
-
+                    QueueDisplay::dispatch($this->randomCurrentQueue);
                 }
 
-                  $transferCountername  = $this->randomCurrentQueue?->forwardcounter->name ?? '';
-                  $transfer_remark = "and transfer to ".$transferCountername;
+                $transferCountername  = $this->randomCurrentQueue?->forwardcounter->name ?? '';
+                $transfer_remark = "and transfer to " . $transferCountername;
             } else {
                 if (!empty($this->currentVisitorRecord)) {
                     $this->isRandomTransfer = false;
@@ -1668,7 +1531,7 @@ class QueueCalls extends Component
                         'forward_counter_id' => $transferId,
                         'counter_id' => $transferId,
                         'transfer_id' => null,
-                         'transfer_by' => Auth::id(),
+                        'transfer_by' => Auth::id(),
                         'datetime' => Carbon::now($this->timezone)
 
                     ]);
@@ -1677,16 +1540,14 @@ class QueueCalls extends Component
                     QueueCreated::dispatch($this->currentVisitorRecord);
                     QueueProgress::dispatch($this->currentVisitorRecord);
                     QueueTransfer::dispatch($this->currentVisitorRecord);
-                     QueueDisplay::dispatch($this->currentVisitorRecord);
+                    QueueDisplay::dispatch($this->currentVisitorRecord);
 
                     $getType = json_decode($this->currentVisitorRecord->json, true);
 
-                   if (isset($getType['type']) && $getType['type'] == 'Virtual') {
-                       QueueVirtual::dispatch($this->currentVisitorRecord);
-                    $this->dispatch('close-virtual-call');
+                    if (isset($getType['type']) && $getType['type'] == 'Virtual') {
+                        QueueVirtual::dispatch($this->currentVisitorRecord);
+                        $this->dispatch('close-virtual-call');
                     }
-
-
                 }
 
 
@@ -1697,20 +1558,19 @@ class QueueCalls extends Component
                 $currentStorageID = $this->currentVisitorRecord?->id;
                 $this->emptyCurrentVisitor();
 
-                  $transferCountername  = $this->currentVisitorRecord?->forwardcounter->name ?? '';
-                   $transfer_remark = "and transfer to ".$transferCountername;
+                $transferCountername  = $this->currentVisitorRecord?->forwardcounter->name ?? '';
+                $transfer_remark = "and transfer to " . $transferCountername;
             }
 
             $this->callPendingEvent($currentStorageID);
 
 
-            ActivityLog::storeLog($this->team_id, $this->userAuth->id, $queueID, $currentStorageID, ActivityLog::COUNTER_TRANSFER, $this->location,null,$transfer_remark);
+            ActivityLog::storeLog($this->team_id, $this->userAuth->id, $queueID, $currentStorageID, ActivityLog::COUNTER_TRANSFER, $this->location, null, $transfer_remark);
 
             $this->modelclose();
             $this->modelmyModalTransfer = false;
             // $this->dispatch('close-modal', id: 'myModalTransfer');
             $this->dispatch('event-success-call', ['message' => __('message.SUCCESS005.message')]);
-
         } catch (\Throwable $ex) {
 
             $this->dispatch('event-error-call', ['message' => $ex->getMessage()]);
@@ -1736,12 +1596,12 @@ class QueueCalls extends Component
                 'datetime' => date('Y-m-d H:i:s')
             ]);
 
-             if(!empty($getQueue)){
+            if (!empty($getQueue)) {
                 QueueCreated::dispatch($getQueue);
                 QueueProgress::dispatch($getQueue);
                 QueueDisplay::dispatch($getQueue);
                 DisplayAudio::dispatch($getQueue);
-             }
+            }
 
             if (empty($this->getData)) {
                 $currentQueue = json_decode($getQueue->json, true);
@@ -1793,36 +1653,36 @@ class QueueCalls extends Component
         }
     }
 
-  public function moveBackMQVL()
-{
-    // Common update fields
-    $data = [
-        'status'               => Queue::STATUS_PENDING,
-        'called_datetime'      => null,
-        'cancelled_datetime'   => null,
-        'start_datetime'       => null,
-        'closed_datetime'      => null,
-        'datetime'             => Carbon::now($this->timezone),
-        'is_missed'            => Queue::STATUS_YES,
-        'is_hold'              => Queue::STATUS_NO,
-        'hold_by'              => null,
-        'hold_start_date'      => null,
-        'hold_end_date'        => null,
-        'is_arrived'           => Queue::STATUS_NO,
-        'temp_hold'            => Queue::STATUS_NO,
-        'late_duration'        => null,
-        'served_by'            => null,
-        'closed_by'            => null,
-        'alert_waiting_show'   => 0,
-    ];
+    public function moveBackMQVL()
+    {
+        // Common update fields
+        $data = [
+            'status'               => Queue::STATUS_PENDING,
+            'called_datetime'      => null,
+            'cancelled_datetime'   => null,
+            'start_datetime'       => null,
+            'closed_datetime'      => null,
+            'datetime'             => Carbon::now($this->timezone),
+            'is_missed'            => Queue::STATUS_YES,
+            'is_hold'              => Queue::STATUS_NO,
+            'hold_by'              => null,
+            'hold_start_date'      => null,
+            'hold_end_date'        => null,
+            'is_arrived'           => Queue::STATUS_NO,
+            'temp_hold'            => Queue::STATUS_NO,
+            'late_duration'        => null,
+            'served_by'            => null,
+            'closed_by'            => null,
+            'alert_waiting_show'   => 0,
+        ];
 
 
-    // if (!$this->enable_callDepartment) {
-    //     $data['counter_id'] = null;
-    // }
+        // if (!$this->enable_callDepartment) {
+        //     $data['counter_id'] = null;
+        // }
 
-    $this->currentVisitorRecord->update($data);
-}
+        $this->currentVisitorRecord->update($data);
+    }
 
 
     public function moveBack()
@@ -1853,7 +1713,7 @@ class QueueCalls extends Component
                         'hold_end_date' => null,
                         'served_by' => null,
                         'closed_by' => null,
-                         'alert_waiting_show' =>0
+                        'alert_waiting_show' => 0
                     ]);
 
                     if (!$this->enable_callDepartment) {
@@ -1863,19 +1723,19 @@ class QueueCalls extends Component
                     }
                 }
 
-            $getType = json_decode($this->currentVisitorRecord->json, true);
+                $getType = json_decode($this->currentVisitorRecord->json, true);
 
-              if (isset($getType['type']) && $getType['type'] == 'Virtual') {
+                if (isset($getType['type']) && $getType['type'] == 'Virtual') {
                     QueueVirtual::dispatch($this->currentVisitorRecord);
                     $this->dispatch('close-virtual-call');
-            }
+                }
 
-            QueueDisplay::dispatch($this->currentVisitorRecord);
-            ActivityLog::storeLog($this->team_id, $this->userAuth->id,  $this->currentVisitorRecord?->queue_id, $this->currentVisitorRecord?->id, ActivityLog::VISITOR_MOVE_BACK, $this->location);
-            QueueProgress::dispatch($this->currentVisitorRecord);
-            $this->callPendingEvent($this->currentVisitorRecord?->id);
+                QueueDisplay::dispatch($this->currentVisitorRecord);
+                ActivityLog::storeLog($this->team_id, $this->userAuth->id,  $this->currentVisitorRecord?->queue_id, $this->currentVisitorRecord?->id, ActivityLog::VISITOR_MOVE_BACK, $this->location);
+                QueueProgress::dispatch($this->currentVisitorRecord);
+                $this->callPendingEvent($this->currentVisitorRecord?->id);
 
-            QueueCreated::dispatch($this->currentVisitorRecord);
+                QueueCreated::dispatch($this->currentVisitorRecord);
             }
 
 
@@ -1918,13 +1778,13 @@ class QueueCalls extends Component
     }
 
     #[On('next-queue')]
-     public function pushNextcall($event)
+    public function pushNextcall($event)
     {
 
         $this->currentVisitorId = $event['queue']['queue_id'];
         $this->currentStorageID  = $event['queue']['id'];
         // $this->cVRecordFn();
-     if($this->enable_callDepartment){
+        if ($this->enable_callDepartment) {
 
             $this->dispatch('refreshComponent');
         }
@@ -1945,7 +1805,7 @@ class QueueCalls extends Component
         }
 
 
-        if ($this->currentVisitorRecord && $this->currentVisitorRecord->closed_datetime == null ) {
+        if ($this->currentVisitorRecord && $this->currentVisitorRecord->closed_datetime == null) {
             $this->notice_sms = $this->currentVisitorRecord->esitmate_note;
             if (empty($this->currentVisitorRecord->start_datetime)) {
                 $this->isStartBtn = true;
@@ -1964,86 +1824,86 @@ class QueueCalls extends Component
             $this->selectedCategoryId = $this->currentVisitorRecord->category_id;
             $this->currentStorageID  = $this->currentVisitorRecord->id;
             $this->queueStorage  = $this->currentVisitorRecord;
-        }else{
+        } else {
 
             $this->emptyCurrentVisitor();
         }
-        
+
         // Refresh queues to remove the called queue from waiting list
         $this->refreshQueues();
 
         $this->nextId  = $this->queues?->first()?->queue_id ?? null;
         $this->nextStorageId = Queue::nextStorage($this->queues?->first(), $this->userAuth, $this->userCategories)?->id ?? null;
-         $this->dispatch('reset-serving-time');
-         $this->dispatch('event-serving-time');
-        }
+        $this->dispatch('reset-serving-time');
+        $this->dispatch('event-serving-time');
+    }
 
-      #[On('transfer-queue')]
- public function pushtransfercall($event)
-{
-    $userAuth = Auth::user();
+    #[On('transfer-queue')]
+    public function pushtransfercall($event)
+    {
+        $userAuth = Auth::user();
 
-    $assignedCategories = $userAuth->categories->pluck('id')->toArray();
-    $assignedCounter    = $userAuth->counter_id;
-    $assignedCounters   = $userAuth['assign_counters'] ?? [];
-    $allCounters = array_values(array_unique(array_merge(["$assignedCounter"], $assignedCounters)));
+        $assignedCategories = $userAuth->categories->pluck('id')->toArray();
+        $assignedCounter    = $userAuth->counter_id;
+        $assignedCounters   = $userAuth['assign_counters'] ?? [];
+        $allCounters = array_values(array_unique(array_merge(["$assignedCounter"], $assignedCounters)));
 
-    $queueData = $event['queue'] ?? null;
+        $queueData = $event['queue'] ?? null;
 
-    if ($queueData) {
-        $queue = QueueStorage::with(['transfer', 'forwardcounter', 'transferBy'])
-            ->find($queueData['id']);
+        if ($queueData) {
+            $queue = QueueStorage::with(['transfer', 'forwardcounter', 'transferBy'])
+                ->find($queueData['id']);
 
-        if (!empty($queueData['transfer_id']) && in_array((int) $queueData['transfer_id'], $assignedCategories)) {
-            $this->dispatch('queue-alert', [
-                'type'   => 'category',
-                'teamId'   => $queue->team_id,
-                'name'   => $queue->transfer?->name ?? 'Unknown',
-                'token'  => $queue?->start_acronym.$queue->token,
-                'by'     => $queue->transferBy?->name ?? 'System',
-            ]);
-              $this->dispatch('audio-sound');
-        }
+            if (!empty($queueData['transfer_id']) && in_array((int) $queueData['transfer_id'], $assignedCategories)) {
+                $this->dispatch('queue-alert', [
+                    'type'   => 'category',
+                    'teamId'   => $queue->team_id,
+                    'name'   => $queue->transfer?->name ?? 'Unknown',
+                    'token'  => $queue?->start_acronym . $queue->token,
+                    'by'     => $queue->transferBy?->name ?? 'System',
+                ]);
+                $this->dispatch('audio-sound');
+            }
 
-        if (!empty($queueData['forward_counter_id']) && in_array($queueData['forward_counter_id'], $allCounters)) {
-            $this->dispatch('queue-alert', [
-                'type'   => 'counter',
-                 'teamId'   => $queue->team_id,
-                'name'   => $queue->forwardcounter?->name ?? 'Unknown',
-                'token'  =>  $queue?->start_acronym.$queue->token,
-                'by'     => $queue->transferBy?->name ?? 'System',
-            ]);
-              $this->dispatch('audio-sound');
+            if (!empty($queueData['forward_counter_id']) && in_array($queueData['forward_counter_id'], $allCounters)) {
+                $this->dispatch('queue-alert', [
+                    'type'   => 'counter',
+                    'teamId'   => $queue->team_id,
+                    'name'   => $queue->forwardcounter?->name ?? 'Unknown',
+                    'token'  =>  $queue?->start_acronym . $queue->token,
+                    'by'     => $queue->transferBy?->name ?? 'System',
+                ]);
+                $this->dispatch('audio-sound');
+            }
         }
     }
-}
 
     #[On('create-queue')]
     public function pushLiveQueue($event)
     {
         \Log::info('📢 create-queue event received', ['event' => $event]);
-        
+
         // Extract queue data from event structure
         // Event comes as: { event: { queue: {...} } }
         $queueData = $event['queue'] ?? $event['event']['queue'] ?? ($event['event'] ?? null);
-        
+
         if ($queueData) {
             $queueId = $queueData['id'] ?? null;
             $queueLocation = $queueData['locations_id'] ?? $queueData['location_id'] ?? null;
-            
+
             \Log::info('📢 Queue data extracted', [
                 'queue_id' => $queueId,
                 'queue_location' => $queueLocation,
                 'current_location' => $this->location
             ]);
-            
+
             // Only process if queue is for current location (or no location filter)
             if ($queueLocation && $queueLocation != $this->location) {
                 // Queue is for different location, skip
                 \Log::info('⏭️ Skipping queue - different location');
                 return;
             }
-            
+
             if ($queueId) {
                 $queueStorage = QueueStorage::find($queueId);
                 // Only add to list if it hasn't been called yet and matches location
@@ -2074,12 +1934,11 @@ class QueueCalls extends Component
             $this->initialiAfterQueue();
             $this->dispatch('$refresh');
         }
-        
-        if(!empty($this->currentVisitorRecord) && is_null($this->currentVisitorRecord->called_datetime)){
-           $this->dispatch('reset-serving-time');
-           $this->dispatch('event-serving-time');
-       }
 
+        if (!empty($this->currentVisitorRecord) && is_null($this->currentVisitorRecord->called_datetime)) {
+            $this->dispatch('reset-serving-time');
+            $this->dispatch('event-serving-time');
+        }
     }
     #[On('break-created')]
     public function handleBreakSubmitted($breakType, $breakComment)
@@ -2144,14 +2003,14 @@ class QueueCalls extends Component
     }
 
 
-      public function emptyCurrentVisitor()
+    public function emptyCurrentVisitor()
     {
         $this->currentVisitorRecord = null;
         $this->currentVisitorId = null;
         $this->queueStorage = null;
         $this->nextStorageId = null;
 
-         $this->dispatch('reset-serving-time');
+        $this->dispatch('reset-serving-time');
     }
 
     public function menuOverlay($queueID, $nextStorageId  = null)
@@ -2163,73 +2022,73 @@ class QueueCalls extends Component
         $this->modelmenuOverlayRandom = true;
     }
 
-  public function holdCall($queueID)
-{
-    // $record = QueueStorage::findOrFail($queueID);
-
-     $record = QueueStorage::select('id', 'queue_id', 'team_id', 'locations_id','is_hold','hold_start_datetime', 'hold_by','status','called_datetime','start_datetime','closed_datetime','counter_id','start_acronym','token','arrives_time')
-        ->findOrFail($queueID);
-
-
-    $record->update([
-        'is_hold'             => Queue::STATUS_YES,
-        'hold_start_datetime' => Carbon::now($this->timezone),
-        'hold_by'             => Auth::id(),
-    ]);
-
-    // Store activity log
-    ActivityLog::storeLog(
-        $this->team_id,
-        $this->userAuth->id,
-        (int) $record->queue_id,
-        (int) $record->id,
-        ActivityLog::HOLD_QUEUE,
-        $this->location
-    );
-
-    // Handle Virtual type
-    if (!empty($record->type) && $record->type === 'Virtual') {
-        QueueVirtual::dispatch($record);
-        $this->dispatch('close-virtual-call');
-    }
-
-    $this->isRandomTransfer = true;
-    $this->modelclose();
-    $this->tokenHoldRefresh();
-    $this->viewQueue();
-    $this->loadMoreVisitor();
-
-    QueueDisplay::dispatch($record);
-
-    $this->dispatch('close-modal', id: 'menuOverlayRandom');
-    $this->dispatch('event-success-call', [
-        'message' => __('message.SUCCESS009.message')
-    ]);
-}
-   public function cancelCall($queueID)
+    public function holdCall($queueID)
     {
         // $record = QueueStorage::findOrFail($queueID);
-         $record = QueueStorage::select('id', 'queue_id', 'team_id', 'locations_id','is_hold','hold_start_datetime', 'hold_by','status','called_datetime','start_datetime','closed_datetime','counter_id','start_acronym','token','arrives_time','cancelled_datetime','dropoff_position')
-        ->findOrFail($queueID);
+
+        $record = QueueStorage::select('id', 'queue_id', 'team_id', 'locations_id', 'is_hold', 'hold_start_datetime', 'hold_by', 'status', 'called_datetime', 'start_datetime', 'closed_datetime', 'counter_id', 'start_acronym', 'token', 'arrives_time')
+            ->findOrFail($queueID);
+
+
+        $record->update([
+            'is_hold'             => Queue::STATUS_YES,
+            'hold_start_datetime' => Carbon::now($this->timezone),
+            'hold_by'             => Auth::id(),
+        ]);
+
+        // Store activity log
+        ActivityLog::storeLog(
+            $this->team_id,
+            $this->userAuth->id,
+            (int) $record->queue_id,
+            (int) $record->id,
+            ActivityLog::HOLD_QUEUE,
+            $this->location
+        );
+
+        // Handle Virtual type
+        if (!empty($record->type) && $record->type === 'Virtual') {
+            QueueVirtual::dispatch($record);
+            $this->dispatch('close-virtual-call');
+        }
+
+        $this->isRandomTransfer = true;
+        $this->modelclose();
+        $this->tokenHoldRefresh();
+        $this->viewQueue();
+        $this->loadMoreVisitor();
+
+        QueueDisplay::dispatch($record);
+
+        $this->dispatch('close-modal', id: 'menuOverlayRandom');
+        $this->dispatch('event-success-call', [
+            'message' => __('message.SUCCESS009.message')
+        ]);
+    }
+    public function cancelCall($queueID)
+    {
+        // $record = QueueStorage::findOrFail($queueID);
+        $record = QueueStorage::select('id', 'queue_id', 'team_id', 'locations_id', 'is_hold', 'hold_start_datetime', 'hold_by', 'status', 'called_datetime', 'start_datetime', 'closed_datetime', 'counter_id', 'start_acronym', 'token', 'arrives_time', 'cancelled_datetime', 'dropoff_position')
+            ->findOrFail($queueID);
 
         $record->update([
             'status'  => Queue::STATUS_CANCELLED,
             'cancelled_datetime' => Carbon::now($this->timezone),
         ]);
 
-       
-        
-        if($this->enable_callDepartment){
-
-                    $nextdepartmentcall = QueueStorage::where('queue_id',$record->queue_id)->where('called','no')->whereNull('called_datetime')->first();
-                    $remaindepartmentcall = QueueStorage::where('queue_id',$record->queue_id)->update(['temp_hold'=>1]);
 
 
-                    if(!empty($nextdepartmentcall)){
-                      $nextdepartmentcall->update(['called' =>'yes','temp_hold'=>0]);
+        if ($this->enable_callDepartment) {
 
-                      QueueDepartment::dispatch($nextdepartmentcall);
-                    }
+            $nextdepartmentcall = QueueStorage::where('queue_id', $record->queue_id)->where('called', 'no')->whereNull('called_datetime')->first();
+            $remaindepartmentcall = QueueStorage::where('queue_id', $record->queue_id)->update(['temp_hold' => 1]);
+
+
+            if (!empty($nextdepartmentcall)) {
+                $nextdepartmentcall->update(['called' => 'yes', 'temp_hold' => 0]);
+
+                QueueDepartment::dispatch($nextdepartmentcall);
+            }
         }
 
         // Calculate drop-off position
@@ -2317,16 +2176,16 @@ class QueueCalls extends Component
     {
         $this->isCallUnHold = 1;
         $this->holdCurrentQueue = QueueStorage::with([
-				'category', 
-				'subCategory', 
-				'childCategory',
-			])->where([
-				'team_id' => $this->team_id, 
-				'id' => $queueID, 
-				'locations_id' => $this->location
-			])->first();
-       
-	    $this->activityLogs = ActivityLog::viewLogs($this->team_id, $this->holdCurrentQueue->queue_id, $queueID, $this->location);
+            'category',
+            'subCategory',
+            'childCategory',
+        ])->where([
+            'team_id' => $this->team_id,
+            'id' => $queueID,
+            'locations_id' => $this->location
+        ])->first();
+
+        $this->activityLogs = ActivityLog::viewLogs($this->team_id, $this->holdCurrentQueue->queue_id, $queueID, $this->location);
         $this->dispatch('close-modal', id: 'menuOverlayRandom');
         $this->modelclose();
         $this->modelCallHistory = true;
@@ -2337,35 +2196,35 @@ class QueueCalls extends Component
     {
 
         // $this->holdCurrentQueue = QueueStorage::where( [ 'team_id' =>$this->team_id, 'id'=> $queueID, 'locations_id'=>$this->location ] )->first();
-    // Retrieve the queue record once
-    $record = QueueStorage::where([
-        'team_id' => $this->team_id,
-        'id' => $queueID,
-        'locations_id' => $this->location,
-    ])->first();
+        // Retrieve the queue record once
+        $record = QueueStorage::where([
+            'team_id' => $this->team_id,
+            'id' => $queueID,
+            'locations_id' => $this->location,
+        ])->first();
 
-    // If no record found, exit gracefully
-    if (!$record) {
-        logger()->warning("Unhold failed: QueueStorage not found (ID: {$queueID})");
-        return;
-    }
+        // If no record found, exit gracefully
+        if (!$record) {
+            logger()->warning("Unhold failed: QueueStorage not found (ID: {$queueID})");
+            return;
+        }
 
-    // Update the hold status
-    $record->update([
-        'is_hold' => Queue::STATUS_NO,
-        'hold_end_datetime' => Carbon::now($this->timezone),
-        'hold_by' => null,
-    ]);
+        // Update the hold status
+        $record->update([
+            'is_hold' => Queue::STATUS_NO,
+            'hold_end_datetime' => Carbon::now($this->timezone),
+            'hold_by' => null,
+        ]);
 
-    // Log activity
-    ActivityLog::storeLog(
-        $this->team_id,
-        $this->userAuth->id,
-        (int) $record->queue_id,
-        (int) $record->id,
-        ActivityLog::UNHOLD_QUEUE,
-        $this->location
-    );
+        // Log activity
+        ActivityLog::storeLog(
+            $this->team_id,
+            $this->userAuth->id,
+            (int) $record->queue_id,
+            (int) $record->id,
+            ActivityLog::UNHOLD_QUEUE,
+            $this->location
+        );
     }
 
     public function sendSMS()
@@ -2464,10 +2323,10 @@ class QueueCalls extends Component
             $queueStorage->counter_id = $counterID;
             $queueStorage->save();
             ActivityLog::storeLog($this->team_id, $this->userAuth->id, $queueCreated->id, $queueStorage->id, ActivityLog::QUEUE_REGISTERED, $this->location);
-              if(!empty($queueStorage)){
-            QueueCreated::dispatch($queueStorage);
-            QueueDisplay::dispatch($queueStorage);
-              }
+            if (!empty($queueStorage)) {
+                QueueCreated::dispatch($queueStorage);
+                QueueDisplay::dispatch($queueStorage);
+            }
 
             $this->dispatch('event-success-call', ['message' => __('message.SUCCESS0012.message')]);
         } catch (\Throwable $ex) {
@@ -2501,7 +2360,7 @@ class QueueCalls extends Component
         $this->firstCategories = Category::getFirstCategoryN($this->team_id, $this->location);
         $this->updateCategories('secondChildId', $this->selectedCategoryId);
         $this->updateCategories('thirdChildId', $this->secondChildId);
-           $this->resetDynamic();
+        $this->resetDynamic();
 
         $this->modelslideCurrentVisitor = true;
 
@@ -2537,7 +2396,7 @@ class QueueCalls extends Component
                 $this->callPendingEvent($this->currentVisitorRecord->id);
 
                 $this->emptyCurrentVisitor();
-                
+
 
                 $this->refreshQueues();
             } else {
@@ -2568,9 +2427,9 @@ class QueueCalls extends Component
     public function revertServedCall($queueID, $storageID)
     {
         try {
-             if($this->enable_callDepartment){
-                if(QueueStorage::where(['queue_id' => $queueID,'temp_hold' =>0])->exists()){
-                   return $this->dispatch('event-error-call', ['message' => __('message.ERR004.message')]);
+            if ($this->enable_callDepartment) {
+                if (QueueStorage::where(['queue_id' => $queueID, 'temp_hold' => 0])->exists()) {
+                    return $this->dispatch('event-error-call', ['message' => __('message.ERR004.message')]);
                 }
             }
             $queue = Queue::findOrFail($queueID);
@@ -2585,17 +2444,17 @@ class QueueCalls extends Component
             $queueStorage->start_datetime =  null;
             $queueStorage->closed_datetime =  null;
             $queueStorage->served_by =  null;
-             if($this->enable_callDepartment){
-                  $queueStorage->temp_hold = 0;
+            if ($this->enable_callDepartment) {
+                $queueStorage->temp_hold = 0;
             }
-           
+
             $queueStorage->save();
 
             $this->tokenMissedRefresh();
-            if(!empty($queueStorage)){
-            QueueCreated::dispatch($queueStorage);
-            QueueProgress::dispatch($queueStorage);
-            QueueDisplay::dispatch($queueStorage);
+            if (!empty($queueStorage)) {
+                QueueCreated::dispatch($queueStorage);
+                QueueProgress::dispatch($queueStorage);
+                QueueDisplay::dispatch($queueStorage);
             }
             $this->dispatch('event-success-call', ['message' => __('message.SUCCESS0014.message')]);
         } catch (\Throwable $ex) {
@@ -2608,12 +2467,11 @@ class QueueCalls extends Component
         $this->tokenServed = Queue::totalTokenServed($this->conditionTeam, $this->userAuth->id, $this->location);
         // $this->missedCalls = Queue::getMissedCallId($this->conditionTeam, $this->siteDetail?->show_department_missed_queue, $this->location);
 
-        if($this->enable_callDepartment){
+        if ($this->enable_callDepartment) {
 
-            $this->missedCalls = Queue::getMissedCallId($this->conditionTeam, $this->siteDetail?->show_department_missed_queue, $this->location,true);
-        }else{
-            $this->missedCalls = Queue::getMissedCallId($this->conditionTeam, $this->siteDetail?->show_department_missed_queue, $this->location,false);
-
+            $this->missedCalls = Queue::getMissedCallId($this->conditionTeam, $this->siteDetail?->show_department_missed_queue, $this->location, true);
+        } else {
+            $this->missedCalls = Queue::getMissedCallId($this->conditionTeam, $this->siteDetail?->show_department_missed_queue, $this->location, false);
         }
     }
 
@@ -2635,7 +2493,7 @@ class QueueCalls extends Component
     public function currentVisitorEdit()
     {
         $formattedFields = [];
-        if ($this->siteDetail?->queue_form_display == SiteDetail::STATUS_YES){
+        if ($this->siteDetail?->queue_form_display == SiteDetail::STATUS_YES) {
 
             // $this->validate();
         }
@@ -2771,11 +2629,11 @@ class QueueCalls extends Component
         }
         if ($type == 'virtual meeting') {
             if (isset($data['to_mail']) && $data['to_mail'] != '') {
-                SmtpDetails::sendMail($data, $type, '',  $this->team_id,$logData);
+                SmtpDetails::sendMail($data, $type, '',  $this->team_id, $logData);
             }
         } else {
             if (isset($data['to_mail']) && $data['to_mail'] != '') {
-                SmtpDetails::sendMail($data, $type, '',  $this->team_id,$logData);
+                SmtpDetails::sendMail($data, $type, '',  $this->team_id, $logData);
             }
             if (!empty($data['phone']) && $data['phone_code']) {
                 $logData['channel'] = 'sms';
@@ -2832,9 +2690,9 @@ class QueueCalls extends Component
         $this->getroom = 'room_' . base64_encode($this->currentVisitorRecord->queue_id);
         $this->getqueueId = base64_encode($this->currentVisitorRecord->queue_id);
 
-          if ($this->showStartBtn  == 'SHOW_START_CLOSE') {
+        if ($this->showStartBtn  == 'SHOW_START_CLOSE') {
             $this->startCall();
-          }
+        }
     }
 
     public function videoToken(TwilioVideoService $twilio)
@@ -2851,41 +2709,40 @@ class QueueCalls extends Component
     public function checkWaitingTime()
     {
         if (!$this->siteDetail->enable_waiting_popup) return;
-$minutes='';
+        $minutes = '';
         // Fetch all active visitors (replace with your DB query)
         $activeVisitors = $this->queues ?? [];
-$queue_check =true;
-        if(!empty( $activeVisitors)){
-        foreach ($activeVisitors as $visitor) {
-                    // $minutes = now()->diffInMinutes($visitor->datetime);
+        $queue_check = true;
+        if (!empty($activeVisitors)) {
+            foreach ($activeVisitors as $visitor) {
+                // $minutes = now()->diffInMinutes($visitor->datetime);
 
-                    $seconds = abs(
-                                    now($this->timezone)->diffInSeconds(
-                                    Carbon::parse($visitor->datetime, $this->timezone)
-                                    )
-                                    );
-                                    $minutes = floor($seconds / 60);
+                $seconds = abs(
+                    now($this->timezone)->diffInSeconds(
+                        Carbon::parse($visitor->datetime, $this->timezone)
+                    )
+                );
+                $minutes = floor($seconds / 60);
 
-                    // Trigger alert only if waiting >= popup threshold
+                // Trigger alert only if waiting >= popup threshold
 
-                    if ((int)$minutes >= (int)$this->siteDetail->popup_waiting_time && $queue_check && $visitor->alert_waiting_show == 0) {
-                        $tokenNumber = ($visitor->start_acronym ?? '') . $visitor->token;
-                        // dd((int)$minutes,(int)$this->siteDetail->popup_waiting_time);
-                        // Dispatch browser event for alert
-                        // $this->dispatch('waiting-alert', [
-                        //     'message' => "Visitor has been waiting {$minutes} minutes!",
-                        // ]);
-$visitor->update([
-'alert_waiting_show' =>1
-]);
-    $this->dispatch('waiting-notification', [
-'token_notify' => "Visitor has been waiting {$minutes} minutes! and token is {$tokenNumber}"
-                        ]);
-                        $queue_check =false;
-
-                    }
+                if ((int)$minutes >= (int)$this->siteDetail->popup_waiting_time && $queue_check && $visitor->alert_waiting_show == 0) {
+                    $tokenNumber = ($visitor->start_acronym ?? '') . $visitor->token;
+                    // dd((int)$minutes,(int)$this->siteDetail->popup_waiting_time);
+                    // Dispatch browser event for alert
+                    // $this->dispatch('waiting-alert', [
+                    //     'message' => "Visitor has been waiting {$minutes} minutes!",
+                    // ]);
+                    $visitor->update([
+                        'alert_waiting_show' => 1
+                    ]);
+                    $this->dispatch('waiting-notification', [
+                        'token_notify' => "Visitor has been waiting {$minutes} minutes! and token is {$tokenNumber}"
+                    ]);
+                    $queue_check = false;
                 }
             }
+        }
     }
 
 
@@ -2903,12 +2760,12 @@ $visitor->update([
         $location = $queue['locations_id'] ?? null;
 
         // Extract values
-    $assignStaffId      = $queue['assign_staff_id'] ?? null;
-    $transferId         = $queue['transfer_id'] ?? null;
-    $categoryId         = $queue['category_id'] ?? null;
-    $subCategoryId      = $queue['sub_category_id'] ?? null;
-    $childCategoryId    = $queue['child_category_id'] ?? null;
-    $forwardCounterId   = $queue['forward_counter_id'] ?? null;
+        $assignStaffId      = $queue['assign_staff_id'] ?? null;
+        $transferId         = $queue['transfer_id'] ?? null;
+        $categoryId         = $queue['category_id'] ?? null;
+        $subCategoryId      = $queue['sub_category_id'] ?? null;
+        $childCategoryId    = $queue['child_category_id'] ?? null;
+        $forwardCounterId   = $queue['forward_counter_id'] ?? null;
 
         // Check 1: Assigned staff
         if (!empty($assignStaffId) && $assignStaffId == $userId) {
@@ -2916,28 +2773,28 @@ $visitor->update([
             return;
         }
 
-          // 1️⃣ Check transfer_id first
-    if (!empty($transferId) && $transferId == $userId) {
-       $typeValue = $transferId;
-        if (!empty($typeValue)) {
-            $isAssigned = Queue::checkUserAssigned($teamId, $location, 'category', $typeValue);
+        // 1️⃣ Check transfer_id first
+        if (!empty($transferId) && $transferId == $userId) {
+            $typeValue = $transferId;
+            if (!empty($typeValue)) {
+                $isAssigned = Queue::checkUserAssigned($teamId, $location, 'category', $typeValue);
 
-            if ($isAssigned) {
-                $this->notifyUser($queue);
+                if ($isAssigned) {
+                    $this->notifyUser($queue);
+                }
             }
-        }
-        return;
-    }
-
-
-    // 3️⃣ Check forward_counter_id
-    if (!empty($forwardCounterId)) {
-        $isAssigned = Queue::checkUserAssigned($teamId, $location, 'counter', $forwardCounterId);
-        if ($isAssigned) {
-            $this->notifyUser($queue);
             return;
         }
-    }
+
+
+        // 3️⃣ Check forward_counter_id
+        if (!empty($forwardCounterId)) {
+            $isAssigned = Queue::checkUserAssigned($teamId, $location, 'counter', $forwardCounterId);
+            if ($isAssigned) {
+                $this->notifyUser($queue);
+                return;
+            }
+        }
 
         // Check 2: Category assignment (fallback chain)
         $typeValue = $childCategoryId ?: ($subCategoryId ?: $categoryId);

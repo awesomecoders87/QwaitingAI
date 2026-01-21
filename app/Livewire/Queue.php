@@ -32,10 +32,10 @@ use App\Models\{
     Tenant,
     SalesforceSetting,
     SalesforceConnection,
-     TenantLimit,
+    TenantLimit,
     QueueCategoryGrouping,
     Level,
-     AllowedCountry
+    AllowedCountry
 };
 use Illuminate\Validation\Rule;
 use Livewire\Rules\Numeric;
@@ -173,8 +173,8 @@ class Queue extends Component
     public $enable_callDepartment = false;
     public $categoryGroupData = [];
 
-    public $level1,$level2,$level3,$tag_line1,$tag_line2,$tag_line3,$acronym_level;
-    public $layout_show ='column';
+    public $level1, $level2, $level3, $tag_line1, $tag_line2, $tag_line3, $acronym_level;
+    public $layout_show = 'column';
 
     public $ticket_note_level_first;
     public $ticket_note_level_second;
@@ -224,11 +224,11 @@ class Queue extends Component
 
         if (empty($this->location) && !Auth::check()) {
             $this->location = '';
-           $this->allLocations = Location::with(['siteDetail'])
-				->select('id', 'location_name', 'address', 'location_image')
-				->where('team_id', $this->teamId)
-				->where('status', 1)
-				->get();
+            $this->allLocations = Location::with(['siteDetail'])
+                ->select('id', 'location_name', 'address', 'location_image')
+                ->where('team_id', $this->teamId)
+                ->where('status', 1)
+                ->get();
 
             if (empty($this->allLocations)) {
                 abort(403);
@@ -285,25 +285,25 @@ class Queue extends Component
 
             $this->qrcode_tagline = $this->siteDetails->qrcode_tagline;
             $this->qrcode_tagline_second = $this->siteDetails->qrcode_tagline_second;
-            $this->colorSetting = ColorSetting::where('team_id', $this->teamId)->where('location_id',$this->location)->first();
+            $this->colorSetting = ColorSetting::where('team_id', $this->teamId)->where('location_id', $this->location)->first();
             $this->enablePriority = $this->siteDetails->use_staff_priority ?? false;
             $this->enableVirtual = $this->siteDetails->ticket_mode ?? SiteDetail::STATUS_NO;
             $this->disable_print = $this->siteDetails->disable_print ?? SiteDetail::STATUS_NO;
-             $this->enable_callDepartment = $this->siteDetails->enable_callDepartment ?? false;
-             $this->enable_doc_file_field = $this->siteDetails->enable_doc_file ?? false;
-             $this->doc_file_label = $this->siteDetails->doc_file_label ?? '';
-             $this->layout_show = $this->siteDetails->layout_show ?? 'column';
+            $this->enable_callDepartment = $this->siteDetails->enable_callDepartment ?? false;
+            $this->enable_doc_file_field = $this->siteDetails->enable_doc_file ?? false;
+            $this->doc_file_label = $this->siteDetails->doc_file_label ?? '';
+            $this->layout_show = $this->siteDetails->layout_show ?? 'column';
         }
         $this->countryCode = Country::query()->pluck('phonecode');
-        if(empty($this->siteDetails)){
+        if (empty($this->siteDetails)) {
 
             $this->siteData = SiteDetail::where('team_id', $this->teamId)->where('location_id', $this->location)->first();
-        }else{
+        } else {
             $this->siteData = $this->siteDetails;
         }
         $this->selectedCountryCode = !empty($this->siteDetails->country_code) ?  $this->siteDetails->country_code : null;
         $this->phone_code = !empty($this->selectedCountryCode) ? $this->selectedCountryCode : '91';
-       $this->country_phone_mode = $this->siteData->country_options ?? 1;
+        $this->country_phone_mode = $this->siteData->country_options ?? 1;
 
         $timezone = $this->siteData->select_timezone ?? 'UTC';
         Config::set('app.timezone', $timezone);
@@ -323,32 +323,32 @@ class Queue extends Component
         $this->userAuth = Auth::user();
 
         $salesforcessettings = SalesforceSetting::where('team_id',  $this->teamId)
-                ->where('location_id', $this->location)
-                ->first();
+            ->where('location_id', $this->location)
+            ->first();
 
-            if ($salesforcessettings) {
-                $this->client_id     = $salesforcessettings->client_id ?? '';
-                $this->client_secret = $salesforcessettings->client_secret ?? '';
-                $this->redirect_uri = !empty($salesforcessettings->redirect_uri) ? $salesforcessettings->redirect_uri :'';
-            }
+        if ($salesforcessettings) {
+            $this->client_id     = $salesforcessettings->client_id ?? '';
+            $this->client_secret = $salesforcessettings->client_secret ?? '';
+            $this->redirect_uri = !empty($salesforcessettings->redirect_uri) ? $salesforcessettings->redirect_uri : '';
+        }
 
         // $this->auth_url  = env('SALESFORCE_LOGIN_URL', 'https://test.salesforce.com/services/oauth2/authorize');
         // $this->token_url = env('SALESFORCE_TOKEN_URL', 'https://test.salesforce.com/services/oauth2/token');
-        $this->auth_url  ='https://login.salesforce.com/services/oauth2/authorize';
+        $this->auth_url  = 'https://login.salesforce.com/services/oauth2/authorize';
         $this->token_url = 'https://login.salesforce.com/services/oauth2/token';
 
-           $connectionData = SalesforceConnection::where('team_id',$this->teamId)
-            ->where('location_id',$this->location)
-            ->where('status',1)
+        $connectionData = SalesforceConnection::where('team_id', $this->teamId)
+            ->where('location_id', $this->location)
+            ->where('status', 1)
             ->first();
 
-            if(!empty($connectionData) && !empty($connectionData->salesforce_refresh_token) && !empty($connectionData->salesforce_instance_url)){
-                   $this->access_token = $connectionData->salesforce_refresh_token;
-                   $this->instance_url = $connectionData->salesforce_instance_url;
-            }
+        if (!empty($connectionData) && !empty($connectionData->salesforce_refresh_token) && !empty($connectionData->salesforce_instance_url)) {
+            $this->access_token = $connectionData->salesforce_refresh_token;
+            $this->instance_url = $connectionData->salesforce_instance_url;
+        }
 
-        $levels = Level::where('team_id',$this->teamId)
-            ->where('location_id',$this->location)
+        $levels = Level::where('team_id', $this->teamId)
+            ->where('location_id', $this->location)
             ->whereIn('level', [1, 2, 3])
             ->get()
             ->keyBy('level');
@@ -357,51 +357,44 @@ class Queue extends Component
         $this->level1 = $levels[1]->name ?? null;
         $this->level2 = $levels[2]->name ?? null;
         $this->level3 = $levels[3]->name ?? null;
-        $this->tag_line1= $levels[1]->tag_line ?? null;
+        $this->tag_line1 = $levels[1]->tag_line ?? null;
         $this->tag_line2 = $levels[2]->tag_line ?? null;
         $this->tag_line3 = $levels[3]->tag_line ?? null;
 
         $this->country_phone_mode = $this->siteData->country_options ?? 1;
 
         $this->allowed_Countries = AllowedCountry::where('team_id',  $this->teamId)
-                ->where('location_id', $this->location)->select('id','name','phone_code')->get();
-        if( $this->country_phone_mode != 1 && count($this->allowed_Countries) >0){
+            ->where('location_id', $this->location)->select('id', 'name', 'phone_code')->get();
+        if ($this->country_phone_mode != 1 && count($this->allowed_Countries) > 0) {
             $this->phone_code = $this->allowed_Countries[0]->phone_code;
         }
-         $this->checkedTicketLimit();
-
-
+        $this->checkedTicketLimit();
     }
 
     public function checkedTicketLimit()
     {
-        if(!empty($this->siteData))
-        {
-            if($this->siteData->is_ticket_limit_enabled)
-            {
-            $today = Carbon::now($this->siteData?->select_timezone ?? 'UTC')->toDateString();
+        if (!empty($this->siteData)) {
+            if ($this->siteData->is_ticket_limit_enabled) {
+                $today = Carbon::now($this->siteData?->select_timezone ?? 'UTC')->toDateString();
 
-            $getTickets = QueueDB::where('team_id', $this->teamId)
-                ->where('locations_id', $this->location)
-                ->whereDate('created_at', $today)
-                ->count();
+                $getTickets = QueueDB::where('team_id', $this->teamId)
+                    ->where('locations_id', $this->location)
+                    ->whereDate('created_at', $today)
+                    ->count();
 
-            if($getTickets == $this->siteData->ticket_limit || $getTickets > $this->siteData->ticket_limit)
-                {
-                $this->ticketDisabled = true;
-                $this->dispatch('swal:limit-exceed', [
-                    'title' => 'Oops...',
-                    'text' => 'You have reached your daily ticket limit of ' . $this->siteData->ticket_limit,
-                    'icon' => 'error'
-                ]);
-
+                if ($getTickets == $this->siteData->ticket_limit || $getTickets > $this->siteData->ticket_limit) {
+                    $this->ticketDisabled = true;
+                    $this->dispatch('swal:limit-exceed', [
+                        'title' => 'Oops...',
+                        'text' => 'You have reached your daily ticket limit of ' . $this->siteData->ticket_limit,
+                        'icon' => 'error'
+                    ]);
+                }
             }
-        }
-
         }
     }
 
-     public function checkStaffAvailability($staffId)
+    public function checkStaffAvailability($staffId)
     {
         $userTimezone = $this->siteDetails->select_timezone ?? 'UTC';
         // $userTimezone = 'UTC';
@@ -410,7 +403,6 @@ class Queue extends Component
         $currentTime = Carbon::now($userTimezone)->format('h:i A');
 
         return $this->isWithinTimeSlot(AccountSetting::STAFF_SLOT, $currentDate, $currentDay, $currentTime, null, $staffId);
-
     }
 
     public function checkTicketBusinessHours()
@@ -451,7 +443,6 @@ class Queue extends Component
             if (!$isWithinMainTime && !$isWithinInterval) {
                 return  redirect('no-service');
             }
-
         }
     }
 
@@ -487,44 +478,44 @@ class Queue extends Component
     }
 
 
-     
+
 
     public function rules()
-{
-    try {
-        $rules = [];
+    {
+        try {
+            $rules = [];
 
-        if (!empty($this->dynamicProperties)) {
-            foreach ($this->dynamicProperties as $fieldName => $value) {
-                $fieldId = explode('_', $fieldName)[1];
+            if (!empty($this->dynamicProperties)) {
+                foreach ($this->dynamicProperties as $fieldName => $value) {
+                    $fieldId = explode('_', $fieldName)[1];
 
-                $field = FormField::findDynamicFormField($this->dynamicForm, $fieldId);
+                    $field = FormField::findDynamicFormField($this->dynamicForm, $fieldId);
 
-                if ($field) {
-                    FormField::addDynamicFieldRules($rules, $fieldName, $field, $this->allCategories);
+                    if ($field) {
+                        FormField::addDynamicFieldRules($rules, $fieldName, $field, $this->allCategories);
+                    }
                 }
             }
+
+            if ($this->enable_doc_file_field && $this->siteDetails?->queue_form_display == SiteDetail::STATUS_YES) {
+                $rules['docFile'] = 'nullable|file|mimes:pdf,jpg,jpeg,png,doc,docx,xls,xlsx,csv|mimetypes:application/pdf,image/jpeg,image/png,application/msword,application/vnd.openxmlformats-officedocument.wordprocessingml.document,application/vnd.ms-excel,application/vnd.openxmlformats-officedocument.spreadsheetml.sheet,text/csv|max:2048';
+            }
+
+
+
+
+            return $rules;
+        } catch (\Throwable $ex) {
+            $this->dispatch('swal:ticket-generate', [
+                'title' => 'Oops...',
+                'text'  => 'Unable to generate ticket due to invalid rules. Please contact admin',
+                'icon'  => 'error'
+            ]);
+
+            // 👇 Always return an array so Livewire doesn’t throw MissingRulesException
+            return [];
         }
-
-         if ($this->enable_doc_file_field && $this->siteDetails?->queue_form_display == SiteDetail::STATUS_YES) {
-              $rules['docFile'] = 'nullable|file|mimes:pdf,jpg,jpeg,png,doc,docx,xls,xlsx,csv|mimetypes:application/pdf,image/jpeg,image/png,application/msword,application/vnd.openxmlformats-officedocument.wordprocessingml.document,application/vnd.ms-excel,application/vnd.openxmlformats-officedocument.spreadsheetml.sheet,text/csv|max:2048';
-        }
-
-
-
-
-        return $rules;
-    } catch (\Throwable $ex) {
-        $this->dispatch('swal:ticket-generate', [
-            'title' => 'Oops...',
-            'text'  => 'Unable to generate ticket due to invalid rules. Please contact admin',
-            'icon'  => 'error'
-        ]);
-
-        // 👇 Always return an array so Livewire doesn’t throw MissingRulesException
-        return [];
     }
-}
 
 
     public function messages()
@@ -577,27 +568,27 @@ class Queue extends Component
     }
 
     public function updatedDocFile()
-{
-    $this->resetErrorBag('docFile'); // Clear only docFile validation error
-  if ($this->docFile) {
-        $extension = strtolower($this->docFile->getClientOriginalExtension());
-        $allowed = ['pdf','jpg','jpeg','png','doc','docx','xls','xlsx','csv'];
+    {
+        $this->resetErrorBag('docFile'); // Clear only docFile validation error
+        if ($this->docFile) {
+            $extension = strtolower($this->docFile->getClientOriginalExtension());
+            $allowed = ['pdf', 'jpg', 'jpeg', 'png', 'doc', 'docx', 'xls', 'xlsx', 'csv'];
 
-        if (!in_array($extension, $allowed)) {
-            $this->addError('docFile', 'Unsupported file format. Allowed: PDF, JPG, PNG, DOC, DOCX, XLS, XLSX, CSV.');
-            $this->docFile = null;
-            $this->reset('docFile');
-            return;
-        }
+            if (!in_array($extension, $allowed)) {
+                $this->addError('docFile', 'Unsupported file format. Allowed: PDF, JPG, PNG, DOC, DOCX, XLS, XLSX, CSV.');
+                $this->docFile = null;
+                $this->reset('docFile');
+                return;
+            }
 
-        if ($this->docFile->getSize() > 2048 * 1024) { // 2MB
-            $this->addError('docFile', 'File too large. Maximum size allowed is 2MB.');
-            $this->docFile = null;
-            $this->reset('docFile');
-            return;
+            if ($this->docFile->getSize() > 2048 * 1024) { // 2MB
+                $this->addError('docFile', 'File too large. Maximum size allowed is 2MB.');
+                $this->docFile = null;
+                $this->reset('docFile');
+                return;
+            }
         }
     }
-}
 
     public function render()
     {
@@ -628,15 +619,15 @@ class Queue extends Component
             ->first();
 
         if ($this->paymentSetting) {
-           if (!empty($this->paymentSetting->api_key) && !empty($this->paymentSetting->api_secret)) {
-                    $this->paymentSettingKey = $this->paymentSetting->api_key;
-                    $this->paymentSettingSecret = $this->paymentSetting->api_secret;
+            if (!empty($this->paymentSetting->api_key) && !empty($this->paymentSetting->api_secret)) {
+                $this->paymentSettingKey = $this->paymentSetting->api_key;
+                $this->paymentSettingSecret = $this->paymentSetting->api_secret;
 
-                    config([
-                        'services.stripe.key' => $this->paymentSetting->api_key,
-                        'services.stripe.secret' => $this->paymentSetting->api_secret,
-                    ]);
-                }
+                config([
+                    'services.stripe.key' => $this->paymentSetting->api_key,
+                    'services.stripe.secret' => $this->paymentSetting->api_secret,
+                ]);
+            }
         }
 
         if (isset($this->accountSetting)) {
@@ -647,24 +638,23 @@ class Queue extends Component
         $this->dispatch('header-show');
     }
 
-   public function showFirstChild($categoryId)
+    public function showFirstChild($categoryId)
     {
-         $this->checkedTicketLimit();
+        $this->checkedTicketLimit();
         $this->selectedCategoryId = $categoryId;
         if (empty($this->firstChildren) || $this->enable_callDepartment) {
 
-            if($this->enable_callDepartment){
+            if ($this->enable_callDepartment) {
 
-            $this->categoryGroupData = QueueCategoryGrouping::where('team_id', $this->teamId)
-            ->where('location_id', $this->location)
-            ->where('category_id', $categoryId)
-            ->first();
+                $this->categoryGroupData = QueueCategoryGrouping::where('team_id', $this->teamId)
+                    ->where('location_id', $this->location)
+                    ->where('category_id', $categoryId)
+                    ->first();
 
-            if(empty( $this->categoryGroupData)){
-                 $this->dispatch('checkAvailability', message: 'Call Department Workflow is not set');
-                return false;
-            }
-
+                if (empty($this->categoryGroupData)) {
+                    $this->dispatch('checkAvailability', message: 'Call Department Workflow is not set');
+                    return false;
+                }
             }
             $checkAvailability = $this->checkAvailability();
             if ($checkAvailability == false) {
@@ -762,203 +752,102 @@ class Queue extends Component
             $this->validate($this->rules());
         }
 
-          if($this->enable_doc_file_field && $this->siteDetails?->queue_form_display == SiteDetail::STATUS_YES){
+        if ($this->enable_doc_file_field && $this->siteDetails?->queue_form_display == SiteDetail::STATUS_YES) {
             $this->validate([
                 'docFile' => 'required|mimes:pdf,jpg,jpeg,png,doc,docx,xls,xlsx,csv|max:2048',
             ]);
-          }
+        }
 
 
-        if($this->enable_callDepartment){
-               $this->saveQueueFormDepartment();
+        if ($this->enable_callDepartment) {
+            $this->saveQueueFormDepartment();
             return;
-            }
+        }
         try {
 
-               if($this->ticketDisabled){
+            if ($this->ticketDisabled) {
                 $this->dispatch('swal:limit-exceed', [
                     'title' => 'Oops...',
                     'text' => 'You have reached your daily ticket limit of ' . $this->siteData->ticket_limit,
                     'icon' => 'error'
                 ]);
-
             }
 
-             DB::beginTransaction();
+            DB::beginTransaction();
 
             $this->dispatch('queue:refresh');
             $newToken = $lastToken = '';
             $formattedFields = [];
             $assigned_staff_id = null;
 
-            foreach ($this->dynamicProperties as $key => $value) {
-                $trimmedKey = trim($key);
-                $fieldName = preg_replace('/_\d+/', '', $trimmedKey);
-                $fieldName = strtolower($fieldName); // normalize to lowercase
-                $formattedFields[$fieldName] = $value;
-            }
+            $dynamicData = $this->processDynamicFields();
+            $formattedFields = $dynamicData['formattedFields'];
+            $jsonDynamicData = $dynamicData['jsonDynamicData'];
 
-            $this->name = $formattedFields['name'] ?? null;
-
-            $possiblePhoneKeys = FormField::possiblePhoneKeys();
-            $this->phone = null;
-
-            foreach ($possiblePhoneKeys as $key) {
-                if (isset($formattedFields[$key]) && !empty($formattedFields[$key])) {
-                    $this->phone = $formattedFields[$key];
-                    $formattedFields[$key] = ('+'.$this->phone_code ?? '+91').$formattedFields[$key];
-                    break;
-                }
-            }
-            $this->email = isset($formattedFields['email']) ? $formattedFields['email'] : (isset($formattedFields['Email']) ? $formattedFields['Email'] : null);
-
-            $jsonDynamicData = json_encode($formattedFields);
-
-            $path=null;
-            if ($this->enable_doc_file_field && $this->siteDetails?->queue_form_display == SiteDetail::STATUS_YES &&  $this->docFile ) {
+            $path = null;
+            if ($this->enable_doc_file_field && $this->siteDetails?->queue_form_display == SiteDetail::STATUS_YES &&  $this->docFile) {
                 $path = $this->docFile->store('documents', 'public');
                 $this->reset('docFile');
             }
 
-            if((int)$this->acronym_level == 1 && !empty($this->selectedCategoryId)){
-                $this->acronym = Category::viewAcronym($this->selectedCategoryId);
-            }elseif((int)$this->acronym_level == 2 && !empty($this->secondChildId)){
-                $this->acronym = Category::viewAcronym($this->secondChildId);
-            }elseif((int)$this->acronym_level == 3 && !empty($this->thirdChildId)){
-                $this->acronym = Category::viewAcronym($this->thirdChildId);
-            }else {
-                $this->acronym = SiteDetail::DEFAULT_WALKIN_A;
-            }
-
-              if(!empty($this->selectedCategoryId)){
+            if (!empty($this->selectedCategoryId)) {
                 $this->ticket_note_level_first = Category::viewTicketNote($this->selectedCategoryId) ?? '';
             }
-            if(!empty($this->secondChildId)){
+            if (!empty($this->secondChildId)) {
                 $this->ticket_note_level_second = Category::viewTicketNote($this->secondChildId) ?? '';
             }
-            if(!empty($this->thirdChildId)){
+            if (!empty($this->thirdChildId)) {
                 $this->ticket_note_level_third = Category::viewTicketNote($this->thirdChildId) ?? '';
             }
 
-
-
-            $lastcategory = $this->selectedCategoryId;
-              if(!empty($this->thirdChildId)){
-                    $lastcategory = $this->thirdChildId;
-                }elseif(!empty($this->secondChildId)){
-                  $lastcategory = $this->secondChildId;
-                }
-            $lastToken = QueueDB::getLastToken($this->teamId, $this->acronym, $this->location,$lastcategory);
-
-            $token_digit = $this->siteDetails?->token_digit ?? 4;  //4
-            $isExistToken = true;
-
-            while ($isExistToken) {
-                $newToken = QueueDB::newGeneratedToken($lastToken, $this->siteDetails?->token_start, $token_digit);
-
-                if (strlen($newToken) > $token_digit) {
-                    $this->dispatch('swal:ticket-generate', [
-                        'title' => 'Oops...',
-                        'text' => 'Unable to create more tickets',
-                        'icon' => 'error'
-                    ]);
-                    return;
-                }
-
-                $isExistToken = QueueDB::checkToken($this->teamId, $this->acronym, $newToken, $this->location);
-
-                if ($isExistToken) {
-                    $lastToken = $newToken;
-                } else {
-                    $this->token_start = $newToken;
-                    $isExistToken = false;
-                }
-            }
+            $tokenData = $this->generateTokenAndAcronym();
+            if ($tokenData === false) return;
+            $lastcategory = $tokenData['last_category'];
 
 
             $seniorCitiizen = 'No';
-            $isSeniorCitiizen = $this->siteDetails->enable_priority_pattern == 0 ? true :false;
-            if($isSeniorCitiizen){
+            $isSeniorCitiizen = $this->siteDetails->enable_priority_pattern == 0 ? true : false;
+            if ($isSeniorCitiizen) {
 
-                if(isset($formattedFields['are you a senior citizen']) && !empty($formattedFields['are you a senior citizen'])){
+                if (isset($formattedFields['are you a senior citizen']) && !empty($formattedFields['are you a senior citizen'])) {
 
                     $seniorCitiizen = $formattedFields['are you a senior citizen'];
-                    $nextPrioritySort = $this->getNextSeniorPrioritySort($this->selectedCategoryId,$seniorCitiizen);
-                }else{
-                    $nextPrioritySort = $this->getNextSeniorPrioritySort($this->selectedCategoryId,$seniorCitiizen);
-
+                    $nextPrioritySort = $this->getNextSeniorPrioritySort($this->selectedCategoryId, $seniorCitiizen);
+                } else {
+                    $nextPrioritySort = $this->getNextSeniorPrioritySort($this->selectedCategoryId, $seniorCitiizen);
                 }
-            }else{
+            } else {
                 $nextPrioritySort = $this->getNextPrioritySort($this->selectedCategoryId);
             }
 
-               if($this->enablePriority){
-                 $assigned_staff= User::getNextAgent($this->teamId,$this->location);
-            
-                 if($assigned_staff['status']){
-                     $assigned_staff_id = $assigned_staff['availableAgent'];
-                     $actualAgent = $assigned_staff['actualAgent'];
-                 }
-                if(empty($assigned_staff_id)){
-                     $this->dispatch('swal:ticket-generate', [
+            if ($this->enablePriority) {
+                $assigned_staff = User::getNextAgent($this->teamId, $this->location);
+
+                if ($assigned_staff['status']) {
+                    $assigned_staff_id = $assigned_staff['availableAgent'];
+                    $actualAgent = $assigned_staff['actualAgent'];
+                }
+                if (empty($assigned_staff_id)) {
+                    $this->dispatch('swal:ticket-generate', [
                         'title' => 'Oops...',
                         'text' => 'Staff is not Available',
                         'icon' => 'error'
                     ]);
                     return;
                 }
-                
             }
 
-            $timezone = $this->siteData->select_timezone ?? 'UTC';
-            Config::set('app.timezone', $timezone);
-            date_default_timezone_set($timezone);
-
-            if (!empty($this->utm_source) && !empty($this->utm_medium) && !empty($this->utm_campaign)) {
-                $getCampaign = MetaAdsAndCampaignsLink::where('source', $this->utm_source)->where('medium', $this->utm_medium)->where('campaign', $this->utm_campaign)->first();
-
-                $campaignId = $getCampaign->id;
-            }
-
-            $decodedJson = json_decode($jsonDynamicData, true);
-
-            $todayDateTime = Carbon::now($timezone);
-
-                $is_virtual_meeting =0;
-                // if($this->enableVirtual){
-                if (isset($decodedJson['type']) && $decodedJson['type'] === 'Virtual') {
-                $is_virtual_meeting =1;
-                }
+            $envData = $this->setupEnvironmentAndData($jsonDynamicData);
+            $todayDateTime = $envData['todayDateTime'];
+            $campaignId = $envData['campaignId'];
+            $is_virtual_meeting = $envData['is_virtual_meeting'];
+            $decodedJson = $envData['decodedJson'];
 
 
 
-            $storeData = [
-                'name' => $this->name,
-                'phone' => $this->phone,
-                'ticket_mode' => $this->isMobile ? QueueDB::TICKET_MODE_MOBILE : QueueDB::TICKET_MODE_Walk_IN,
-                'is_virtual_meeting' =>$is_virtual_meeting,
-                'phone_code' => $this->phone_code ?? '91',
-                'category_id' => $this->selectedCategoryId ?? null,
-                'sub_category_id' => $this->secondChildId ?? null,
-                'child_category_id' => $this->thirdChildId ?? null,
-                'team_id' => (int)$this->teamId,
-                'token' => $this->token_start,
-                'token_with_acronym' => $this->booking_setting == QueueDB::STATUS_NO ? QueueDB::LABEL_YES : QueueDB::LABEL_NO,
-                'json' => $jsonDynamicData,
-                'arrives_time' => $todayDateTime,
-                'datetime' => $todayDateTime,
-                'start_acronym' => $this->acronym,
-                'locations_id' => (int)$this->location,
-                'priority_sort' => $nextPrioritySort ?? 0,
-                'campaign_id' => isset($campaignId) ? $campaignId : null,
-                'mode' => $this->isMobile ? 'mobile' : 'web',
-                'senior_citizen' => $seniorCitiizen ?? 'No',
-                'full_phone_number' => (!empty($this->phone_code) && !empty($this->phone))
-                ? $this->phone_code . $this->phone
-                : null,
-                'doc_file' => $path ?? null,
-
-            ];
+            $storeData = $this->prepareStoreData($is_virtual_meeting, $jsonDynamicData, $todayDateTime, $campaignId, $nextPrioritySort, $seniorCitiizen ?? 'No');
+            $storeData['child_category_id'] = $this->thirdChildId ?? null;
+            $storeData['doc_file'] = $path ?? null;
             $queueCreated = QueueDB::storeQueue([
                 'team_id' => (int) $this->teamId, // Cast to integer
                 'token' => (string) $this->token_start, // Ensure it's a string
@@ -971,17 +860,7 @@ class Queue extends Component
                 'last_category' => $lastcategory, // Ensure valid datetime format
             ]);
 
-           if (isset($decodedJson['type']) && $decodedJson['type'] === 'Virtual')
-            {
-                $room = 'room_' . base64_encode($queueCreated->id);
-                $queueId = base64_encode($queueCreated->id);
-
-                $storeData['meeting_link'] = url("meeting/{$room}/{$queueId}");
-            }
-            else
-            {
-                $storeData['meeting_link'] = null;
-            }
+            $storeData['meeting_link'] = $this->generateMeetingLink($decodedJson, $queueCreated->id);
 
             $queueStorage =  QueueStorage::storeQueue(array_merge($storeData, ['queue_id' => $queueCreated->id]));
 
@@ -1000,112 +879,17 @@ class Queue extends Component
             // if ($this->siteDetails?->counter_estimated_time == SiteDetail::STATUS_NO)
             //     $this->counterID  = 0;
 
-            $pendingwaiting = $pendingCount = 0;
-
- if ($this->siteDetails->category_estimated_time == SiteDetail::STATUS_YES) {
-
-
-                if($this->siteDetails->estimate_time_mode == 1){ //check pending according to service and staff availablilty
-                  $estimatedetail = QueueStorage::countPendingByCategorywithstaff($this->teamId, $queueStorage->id, $this->countCatID, $this->fieldCatName, '', $this->location);
-                    if ($estimatedetail == false) {
-                        $pendingCount = QueueStorage::countPending($this->teamId, $queueStorage->id, $this->countCatID, $this->fieldCatName, '', $this->location);
-                    } else {
-                        $pendingCount = $estimatedetail['customers_before_me'] ?? 0;
-                        $pendingwaiting = $estimatedetail['estimated_wait_time'] ?? 0;
-                        if($this->enablePriority == false){
-                            $assigned_staff_id = $estimatedetail['assigned_staff_id'] ?? null;
-                        }
-                    }
-                }elseif($this->siteDetails->estimate_time_mode == 2){ //check pending according to service only
-                        if($this->siteDetails->count_all_services == 2){
-                            $estimatedetail = QueueStorage::countAllPendingQueues($this->teamId, $queueStorage->id, $this->countCatID,$this->location);
-                            $pendingCount = $estimatedetail['customers_before_me'] ?? 0;
-                        }else{
-                            $estimatedetail = QueueStorage::countPendingByCategory($this->teamId, $queueStorage->id, $this->countCatID, $this->fieldCatName,$this->location);
-                            $pendingCount = $estimatedetail['customers_before_me'] ?? 0;
-                            $pendingwaiting = $estimatedetail['estimated_wait_time'] ?? 0;
-                        }
-
-                }else{
-                    //  $serviceTime = $this->siteDetails->estimate_time ?? 0;
-                    $estimatedetail = QueueStorage::countPendingByStaff($this->teamId, $queueStorage->id,$this->countCatID,$this->location);
-                      if ($estimatedetail == false) {
-                          $pendingCount = 0;
-                        } else {
-                            $pendingCount = $estimatedetail['customers_before_me'] ?? 0;
-                            $pendingwaiting = $estimatedetail['estimated_wait_time'] ?? 0;
-                            if($this->enablePriority == false){
-                                $assigned_staff_id = $estimatedetail['assigned_staff_id'] ?? null;
-                            }
-                        }
-                }
-
-            } else {
-
-                $pendingCountget = (int)QueueStorage::countPending($this->teamId, $queueStorage->id, '', '', '', $this->location);
-                $counterCount = Counter::where('team_id',$this->teamId)->whereJsonContains('counter_locations', "$this->location")->where('show_checkbox',1)->count();
-                if((int)$pendingCountget > 0 && (int)$counterCount > 0){
-                        $pendingCount = floor((int)$pendingCountget / (int)$counterCount);
-
-                    }
-
+            $metrics = $this->calculatePendingMetrics($queueStorage->id);
+            $pendingCount = $metrics['pendingCount'];
+            $pendingwaiting = $metrics['pendingwaiting'];
+            if ($this->enablePriority == false) {
+                $assigned_staff_id = $metrics['assigned_staff_id'];
             }
 
-            $dateformat = AccountSetting::showDateTimeFormat();
-            $data = [
-                'name' => $queueStorage->name,
-                'phone' => $queueStorage->phone,
-                'phone_code' => $queueStorage->phone_code ?? '91',
-                'queue_no' => $queueCreated->id,
-                'queue_storage_id' => $queueStorage->id,
-                'arrives_time' => Carbon::parse($queueStorage->arrives_time)->format($dateformat),
-                'category_name' => $this->categoryName,
-                'thirdC_name' => $this->thirdCategoryName,
-                'secondC_name' => $this->secondCategoryName,
-                'pending_count' => $pendingCount,
-                'token' => $queueCreated->start_acronym . $queueCreated->token,
-                'token_with_acronym' => $queueCreated->start_acronym,
-                'to_mail' => $this->email ?? '',
-                'locations_id' => $this->location,
-                'location_name' => $this->locationName,
-                'priority_sort' => $nextPrioritySort ?? 0,
-            ];
+            $data = $this->prepareResponseData($queueStorage, $queueCreated, $pendingCount, $nextPrioritySort, $queueStorage->arrives_time);
 
-            $language = session('app_locale');
-
-            $showQrcode = $this->siteDetails->is_qrcode_ticket == 1 ? true : false;
-            $showlogo = $this->siteDetails->is_logo_on_print == 1 ? true : false;
-            $showusername = $this->siteDetails->is_name_on_print == 1 ? true : false;
-            $showarrived = $this->siteDetails->is_arrived_on_print == 1 ? true : false;
-            $showlocation = $this->siteDetails->is_location_on_print == 1 ? true : false;
-            $showcategory = $this->siteDetails->is_category_on_print == 1 ? true : false;
-            $showTextmessage = $this->siteDetails->ticket_text_enable == 1 ? true : false;
-            $showToken = $this->siteDetails->is_token_on_print == 1 ? true : false;
-             $show_category_first = $this->siteDetails->show_category_first == 1 ? true : false;
-            $show_category_second = $this->siteDetails->show_category_second == 1 ? true : false;
-            $show_category_third = $this->siteDetails->show_category_third == 1 ? true : false;
-             $ticket_image = $this->siteDetails->ticket_image ?? '';
-
-            if ($language !== 'en') {
-                $nameLabel = isset($this->translations['Print Name Label'][$language]) ? $this->translations['Print Name Label'][$language] : ($this->siteDetails->print_name_label ?? 'Name');
-                $tokenLabel = isset($this->translations['Print Token Label'][$language]) ? $this->translations['Print Token Label'][$language] : ($this->siteDetails->print_token_label ?? 'Token');
-                $arrivedLabel = isset($this->translations['Arrived Time Label'][$language]) ? $this->translations['Arrived Time Label'][$language] : ($this->siteDetails->arrived_time_label ?? 'Arrived');
-            } else {
-                $nameLabel = $this->siteDetails->print_name_label ?? 'Name';
-                $tokenLabel = $this->siteDetails->print_token_label ?? 'Token';
-                $arrivedLabel = $this->siteDetails->arrived_time_label ?? 'Arrived';
-            }
-
-            $baseencodeQueueId = base64_encode($queueCreated->id);
-            $customUrl = url("/visits/{$baseencodeQueueId}");
-            $qrcodeSvg = QrCode::format('svg')
-                ->size(150)
-                ->errorCorrection('H')
-                ->generate($customUrl);
-
-
-
-            $logo =  SiteDetail::viewImage(SiteDetail::FIELD_LOGO_PRINT_TICKET, $this->teamId, $this->location);
+            $printSettings = $this->preparePrintSettings($queueCreated);
+            extract($printSettings);
 
             $waitingTime = 0;
 
@@ -1113,11 +897,11 @@ class Queue extends Component
                 $estimate_time = $this->siteDetails->estimate_time ?? 0;
 
                 if ($this->siteDetails->category_estimated_time == SiteDetail::STATUS_YES) { // get esitmate time of category wise
-                   if($this->siteDetails->estimate_time_mode == 2 && $this->siteDetails->count_all_services == 2){ //check pending according to service only
-                    $waitingTime =  $estimate_time * $data['pending_count'];
-                   }else{
-                       $waitingTime =  $pendingwaiting ?? $estimate_time * $data['pending_count'];
-                   }
+                    if ($this->siteDetails->estimate_time_mode == 2 && $this->siteDetails->count_all_services == 2) { //check pending according to service only
+                        $waitingTime =  $estimate_time * $data['pending_count'];
+                    } else {
+                        $waitingTime =  $pendingwaiting ?? $estimate_time * $data['pending_count'];
+                    }
                 } else {  // get esitmate time of globally set
                     $waitingTime =  $estimate_time * $data['pending_count'];
                 }
@@ -1159,60 +943,14 @@ class Queue extends Component
                 $this->stripeResponeID = '';
             }
 
-             $data = array_merge($data, ['waiting_time' => $waitingTime,'ticket_link' => $customUrl]);
+            $data = array_merge($data, ['waiting_time' => $waitingTime, 'ticket_link' => $customUrl]);
 
             $data['meeting_link'] = $storeData['meeting_link'];
 
             //store customer data and activity log
-            if (!empty($this->phone)) {
-                $existingCustomer = Customer::where('phone', "$this->phone")
-                    ->where('team_id', $this->teamId)
-                    ->where('location_id', $this->location)
-                    ->first();
-
-                // Create customer if not exists
-                if (empty($existingCustomer)) {
-                    $existingCustomer = Customer::create([
-                        'team_id' => $this->teamId,
-                        'location_id' => $this->location,
-                        'name' => $this->name ?? null,
-                        'phone' => $this->phone,
-                        'json_data' => $jsonDynamicData, // casted automatically to JSON
-                    ]);
-                }
-
-                // Log customer activity with type 'queue'
-                CustomerActivityLog::create([
-                    'team_id' => $this->teamId,
-                    'location_id' => $this->location,
-                    'queue_id' => $queueStorage->id,
-                    'booking_id' => null,
-                    'type' => 'queue',
-                    'customer_id' => $existingCustomer->id,
-                    'note' => 'Customer joined the queue.',
-                ]);
-
-                $queueStorage->created_by = $existingCustomer->id;
-                $queueStorage->save();
-
-                $data['customer_id'] = $existingCustomer->id;
-
-            }
-
-            $data['ticket_link'] = url('/visits/' . base64_encode($queueCreated->id));
-
-            $logData = [
-                'team_id' => $this->teamId,
-                'location_id' => $this->location,
-                'user_id' => $queueStorage->served_by,
-                'customer_id' => $queueStorage->created_by,
-                'queue_id' => $queueStorage->queue_id,
-                'queue_storage_id' => $queueStorage->id,
-                'email' => $this->email,
-                'contact' => $this->phone,
-                'type' => MessageDetail::TRIGGERED_TYPE,
-                'event_name' => 'Ticket Generate',
-            ];
+            $result = $this->handleCustomerAndLogging($queueStorage, $queueCreated, $jsonDynamicData, $data);
+            $data = $result['data'];
+            $logData = $result['logData'];
 
 
 
@@ -1224,46 +962,46 @@ class Queue extends Component
             // }
 
             // create lead in salesforce
-               if(!empty($queueStorage) && !empty($this->client_id) && !empty($this->client_secret) && !empty($this->access_token) && !empty($this->instance_url)){
-             $datetime11 = new DateTime($queueStorage->arrives_time); // Uses default server timezone
-                        $datetime11->setTimezone(new DateTimeZone('UTC')); // Convert to UTC
-                        $Qwaiting_Sync_Date__c = $datetime11->format('Y-m-d\TH:i:s\Z'); // Salesforce ISO 8601 format
+            if (!empty($queueStorage) && !empty($this->client_id) && !empty($this->client_secret) && !empty($this->access_token) && !empty($this->instance_url)) {
+                $datetime11 = new DateTime($queueStorage->arrives_time); // Uses default server timezone
+                $datetime11->setTimezone(new DateTimeZone('UTC')); // Convert to UTC
+                $Qwaiting_Sync_Date__c = $datetime11->format('Y-m-d\TH:i:s\Z'); // Salesforce ISO 8601 format
 
 
-                        $salesForceData = array();
-                        $salesForceData['refresh_token']          = $this->access_token;
-                        $salesForceData['instance_url']           = $this->instance_url;
-                        $salesForceData['queue_storage_id']        = $queueStorage->id;
-                        $salesForceData['token']                  = $queueStorage->token;
-                        $salesForceData['FirstName']              = $queueStorage->name;
-                        $salesForceData['Phone']                  = $queueStorage->phone ?? '';
-                        $salesForceData['Created']                 = $queueStorage->arrives_time;
-                        $salesForceData['Qwaiting_Sync_Date__c']  = $Qwaiting_Sync_Date__c;
-                        $salesForceData['Token']  =  $queueStorage->token;
-                        $salesForceData['Service_Name__c']        = $this->categoryName ?? 'Queue Service';
-                        $salesForceData['Company']        =  tenant('name');
-                        $salesForceData['Page']        = 'Queue Page';
-                        $salesForceData['Email']        = $this->email ?? '';
-                        $salesForceData['Age']        =  $formattedFields['age'] ?? '';
-                        $salesForceData['Occupation']        =  $formattedFields['occupation'] ?? '';
-                        $salesForceData['Address']        =  $formattedFields['residential address'] ?? '';
-                        $salesForceData['Marital']        =  $formattedFields['marital status'] ?? '';
-                        $salesForceData['Previous']        =  $formattedFields['previous contact'] ?? '';
-                        $salesForceData['Purpose']        =  $formattedFields['purpose of visit'] ?? '';
-                        $salesForceData['Unit']        =  $formattedFields['unit'] ?? '';
-                        $salesForceData['Note']        =  $formattedFields['notes'] ?? '';
-                        $salesForceData['Mobile']        =  $formattedFields['number'] ?? '';
-                        $salesForceData['AssignId']        =  !empty($assigned_staff_id) ? User::where('id',$assigned_staff_id)->value('saleforce_user_id') : '005Hu00000SBZ8bIAH';
+                $salesForceData = array();
+                $salesForceData['refresh_token']          = $this->access_token;
+                $salesForceData['instance_url']           = $this->instance_url;
+                $salesForceData['queue_storage_id']        = $queueStorage->id;
+                $salesForceData['token']                  = $queueStorage->token;
+                $salesForceData['FirstName']              = $queueStorage->name;
+                $salesForceData['Phone']                  = $queueStorage->phone ?? '';
+                $salesForceData['Created']                 = $queueStorage->arrives_time;
+                $salesForceData['Qwaiting_Sync_Date__c']  = $Qwaiting_Sync_Date__c;
+                $salesForceData['Token']  =  $queueStorage->token;
+                $salesForceData['Service_Name__c']        = $this->categoryName ?? 'Queue Service';
+                $salesForceData['Company']        =  tenant('name');
+                $salesForceData['Page']        = 'Queue Page';
+                $salesForceData['Email']        = $this->email ?? '';
+                $salesForceData['Age']        =  $formattedFields['age'] ?? '';
+                $salesForceData['Occupation']        =  $formattedFields['occupation'] ?? '';
+                $salesForceData['Address']        =  $formattedFields['residential address'] ?? '';
+                $salesForceData['Marital']        =  $formattedFields['marital status'] ?? '';
+                $salesForceData['Previous']        =  $formattedFields['previous contact'] ?? '';
+                $salesForceData['Purpose']        =  $formattedFields['purpose of visit'] ?? '';
+                $salesForceData['Unit']        =  $formattedFields['unit'] ?? '';
+                $salesForceData['Note']        =  $formattedFields['notes'] ?? '';
+                $salesForceData['Mobile']        =  $formattedFields['number'] ?? '';
+                $salesForceData['AssignId']        =  !empty($assigned_staff_id) ? User::where('id', $assigned_staff_id)->value('saleforce_user_id') : '005Hu00000SBZ8bIAH';
 
-                    // Call Salesforce Lead creation
-                    $salesforceService = new SalesforceService($this->client_id, $this->client_secret, $this->token_url);
-                    $leadResponse = $salesforceService->createLead($salesForceData);
+                // Call Salesforce Lead creation
+                $salesforceService = new SalesforceService($this->client_id, $this->client_secret, $this->token_url);
+                $leadResponse = $salesforceService->createLead($salesForceData);
 
-                    $queueStorage->salesforce_lead = json_encode($leadResponse);
-                    $queueStorage->save();
+                $queueStorage->salesforce_lead = json_encode($leadResponse);
+                $queueStorage->save();
 
-                    // QueueCreated::dispatch($queueStorage);
-                    }
+                // QueueCreated::dispatch($queueStorage);
+            }
 
             QueueNotification::dispatch($queueStorage);
             QueueCreated::dispatch($queueStorage);
@@ -1273,212 +1011,51 @@ class Queue extends Component
             if (!$this->isMobile && $this->siteDetails->is_redirect_print_page == SiteDetail::STATUS_NO) {
 
 
-                      $this->dispatch('swal:saved-queue', [
-                            'timer' => 8000,
-                            'disable_print' => $this->disable_print,
-                            'html' =>
-                                ($showlogo
-                                    ? '<div style="text-align:center;display:flex;align-items:center;justify-content:center;">
-                                            <img src="' . asset($logo) . '" style="margin:auto;max-width:160px;width:100%;height:100%;"/>
-                                    </div>'
-                                    : '') .
-                                '<div class="flex flex-col gap-2 text-black-400 pt-5"
-                                    style="line-height:1.24;text-align:center;border:1px solid #ddd;
-                                            padding:12px;border-radius:14px;margin-top:15px;font-family: Simplified Arabic Fixed;">'
+                $this->dispatch('swal:saved-queue', [
+                    'timer' => 8000,
+                    'disable_print' => $this->disable_print,
+                    'html' => $this->generateTicketHtml($data, $printSettings),
+                    'confirmButtonText' => $language !== 'en'
+                        ? (isset($this->translations['Confirm Button Label'][$language])
+                            ? $this->translations['Confirm Button Label'][$language]
+                            : $this->siteDetails->confirm_btn_label)
+                        : ($this->siteDetails->confirm_btn_label ?? 'Thank you'),
+                    'token_notify' => 'The Generated Token Number is ' . $data['token']
+                ]);
 
-                                    . (($showusername && !empty($data['name']))
-                                        ? '<h3 style="font-size:16px;font-weight: bold;margin:0">' . $nameLabel . ': ' . $data['name'] . '</h3>'
-                                        : '')
-
-                                    . ($showToken
-                                        ? '<div><h3 style="font-size:20px;font-weight: bold;margin:0"><strong>' . $tokenLabel . ': ' . $data['token'] . '</strong></h3></div>'
-                                        : '')
-
-                                    . ($showarrived
-                                        ? '<div><h5 style="font-size:16px;font-weight: bold;margin:0">' . $arrivedLabel . ': ' . $data['arrives_time'] . '</h5></div>'
-                                        : '')
-
-                                    . ($showlocation
-                                        ? '<div><h3 style="font-size:16px;font-weight: bold;margin:0">' . $data['location_name'] . '</h3></div>'
-                                        : '')
-
-                                    // ✅ Category levels check
-                                    . ($showcategory
-                                        ? '<div>'
-                                            . ($show_category_first
-                                                ? '<h3 style="font-size:16px;font-weight: bold;margin:0">'
-                                                    . (isset($this->translations[$data['category_name']][session('app_locale')])
-                                                        ? $this->translations[$data['category_name']][session('app_locale')]
-                                                        : $data['category_name'])
-                                                . '</h3>'
-                                                : '')
-                                            . ($show_category_second
-                                                ? '<h3 style="font-size:16px;font-weight: bold;margin:0">'
-                                                    . (isset($this->translations[$data['secondC_name']][session('app_locale')])
-                                                        ? $this->translations[$data['secondC_name']][session('app_locale')]
-                                                        : $data['secondC_name'])
-                                                . '</h3>'
-                                                : '')
-                                            . ($show_category_third
-                                                ? '<h3 style="font-size:16px;font-weight: bold;margin:0">'
-                                                    . (isset($this->translations[$data['thirdC_name']][session('app_locale')])
-                                                        ? $this->translations[$data['thirdC_name']][session('app_locale')]
-                                                        : $data['thirdC_name'])
-                                                . '</h3>'
-                                                : '')
-                                        . '</div>'
-                                        : '')
-
-                                    // ✅ Ticket Notes
-                                    . (($this->ticket_note_level_first || $this->ticket_note_level_second || $this->ticket_note_level_third)
-                                        ? '<div style="margin-top:10px;">'
-                                            . (!empty($this->ticket_note_level_first)  ? '<p style="font-size:14px;margin:0;">' . $this->ticket_note_level_first  . '</p>' : '')
-                                            . (!empty($this->ticket_note_level_second) ? '<p style="font-size:14px;margin:0;">' . $this->ticket_note_level_second . '</p>' : '')
-                                            . (!empty($this->ticket_note_level_third)  ? '<p style="font-size:14px;margin:0;">' . $this->ticket_note_level_third  . '</p>' : '')
-                                        . '</div>'
-                                        : '')
-
-                                    . ($showTextmessage
-                                        ? '<div><h4 style="font-size:16px;font-weight: bold;margin:0">' . $this->showTicketText . '</h4>
-                                                <h4 style="font-size:16px;font-weight: bold;margin:0">' . $this->showTicketText_2 . '</h4></div>'
-                                        : '')
-
-                                    . ($showQrcode
-                                        ? '<div style="display:flex;justify-content:center;align-items:center;margin-top:10px;">
-                                            <img src="data:image/svg+xml;base64,' . base64_encode($qrcodeSvg) . '" style="width:120px;height:120px;"/>
-                                        </div>'
-                                        : '')
-                                        . (!empty($ticket_image)
-            ? '<div style="display:flex;justify-content:center;align-items:center;margin-top:10px;">
-                   <img src="' . url('/storage/' . $ticket_image) . '" style="max-width:70px;height:70px;"/>
-               </div>'
-            : '')
-
-                                . '</div>',
-                            'confirmButtonText' => $language !== 'en'
-                                ? (isset($this->translations['Confirm Button Label'][$language])
-                                    ? $this->translations['Confirm Button Label'][$language]
-                                    : $this->siteDetails->confirm_btn_label)
-                                : ($this->siteDetails->confirm_btn_label ?? 'Thank you'),
-                            'token_notify' => 'The Generated Token Number is ' . $data['token']
-                        ]);
-
-                        // ✅ Silent print block
-                        if ($this->siteDetails->print_mode === 'silent') {
-                            $html =
-                                ($showlogo
-                                    ? '<div style="text-align:center;display:flex;align-items:center;justify-content:center;">
-                                            <img src="' . asset($logo) . '" style="margin:auto;max-width:160px;width:100%;height:100%;"/>
-                                    </div>'
-                                    : '') .
-                                '<div class="flex flex-col gap-2 text-black-400 pt-5"
-                                    style="line-height:1.24;text-align:center;border:1px solid #ddd;
-                                            padding:12px;border-radius:14px;margin-top:15px;font-family: Simplified Arabic Fixed;">'
-
-                                    . (($showusername && !empty($data['name']))
-                                        ? '<h3 style="font-size:16px;font-weight:bold;margin:0">' . $nameLabel . ': ' . $data['name'] . '</h3>'
-                                        : '')
-
-                                    . ($showToken
-                                        ? '<div><h3 style="font-size:20px;font-weight:bold;margin:0"><strong>' . $tokenLabel . ': ' . $data['token'] . '</strong></h3></div>'
-                                        : '')
-
-                                    . ($showarrived
-                                        ? '<div><h5 style="font-size:16px;font-weight:bold;margin:0">' . $arrivedLabel . ': ' . $data['arrives_time'] . '</h5></div>'
-                                        : '')
-
-                                    . ($showlocation
-                                        ? '<div><h3 style="font-size:16px;font-weight:bold;margin:0">' . $data['location_name'] . '</h3></div>'
-                                        : '')
-
-                                    // ✅ Category levels check
-                                    . ($showcategory
-                                        ? '<div>'
-                                            . ($show_category_first
-                                                ? '<h3 style="font-size:16px;font-weight:bold;margin:0">'
-                                                    . (isset($this->translations[$data['category_name']][session('app_locale')])
-                                                        ? $this->translations[$data['category_name']][session('app_locale')]
-                                                        : $data['category_name'])
-                                                . '</h3>'
-                                                : '')
-                                            . ($show_category_second
-                                                ? '<h3 style="font-size:16px;font-weight:bold;margin:0">'
-                                                    . (isset($this->translations[$data['secondC_name']][session('app_locale')])
-                                                        ? $this->translations[$data['secondC_name']][session('app_locale')]
-                                                        : $data['secondC_name'])
-                                                . '</h3>'
-                                                : '')
-                                            . ($show_category_third
-                                                ? '<h3 style="font-size:16px;font-weight:bold;margin:0">'
-                                                    . (isset($this->translations[$data['thirdC_name']][session('app_locale')])
-                                                        ? $this->translations[$data['thirdC_name']][session('app_locale')]
-                                                        : $data['thirdC_name'])
-                                                . '</h3>'
-                                                : '')
-                                        . '</div>'
-                                        : '')
-
-                                    // ✅ Ticket Notes
-                                    . (($this->ticket_note_level_first || $this->ticket_note_level_second || $this->ticket_note_level_third)
-                                        ? '<div style="margin-top:10px;">'
-                                            . (!empty($this->ticket_note_level_first)  ? '<p style="font-size:14px;font-weight:bold;margin:0;">' . $this->ticket_note_level_first  . '</p>' : '')
-                                            . (!empty($this->ticket_note_level_second) ? '<p style="font-size:14px;font-weight:bold;margin:0;">' . $this->ticket_note_level_second . '</p>' : '')
-                                            . (!empty($this->ticket_note_level_third)  ? '<p style="font-size:14px;font-weight:bold;margin:0;">' . $this->ticket_note_level_third  . '</p>' : '')
-                                        . '</div>'
-                                        : '')
-
-                                    . ($showTextmessage
-                                        ? '<div><h4 style="font-size:16px;font-weight:bold;margin:0">' . $this->showTicketText . '</h4>
-                                                <h4 style="font-size:16px;font-weight:bold;margin:0">' . $this->showTicketText_2 . '</h4></div>'
-                                        : '')
-
-                                    . ($showQrcode
-                                        ? '<div style="display:flex;justify-content:center;align-items:center;margin-top:10px;">
-                                            <img src="data:image/svg+xml;base64,' . base64_encode($qrcodeSvg) . '" style="width:120px;height:120px;"/>
-                                        </div>'
-                                        : '')
-                                        . (!empty($ticket_image)
-            ? '<div style="display:flex;justify-content:center;align-items:center;margin-top:10px;">
-                   <img src="' . url('/storage/' . $ticket_image) . '" style="max-width:70px;height:70px;"/>
-               </div>'
-            : '')
-
-                                . '</div>';
-
-                            $this->dispatch('silent-print', html: $html);
-                        }
+                // ✅ Silent print block
+                if ($this->siteDetails->print_mode === 'silent') {
+                    $html = $this->generateTicketHtml($data, $printSettings);
+                    $this->dispatch('silent-print', html: $html);
+                }
 
                 ActivityLog::storeLog($this->teamId, $this->userAuth->id ?? null, null, null, 'Ticket Generate',  $this->location, ActivityLog::QUEUE, null, $this->userAuth ?? null);
 
-                    $this->resetForm();
+                $this->resetForm();
 
-                      if( $this->country_phone_mode != 1 && count($this->allowed_Countries) >0){
-                        $this->phone_code = $this->allowed_Countries[0]->phone_code;
-                    }
-                    DB::commit();
+                if ($this->country_phone_mode != 1 && count($this->allowed_Countries) > 0) {
+                    $this->phone_code = $this->allowed_Countries[0]->phone_code;
+                }
+                DB::commit();
 
-            return;
-
-
+                return;
             }
 
             ActivityLog::storeLog($this->teamId, $this->userAuth->id ?? null, null, null, 'Ticket Generate',  $this->location, ActivityLog::QUEUE, null, $this->userAuth ?? null);
 
             $this->resetForm();
-              if( $this->country_phone_mode != 1 && count($this->allowed_Countries) >0){
-            $this->phone_code = $this->allowed_Countries[0]->phone_code;
-        }
+            if ($this->country_phone_mode != 1 && count($this->allowed_Countries) > 0) {
+                $this->phone_code = $this->allowed_Countries[0]->phone_code;
+            }
 
             DB::commit();
-           if ($this->isMobile) {
+            if ($this->isMobile) {
                 $this->redirect('/visits/' . base64_encode($queueCreated->id));
             }
-          if (!$this->isMobile && $this->siteDetails->is_redirect_print_page == SiteDetail::STATUS_YES && !$this->disable_print &&  $this->siteDetails->print_mode == 'default') {
+            if (!$this->isMobile && $this->siteDetails->is_redirect_print_page == SiteDetail::STATUS_YES && !$this->disable_print &&  $this->siteDetails->print_mode == 'default') {
 
-                 $this->redirect('/ticket-print/' . base64_encode($queueStorage->id));
+                $this->redirect('/ticket-print/' . base64_encode($queueStorage->id));
             }
-
-
         } catch (\Throwable $ex) {
 
             DB::rollback();
@@ -1492,7 +1069,7 @@ class Queue extends Component
             ]);
         }
     }
-     public function saveQueueFormDepartment()
+    public function saveQueueFormDepartment()
     {
 
         if (!empty($this->dynamicProperties)) {
@@ -1503,189 +1080,87 @@ class Queue extends Component
 
         // try {
 
-             DB::beginTransaction();
+        DB::beginTransaction();
 
-              $selected = json_decode($this->categoryGroupData->grouping_data, true) ?? [];
+        $selected = json_decode($this->categoryGroupData->grouping_data, true) ?? [];
 
-              if(empty($selected)){
-                 $this->dispatch('swal:ticket-generate', [
-                        'title' => 'Oops...',
-                        'text' => 'Workflow department is not set',
-                        'icon' => 'error'
-                    ]);
-                    return;
-              }
-
-              uasort($selected, function ($a, $b) {
-    return $a['priority'] <=> $b['priority'];
-});
-
-
-            $this->dispatch('queue:refresh');
-
-            $newToken = $lastToken = '';
-            $formattedFields = [];
-            $assigned_staff_id = null;
-            foreach ($this->dynamicProperties as $key => $value) {
-                $trimmedKey = trim($key);
-                $fieldName = preg_replace('/_\d+/', '', $trimmedKey);
-                $fieldName = strtolower($fieldName); // normalize to lowercase
-                $formattedFields[$fieldName] = $value;
-            }
-
-            $this->name = $formattedFields['name'] ?? null;
-
-            $possiblePhoneKeys = FormField::possiblePhoneKeys();
-           $this->phone = null;
-
-            foreach ($possiblePhoneKeys as $key) {
-                if (isset($formattedFields[$key]) && !empty($formattedFields[$key])) {
-                    $this->phone = $formattedFields[$key];
-                    $formattedFields[$key] = ('+'.$this->phone_code ?? '+91').$formattedFields[$key];
-                    break;
-                }
-            }
-            $this->email = isset($formattedFields['email']) ? $formattedFields['email'] : (isset($formattedFields['Email']) ? $formattedFields['Email'] : null);
-
-            $jsonDynamicData = json_encode($formattedFields);
-
-            // if (!empty($this->selectedCategoryId)) {
-            //     $this->acronym = Category::viewAcronym($this->selectedCategoryId);
-            // } else {
-            //     $this->acronym = SiteDetail::DEFAULT_WALKIN_A;
-            // }
-
-              if((int)$this->acronym_level == 1 && !empty($this->selectedCategoryId)){
-                $this->acronym = Category::viewAcronym($this->selectedCategoryId);
-            }elseif((int)$this->acronym_level == 2 && !empty($this->secondChildId)){
-                $this->acronym = Category::viewAcronym($this->secondChildId);
-            }elseif((int)$this->acronym_level == 3 && !empty($this->thirdChildId)){
-                $this->acronym = Category::viewAcronym($this->thirdChildId);
-            }else {
-                $this->acronym = SiteDetail::DEFAULT_WALKIN_A;
-            }
-
-              $lastcategory = $this->selectedCategoryId;
-
-            $lastToken = QueueDB::getLastToken($this->teamId, $this->acronym, $this->location,$lastcategory);
-
-            $token_digit = $this->siteDetails?->token_digit ?? 4;  //4
-            $isExistToken = true;
-
-            while ($isExistToken) {
-                $newToken = QueueDB::newGeneratedToken($lastToken, $this->siteDetails?->token_start, $token_digit);
-
-                if (strlen($newToken) > $token_digit) {
-                    $this->dispatch('swal:ticket-generate', [
-                        'title' => 'Oops...',
-                        'text' => 'Unable to create more tickets',
-                        'icon' => 'error'
-                    ]);
-                    return;
-                }
-
-                $isExistToken = QueueDB::checkToken($this->teamId, $this->acronym, $newToken, $this->location);
-
-                if ($isExistToken) {
-                    $lastToken = $newToken;
-                } else {
-                    $this->token_start = $newToken;
-                    $isExistToken = false;
-                }
-            }
-
-
-
-
-
-            $timezone = $this->siteData->select_timezone ?? 'UTC';
-            Config::set('app.timezone', $timezone);
-            date_default_timezone_set($timezone);
-
-            if (!empty($this->utm_source) && !empty($this->utm_medium) && !empty($this->utm_campaign)) {
-                $getCampaign = MetaAdsAndCampaignsLink::where('source', $this->utm_source)->where('medium', $this->utm_medium)->where('campaign', $this->utm_campaign)->first();
-
-                $campaignId = $getCampaign->id;
-            }
-
-            $decodedJson = json_decode($jsonDynamicData, true);
-
-            $todayDateTime = Carbon::now($timezone);
-
-                $is_virtual_meeting =0;
-                // if($this->enableVirtual){
-                if (isset($decodedJson['type']) && $decodedJson['type'] === 'Virtual') {
-                $is_virtual_meeting =1;
-                }
-
-
-
-            $queueCreated = QueueDB::storeQueue([
-                'team_id' => (int) $this->teamId, // Cast to integer
-                'token' => (string) $this->token_start, // Ensure it's a string
-                'start_acronym' => (string) $this->acronym, // Ensure it's a string
-                'token_with_acronym' => $this->booking_setting == QueueDB::STATUS_NO
-                    ? QueueDB::LABEL_YES
-                    : QueueDB::LABEL_NO, // Conditional assignment
-                'locations_id' => (int) $this->location, // Cast to integer
-                'arrives_time' => $todayDateTime, // Ensure valid datetime format
-                'last_category' => $lastcategory, // Ensure valid datetime format
+        if (empty($selected)) {
+            $this->dispatch('swal:ticket-generate', [
+                'title' => 'Oops...',
+                'text' => 'Workflow department is not set',
+                'icon' => 'error'
             ]);
+            return;
+        }
 
-            $called_first =true;
-
-            foreach($selected as $catkey=>$queuestore){
-
-                $called ='no';
-                 $nextPrioritySort = (int)$queuestore['priority'];
-                 $assigned_staff_id = (int)$queuestore['staff'];
-                 $counter_id = (int)$queuestore['counter'];
-                 $this->secondChildId = (int)$catkey;
-                 if($called_first){
-                    $called ='yes';
-                 }
-
-                 $called_first =false;
-                  $storeData = [
-                'name' => $this->name,
-                'phone' => $this->phone,
-                'ticket_mode' => $this->isMobile ? QueueDB::TICKET_MODE_MOBILE : QueueDB::TICKET_MODE_Walk_IN,
-                'is_virtual_meeting' =>$is_virtual_meeting,
-                'phone_code' => $this->phone_code ?? '91',
-                'category_id' => $this->selectedCategoryId ?? null,
-                'sub_category_id' => $this->secondChildId ?? null,
-                'child_category_id' => null,
-                'team_id' => (int)$this->teamId,
-                'token' => $this->token_start,
-                'token_with_acronym' => $this->booking_setting == QueueDB::STATUS_NO ? QueueDB::LABEL_YES : QueueDB::LABEL_NO,
-                'json' => $jsonDynamicData,
-                'arrives_time' => $todayDateTime,
-                'datetime' => $todayDateTime,
-                'start_acronym' => $this->acronym,
-                'locations_id' => (int)$this->location,
-                'priority_sort' => $nextPrioritySort ?? 0,
-                'campaign_id' => isset($campaignId) ? $campaignId : null,
-                'mode' => $this->isMobile ? 'mobile' : 'web',
-                'senior_citizen' => $seniorCitiizen ?? 'No',
-                'counter_id' => $counter_id,
-                'called' => $called,
-                 'full_phone_number' => (!empty($this->phone_code) && !empty($this->phone))
-                                        ? $this->phone_code . $this->phone
-                                        : null,
-            ];
+        uasort($selected, function ($a, $b) {
+            return $a['priority'] <=> $b['priority'];
+        });
 
 
-           if (isset($decodedJson['type']) && $decodedJson['type'] === 'Virtual')
-            {
-                $room = 'room_' . base64_encode($queueCreated->id);
-                $queueId = base64_encode($queueCreated->id);
+        $this->dispatch('queue:refresh');
 
-                $storeData['meeting_link'] = url("meeting/{$room}/{$queueId}");
+        $newToken = $lastToken = '';
+        $dynamicData = $this->processDynamicFields();
+        $formattedFields = $dynamicData['formattedFields'];
+        $jsonDynamicData = $dynamicData['jsonDynamicData'];
+        $assigned_staff_id = $dynamicData['assigned_staff_id'];
+
+        // if (!empty($this->selectedCategoryId)) {
+        //     $this->acronym = Category::viewAcronym($this->selectedCategoryId);
+        // } else {
+        //     $this->acronym = SiteDetail::DEFAULT_WALKIN_A;
+        // }
+
+        $tokenData = $this->generateTokenAndAcronym($this->selectedCategoryId);
+        if ($tokenData === false) return;
+        $lastcategory = $tokenData['last_category'];
+
+
+
+
+
+        $envData = $this->setupEnvironmentAndData($jsonDynamicData);
+        $todayDateTime = $envData['todayDateTime'];
+        $campaignId = $envData['campaignId'];
+        $is_virtual_meeting = $envData['is_virtual_meeting'];
+        $decodedJson = $envData['decodedJson'];
+
+
+
+        $queueCreated = QueueDB::storeQueue([
+            'team_id' => (int) $this->teamId, // Cast to integer
+            'token' => (string) $this->token_start, // Ensure it's a string
+            'start_acronym' => (string) $this->acronym, // Ensure it's a string
+            'token_with_acronym' => $this->booking_setting == QueueDB::STATUS_NO
+                ? QueueDB::LABEL_YES
+                : QueueDB::LABEL_NO, // Conditional assignment
+            'locations_id' => (int) $this->location, // Cast to integer
+            'arrives_time' => $todayDateTime, // Ensure valid datetime format
+            'last_category' => $lastcategory, // Ensure valid datetime format
+        ]);
+
+        $called_first = true;
+
+        foreach ($selected as $catkey => $queuestore) {
+
+            $called = 'no';
+            $nextPrioritySort = (int)$queuestore['priority'];
+            $assigned_staff_id = (int)$queuestore['staff'];
+            $counter_id = (int)$queuestore['counter'];
+            $this->secondChildId = (int)$catkey;
+            if ($called_first) {
+                $called = 'yes';
             }
-            else
-            {
-                $storeData['meeting_link'] = null;
-            }
+
+            $called_first = false;
+            $storeData = $this->prepareStoreData($is_virtual_meeting, $jsonDynamicData, $todayDateTime, $campaignId, $nextPrioritySort, $seniorCitiizen ?? 'No');
+            $storeData['child_category_id'] = null;
+            $storeData['counter_id'] = $counter_id;
+            $storeData['called'] = $called;
+
+
+            $storeData['meeting_link'] = $this->generateMeetingLink($decodedJson, $queueCreated->id);
 
             $queueStorage =  QueueStorage::storeQueue(array_merge($storeData, ['queue_id' => $queueCreated->id]));
 
@@ -1701,148 +1176,53 @@ class Queue extends Component
                 $this->counterID  = 0;
 
 
-             $pendingwaiting = $pendingCount = 0;
-
-
-           if ($this->siteDetails->category_estimated_time == SiteDetail::STATUS_YES) {
-
-
-                if($this->siteDetails->estimate_time_mode == 1){ //check pending according to service and staff availablilty
-                  $estimatedetail = QueueStorage::countPendingByCategorywithstaff($this->teamId, $queueStorage->id, $this->countCatID, $this->fieldCatName, '', $this->location);
-                    if ($estimatedetail == false) {
-                        $pendingCount = QueueStorage::countPending($this->teamId, $queueStorage->id, $this->countCatID, $this->fieldCatName, '', $this->location);
-                    } else {
-                        $pendingCount = $estimatedetail['customers_before_me'] ?? 0;
-                        $pendingwaiting = $estimatedetail['estimated_wait_time'] ?? 0;
-                        if($this->enablePriority == false){
-                            $assigned_staff_id = $estimatedetail['assigned_staff_id'] ?? null;
-                        }
-                    }
-                }elseif($this->siteDetails->estimate_time_mode == 2){ //check pending according to service only
-                        if($this->siteDetails->count_all_services == 2){
-                            $estimatedetail = QueueStorage::countAllPendingQueues($this->teamId, $queueStorage->id, $this->countCatID,$this->location);
-                            $pendingCount = $estimatedetail['customers_before_me'] ?? 0;
-                        }else{
-                            $estimatedetail = QueueStorage::countPendingByCategory($this->teamId, $queueStorage->id, $this->countCatID, $this->fieldCatName,$this->location);
-                            $pendingCount = $estimatedetail['customers_before_me'] ?? 0;
-                            $pendingwaiting = $estimatedetail['estimated_wait_time'] ?? 0;
-                        }
-
-                }else{
-                    //  $serviceTime = $this->siteDetails->estimate_time ?? 0;
-                    $estimatedetail = QueueStorage::countPendingByStaff($this->teamId, $queueStorage->id,$this->countCatID,$this->location);
-                      if ($estimatedetail == false) {
-                          $pendingCount = 0;
-                        } else {
-                            $pendingCount = $estimatedetail['customers_before_me'] ?? 0;
-                            $pendingwaiting = $estimatedetail['estimated_wait_time'] ?? 0;
-                            if($this->enablePriority == false){
-                                $assigned_staff_id = $estimatedetail['assigned_staff_id'] ?? null;
-                            }
-                        }
-                }
-
-            } else {
-
-                $pendingCountget = (int)QueueStorage::countPending($this->teamId, $queueStorage->id, '', '', '', $this->location);
-                $counterCount = Counter::where('team_id',$this->teamId)->whereJsonContains('counter_locations', "$this->location")->where('show_checkbox',1)->count();
-                if((int)$pendingCountget > 0 && (int)$counterCount > 0){
-                        $pendingCount = floor((int)$pendingCountget / (int)$counterCount);
-
-                    }
-
+            $metrics = $this->calculatePendingMetrics($queueStorage->id);
+            $pendingCount = $metrics['pendingCount'];
+            $pendingwaiting = $metrics['pendingwaiting'];
+            if ($this->enablePriority == false && empty($assigned_staff_id)) {
+                $assigned_staff_id = $metrics['assigned_staff_id'];
             }
 
-            $dateformat = AccountSetting::showDateTimeFormat();
-            $data = [
-                'name' => $queueStorage->name,
-                'phone' => $queueStorage->phone,
-                'phone_code' => $queueStorage->phone_code ?? '91',
-                'queue_no' => $queueCreated->id,
-                'queue_storage_id' => $queueStorage->id,
-                'arrives_time' => Carbon::parse($queueCreated->created_at)->format($dateformat),
-                'category_name' => $this->categoryName,
-                'thirdC_name' => $this->thirdCategoryName,
-                'secondC_name' => $this->secondCategoryName,
-                'pending_count' => $pendingCount,
-                'token' => $queueCreated->start_acronym . $queueCreated->token,
-                'token_with_acronym' => $queueCreated->start_acronym,
-                'to_mail' => $this->email ?? '',
-                'locations_id' => $this->location,
-                'location_name' => $this->locationName,
-                'priority_sort' => $nextPrioritySort ?? 0,
-            ];
+            $data = $this->prepareResponseData($queueStorage, $queueCreated, $pendingCount, $nextPrioritySort, $queueCreated->created_at);
 
 
-              $language = session('app_locale');
-
-            $showQrcode = $this->siteDetails->is_qrcode_ticket == 1 ? true : false;
-            $showlogo = $this->siteDetails->is_logo_on_print == 1 ? true : false;
-            $showusername = $this->siteDetails->is_name_on_print == 1 ? true : false;
-            $showarrived = $this->siteDetails->is_arrived_on_print == 1 ? true : false;
-            $showlocation = $this->siteDetails->is_location_on_print == 1 ? true : false;
-            $showcategory = $this->siteDetails->is_category_on_print == 1 ? true : false;
-            $showTextmessage = $this->siteDetails->ticket_text_enable == 1 ? true : false;
-            $showToken = $this->siteDetails->is_token_on_print == 1 ? true : false;
-             $show_category_first = $this->siteDetails->show_category_first == 1 ? true : false;
-            $show_category_second = $this->siteDetails->show_category_second == 1 ? true : false;
-            $show_category_third = $this->siteDetails->show_category_third == 1 ? true : false;
-            $ticket_image = $this->siteDetails->ticket_image ?? '';
-
-            if ($language !== 'en') {
-                $nameLabel = isset($this->translations['Print Name Label'][$language]) ? $this->translations['Print Name Label'][$language] : ($this->siteDetails->print_name_label ?? 'Name');
-                $tokenLabel = isset($this->translations['Print Token Label'][$language]) ? $this->translations['Print Token Label'][$language] : ($this->siteDetails->print_token_label ?? 'Token');
-                $arrivedLabel = isset($this->translations['Arrived Time Label'][$language]) ? $this->translations['Arrived Time Label'][$language] : ($this->siteDetails->arrived_time_label ?? 'Arrived');
-            } else {
-                $nameLabel = $this->siteDetails->print_name_label ?? 'Name';
-                $tokenLabel = $this->siteDetails->print_token_label ?? 'Token';
-                $arrivedLabel = $this->siteDetails->arrived_time_label ?? 'Arrived';
-            }
-
-            $baseencodeQueueId = base64_encode($queueCreated->id);
-            $customUrl = url("/visits/{$baseencodeQueueId}");
-            $qrcodeSvg = QrCode::format('svg')
-                ->size(150)
-                ->errorCorrection('H')
-                ->generate($customUrl);
-
-
-
-            $logo =  SiteDetail::viewImage(SiteDetail::FIELD_LOGO_PRINT_TICKET, $this->teamId, $this->location);
+            $printSettings = $this->preparePrintSettings($queueCreated);
+            extract($printSettings);
 
             $waitingTime = 0;
 
             $estimate_time = $this->siteDetails->estimate_time ?? 0;
             if (!empty($this->siteDetails)) {
- if($this->siteDetails->estimate_time_mode == 2 && $this->siteDetails->count_all_services == 2){ //check pending according to service only
+                if ($this->siteDetails->estimate_time_mode == 2 && $this->siteDetails->count_all_services == 2) { //check pending according to service only
                     $waitingTime =  $estimate_time * $data['pending_count'];
-                   }else{
-                       $waitingTime =  $pendingwaiting ?? $estimate_time * $data['pending_count'];
-                   }
-                } else {  // get esitmate time of globally set
-                    $waitingTime =  $estimate_time * $data['pending_count'];
+                } else {
+                    $waitingTime =  $pendingwaiting ?? $estimate_time * $data['pending_count'];
                 }
-                if ($this->siteDetails->ticket_text_enable == SiteDetail::STATUS_YES) {
+            } else {  // get esitmate time of globally set
+                $waitingTime =  $estimate_time * $data['pending_count'];
+            }
+            if ($this->siteDetails->ticket_text_enable == SiteDetail::STATUS_YES) {
 
-                    if (!empty($this->siteDetails->ticket_text_2)) {
-                        if ($language !== 'en' && isset($this->translations['Ticket Message 1'][$language])) {
-                            $text = str_replace('{{QUEUE COUNT}}', $data['pending_count'], $this->translations['Ticket Message 1'][$language]);
-                            $this->showTicketText_2 = str_replace('{{Waiting Time}}', $waitingTime, $text);
-                        } else {
-                            $text = str_replace('{{QUEUE COUNT}}', $data['pending_count'], $this->siteDetails->ticket_text_2);                         $this->showTicketText_2 = str_replace('{{Waiting Time}}', $waitingTime, $text);
-                        }
-                    }
-                    if (!empty($this->siteDetails->ticket_text)) {
-
-                        if ($language !== 'en' && isset($this->translations['Ticket Message 2'][$language])) {
-                            $text = str_replace('{{QUEUE COUNT}}', $data['pending_count'], $this->translations['Ticket Message 2'][$language]);
-                            $this->showTicketText = str_replace('{{Waiting Time}}', $waitingTime, $text);
-                        } else {
-                            $text = str_replace('{{QUEUE COUNT}}', $data['pending_count'], $this->siteDetails->ticket_text);
-                            $this->showTicketText = str_replace('{{Waiting Time}}', $waitingTime, $text);
-                        }
+                if (!empty($this->siteDetails->ticket_text_2)) {
+                    if ($language !== 'en' && isset($this->translations['Ticket Message 1'][$language])) {
+                        $text = str_replace('{{QUEUE COUNT}}', $data['pending_count'], $this->translations['Ticket Message 1'][$language]);
+                        $this->showTicketText_2 = str_replace('{{Waiting Time}}', $waitingTime, $text);
+                    } else {
+                        $text = str_replace('{{QUEUE COUNT}}', $data['pending_count'], $this->siteDetails->ticket_text_2);
+                        $this->showTicketText_2 = str_replace('{{Waiting Time}}', $waitingTime, $text);
                     }
                 }
+                if (!empty($this->siteDetails->ticket_text)) {
+
+                    if ($language !== 'en' && isset($this->translations['Ticket Message 2'][$language])) {
+                        $text = str_replace('{{QUEUE COUNT}}', $data['pending_count'], $this->translations['Ticket Message 2'][$language]);
+                        $this->showTicketText = str_replace('{{Waiting Time}}', $waitingTime, $text);
+                    } else {
+                        $text = str_replace('{{QUEUE COUNT}}', $data['pending_count'], $this->siteDetails->ticket_text);
+                        $this->showTicketText = str_replace('{{Waiting Time}}', $waitingTime, $text);
+                    }
+                }
+            }
 
             $queueStorage->waiting_time = $waitingTime;
             $queueStorage->assign_staff_id = $assigned_staff_id ?? null;
@@ -1851,288 +1231,52 @@ class Queue extends Component
 
 
 
-             $data = array_merge($data, ['waiting_time' => $waitingTime,'ticket_link' => $customUrl]);
+            $data = array_merge($data, ['waiting_time' => $waitingTime, 'ticket_link' => $customUrl]);
 
             $data['meeting_link'] = $storeData['meeting_link'];
 
             //store customer data and activity log
 
-            if (!empty($this->phone)) {
-                $existingCustomer = Customer::where('phone', "$this->phone")
-                    ->where('team_id', $this->teamId)
-                    ->where('location_id', $this->location)
-                    ->first();
+            $result = $this->handleCustomerAndLogging($queueStorage, $queueCreated, $jsonDynamicData, $data);
+            $data = $result['data'];
+            $logData = $result['logData'];
 
-                // Create customer if not exists
-                if (empty($existingCustomer)) {
-                    $existingCustomer = Customer::create([
-                        'team_id' => $this->teamId,
-                        'location_id' => $this->location,
-                        'name' => $this->name ?? null,
-                        'phone' => $this->phone,
-                        'json_data' => $jsonDynamicData, // casted automatically to JSON
-                    ]);
-                }
+            ActivityLog::storeLog($this->teamId, $this->userAuth->id ?? null, null, null, 'Ticket Generate',  $this->location, ActivityLog::QUEUE, null, $this->userAuth ?? null);
 
-                // Log customer activity with type 'queue'
-                CustomerActivityLog::create([
-                    'team_id' => $this->teamId,
-                    'location_id' => $this->location,
-                    'queue_id' => $queueStorage->id,
-                    'booking_id' => null,
-                    'type' => 'queue',
-                    'customer_id' => $existingCustomer->id,
-                    'note' => 'Customer joined the queue.',
-                ]);
 
-                $queueStorage->created_by = $existingCustomer->id;
-                $queueStorage->save();
+            DB::commit();
+        }
+        $this->resetForm();
+        QueueCreated::dispatch($queueStorage);
+        QueueDisplay::dispatch($queueStorage);
 
-                $data['customer_id'] = $existingCustomer->id;
 
+
+        if (!$this->isMobile && $this->siteDetails->is_redirect_print_page == SiteDetail::STATUS_YES && !$this->disable_print) {
+
+            $this->redirect('/ticket-print/' . base64_encode($queueStorage->id));
+        }
+
+        if (!$this->isMobile && $this->siteDetails->is_redirect_print_page == SiteDetail::STATUS_NO) {
+
+            $this->dispatch('swal:saved-queue', [
+                'timer' => 8000,
+                'disable_print' => $this->disable_print,
+                'html' => $this->generateTicketHtml($data, $printSettings),
+                'confirmButtonText' => $language !== 'en'
+                    ? (isset($this->translations['Confirm Button Label'][$language])
+                        ? $this->translations['Confirm Button Label'][$language]
+                        : $this->siteDetails->confirm_btn_label)
+                    : ($this->siteDetails->confirm_btn_label ?? 'Thank you'),
+                'token_notify' => 'The Generated Token Number is ' . $data['token']
+            ]);
+
+            // ✅ Silent print block
+            if ($this->siteDetails->print_mode === 'silent') {
+                $html = $this->generateTicketHtml($data, $printSettings);
+                $this->dispatch('silent-print', html: $html);
             }
-
-            $data['ticket_link'] = url('/visits/' . base64_encode($queueCreated->id));
-
-            $logData = [
-                'team_id' => $this->teamId,
-                'location_id' => $this->location,
-                'user_id' => $queueStorage->served_by,
-                'customer_id' => $queueStorage->created_by,
-                'queue_id' => $queueStorage->queue_id,
-                'queue_storage_id' => $queueStorage->id,
-                'email' => $this->email,
-                'contact' => $this->phone,
-                'type' => MessageDetail::TRIGGERED_TYPE,
-                'event_name' => 'Ticket Generate',
-            ];
-
-            // $this->sendNotification($data, 'ticket created', $logData);
-            // if(!empty($storeData['meeting_link']))
-            // {
-                //     $this->sendNotification($data, 'virtual meeting', $logData);
-                // }
-
-                ActivityLog::storeLog($this->teamId, $this->userAuth->id ?? null, null, null, 'Ticket Generate',  $this->location, ActivityLog::QUEUE, null, $this->userAuth ?? null);
-
-
-                DB::commit();
-
-            }
-            $this->resetForm();
-            QueueCreated::dispatch($queueStorage);
-            QueueDisplay::dispatch($queueStorage);
-
-
-
-          if (!$this->isMobile && $this->siteDetails->is_redirect_print_page == SiteDetail::STATUS_YES && !$this->disable_print) {
-
-                 $this->redirect('/ticket-print/' . base64_encode($queueStorage->id));
-            }
-
-             if (!$this->isMobile && $this->siteDetails->is_redirect_print_page == SiteDetail::STATUS_NO) {
-
-    $this->dispatch('swal:saved-queue', [
-                            'timer' => 8000,
-                            'disable_print' => $this->disable_print,
-                            'html' =>
-                                ($showlogo
-                                    ? '<div style="text-align:center;display:flex;align-items:center;justify-content:center;">
-                                            <img src="' . asset($logo) . '" style="margin:auto;max-width:160px;width:100%;height:100%;"/>
-                                    </div>'
-                                    : '') .
-                                '<div class="flex flex-col gap-2 text-black-400 pt-5"
-                                    style="line-height:1.24;text-align:center;border:1px solid #ddd;
-                                            padding:12px;border-radius:14px;margin-top:15px;font-family: Simplified Arabic Fixed;">'
-
-                                    . (($showusername && !empty($data['name']))
-                                        ? '<h3 style="font-size:16px;font-weight: bold;margin:0">' . $nameLabel . ': ' . $data['name'] . '</h3>'
-                                        : '')
-
-                                    . ($showToken
-                                        ? '<div><h3 style="font-size:20px;font-weight: bold;margin:0"><strong>' . $tokenLabel . ': ' . $data['token'] . '</strong></h3></div>'
-                                        : '')
-
-                                    . ($showarrived
-                                        ? '<div><h5 style="font-size:16px;font-weight: bold;margin:0">' . $arrivedLabel . ': ' . $data['arrives_time'] . '</h5></div>'
-                                        : '')
-
-                                    . ($showlocation
-                                        ? '<div><h3 style="font-size:16px;font-weight: bold;margin:0">' . $data['location_name'] . '</h3></div>'
-                                        : '')
-
-                                    // ✅ Category levels check
-                                    . ($showcategory
-                                        ? '<div>'
-                                            . ($show_category_first
-                                                ? '<h3 style="font-size:16px;font-weight: bold;margin:0">'
-                                                    . (isset($this->translations[$data['category_name']][session('app_locale')])
-                                                        ? $this->translations[$data['category_name']][session('app_locale')]
-                                                        : $data['category_name'])
-                                                . '</h3>'
-                                                : '')
-                                            . ($show_category_second
-                                                ? '<h3 style="font-size:16px;font-weight: bold;margin:0">'
-                                                    . (isset($this->translations[$data['secondC_name']][session('app_locale')])
-                                                        ? $this->translations[$data['secondC_name']][session('app_locale')]
-                                                        : $data['secondC_name'])
-                                                . '</h3>'
-                                                : '')
-                                            . ($show_category_third
-                                                ? '<h3 style="font-size:16px;font-weight: bold;margin:0">'
-                                                    . (isset($this->translations[$data['thirdC_name']][session('app_locale')])
-                                                        ? $this->translations[$data['thirdC_name']][session('app_locale')]
-                                                        : $data['thirdC_name'])
-                                                . '</h3>'
-                                                : '')
-                                        . '</div>'
-                                        : '')
-
-                                    // ✅ Ticket Notes
-                                    . (($this->ticket_note_level_first || $this->ticket_note_level_second || $this->ticket_note_level_third)
-                                        ? '<div style="margin-top:10px;">'
-                                            . (!empty($this->ticket_note_level_first)  ? '<p style="font-size:14px;margin:0;">' . $this->ticket_note_level_first  . '</p>' : '')
-                                            . (!empty($this->ticket_note_level_second) ? '<p style="font-size:14px;margin:0;">' . $this->ticket_note_level_second . '</p>' : '')
-                                            . (!empty($this->ticket_note_level_third)  ? '<p style="font-size:14px;margin:0;">' . $this->ticket_note_level_third  . '</p>' : '')
-                                        . '</div>'
-                                        : '')
-
-                                    . ($showTextmessage
-                                        ? '<div><h4 style="font-size:16px;font-weight: bold;margin:0">' . $this->showTicketText . '</h4>
-                                                <h4 style="font-size:16px;font-weight: bold;margin:0">' . $this->showTicketText_2 . '</h4></div>'
-                                        : '')
-
-                                    . ($showQrcode
-                                        ? '<div style="display:flex;justify-content:center;align-items:center;margin-top:10px;">
-                                            <img src="data:image/svg+xml;base64,' . base64_encode($qrcodeSvg) . '" style="width:120px;height:120px;"/>
-                                        </div>'
-                                        : '')
-                                        . (!empty($ticket_image)
-            ? '<div style="display:flex;justify-content:center;align-items:center;margin-top:10px;">
-                   <img src="' . url('/storage/' . $ticket_image) . '" style="max-width:70px;height:70px;"/>
-               </div>'
-            : '')
-
-                                . '</div>',
-                            'confirmButtonText' => $language !== 'en'
-                                ? (isset($this->translations['Confirm Button Label'][$language])
-                                    ? $this->translations['Confirm Button Label'][$language]
-                                    : $this->siteDetails->confirm_btn_label)
-                                : ($this->siteDetails->confirm_btn_label ?? 'Thank you'),
-                            'token_notify' => 'The Generated Token Number is ' . $data['token']
-                        ]);
-
-                        // ✅ Silent print block
-                        if ($this->siteDetails->print_mode === 'silent') {
-                            $html =
-                                ($showlogo
-                                    ? '<div style="text-align:center;display:flex;align-items:center;justify-content:center;">
-                                            <img src="' . asset($logo) . '" style="margin:auto;max-width:160px;width:100%;height:100%;"/>
-                                    </div>'
-                                    : '') .
-                                '<div class="flex flex-col gap-2 text-black-400 pt-5"
-                                    style="line-height:1.24;text-align:center;border:1px solid #ddd;
-                                            padding:12px;border-radius:14px;margin-top:15px;font-family: Simplified Arabic Fixed;">'
-
-                                    . (($showusername && !empty($data['name']))
-                                        ? '<h3 style="font-size:16px;font-weight:bold;margin:0">' . $nameLabel . ': ' . $data['name'] . '</h3>'
-                                        : '')
-
-                                    . ($showToken
-                                        ? '<div><h3 style="font-size:20px;font-weight:bold;margin:0"><strong>' . $tokenLabel . ': ' . $data['token'] . '</strong></h3></div>'
-                                        : '')
-
-                                    . ($showarrived
-                                        ? '<div><h5 style="font-size:16px;font-weight:bold;margin:0">' . $arrivedLabel . ': ' . $data['arrives_time'] . '</h5></div>'
-                                        : '')
-
-                                    . ($showlocation
-                                        ? '<div><h3 style="font-size:16px;font-weight:bold;margin:0">' . $data['location_name'] . '</h3></div>'
-                                        : '')
-
-                                    // ✅ Category levels check
-                                    . ($showcategory
-                                        ? '<div>'
-                                            . ($show_category_first
-                                                ? '<h3 style="font-size:16px;font-weight:bold;margin:0">'
-                                                    . (isset($this->translations[$data['category_name']][session('app_locale')])
-                                                        ? $this->translations[$data['category_name']][session('app_locale')]
-                                                        : $data['category_name'])
-                                                . '</h3>'
-                                                : '')
-                                            . ($show_category_second
-                                                ? '<h3 style="font-size:16px;font-weight:bold;margin:0">'
-                                                    . (isset($this->translations[$data['secondC_name']][session('app_locale')])
-                                                        ? $this->translations[$data['secondC_name']][session('app_locale')]
-                                                        : $data['secondC_name'])
-                                                . '</h3>'
-                                                : '')
-                                            . ($show_category_third
-                                                ? '<h3 style="font-size:16px;font-weight:bold;margin:0">'
-                                                    . (isset($this->translations[$data['thirdC_name']][session('app_locale')])
-                                                        ? $this->translations[$data['thirdC_name']][session('app_locale')]
-                                                        : $data['thirdC_name'])
-                                                . '</h3>'
-                                                : '')
-                                        . '</div>'
-                                        : '')
-
-                                    // ✅ Ticket Notes
-                                    . (($this->ticket_note_level_first || $this->ticket_note_level_second || $this->ticket_note_level_third)
-                                        ? '<div style="margin-top:10px;">'
-                                            . (!empty($this->ticket_note_level_first)  ? '<p style="font-size:14px;font-weight:bold;margin:0;">' . $this->ticket_note_level_first  . '</p>' : '')
-                                            . (!empty($this->ticket_note_level_second) ? '<p style="font-size:14px;font-weight:bold;margin:0;">' . $this->ticket_note_level_second . '</p>' : '')
-                                            . (!empty($this->ticket_note_level_third)  ? '<p style="font-size:14px;font-weight:bold;margin:0;">' . $this->ticket_note_level_third  . '</p>' : '')
-                                        . '</div>'
-                                        : '')
-
-                                    . ($showTextmessage
-                                        ? '<div><h4 style="font-size:16px;font-weight:bold;margin:0">' . $this->showTicketText . '</h4>
-                                                <h4 style="font-size:16px;font-weight:bold;margin:0">' . $this->showTicketText_2 . '</h4></div>'
-                                        : '')
-
-                                    . ($showQrcode
-                                        ? '<div style="display:flex;justify-content:center;align-items:center;margin-top:10px;">
-                                            <img src="data:image/svg+xml;base64,' . base64_encode($qrcodeSvg) . '" style="width:120px;height:120px;"/>
-                                        </div>'
-                                        : '')
-                                        . (!empty($ticket_image)
-            ? '<div style="display:flex;justify-content:center;align-items:center;margin-top:10px;">
-                   <img src="' . url('/storage/' . $ticket_image) . '" style="max-width:70px;height:70px;"/>
-               </div>'
-            : '')
-
-                                . '</div>';
-
-                            $this->dispatch('silent-print', html: $html);
-                        }
-
-        //      $limitchecked =$this->checkedTicketLimit();
-        //      if($limitchecked){
-        //        $this->dispatch('swal:limit-exceed', [
-        //       'title' => 'Oops...',
-        //       'text' => 'You have reached daily ticket limit',
-        //       'icon' => 'error'
-        //     ]);
-        //    return;
-        //         }
-
-            }
-
-            // $this->dispatch('swal:limit-exceed');
-
-        // } catch (\Throwable $ex) {
-
-        //     DB::rollback();
-
-        //     Log::emergency('Queue generate issue on desktop');
-        //     Log::emergency($ex);
-        //     $this->dispatch('swal:ticket-generate', [
-        //         'title' => 'Oops...',
-        //         'text' => 'Unable to generate ticket. Please contact to the admin',
-        //         'icon' => 'error'
-        //     ]);
-        // }
+        }
     }
 
     public function resetDynamic()
@@ -2182,14 +1326,14 @@ class Queue extends Component
     {
         $data['locations_id'] = $this->location;
         if (isset($data['to_mail']) && $data['to_mail'] != '') {
-            SmtpDetails::sendMail($data, $type, '',  $this->teamId,$logData);
+            SmtpDetails::sendMail($data, $type, '',  $this->teamId, $logData);
         }
         if (!empty($data['phone'])) {
             SmsAPI::sendSms($this->teamId, $data, $type, $type, $logData);
         }
     }
 
-      public function resetForm()
+    public function resetForm()
     {
         $this->dynamicProperties = [];
         $this->reset(['name', 'phone', 'email']);
@@ -2204,7 +1348,6 @@ class Queue extends Component
         $this->thirdStep = false;
 
         $this->reset('docFile');
-
     }
 
     #[On('refresh-component')]
@@ -2256,10 +1399,10 @@ class Queue extends Component
                 $this->firstStep = $this->secondStep = $this->fourthStep = false;
                 break;
             case Category::STEP_4:
-               $this->dispatch('header-hide-title'); // hide header title from custom form
+                $this->dispatch('header-hide-title'); // hide header title from custom form
                 $this->fourthStep = true;
                 $this->firstStep = $this->secondStep = $this->thirdStep = false;
-                 $this->dispatch('step-changed');
+                $this->dispatch('step-changed');
                 break;
             default:
                 $this->firstStep = true;
@@ -2410,35 +1553,35 @@ class Queue extends Component
     //     return $serialNumber;
     // }
 
-  public function getNextSeniorPrioritySort($categoryId, $isSenior)
-{
-    $serialNumber = 1;
+    public function getNextSeniorPrioritySort($categoryId, $isSenior)
+    {
+        $serialNumber = 1;
 
-    $category = Category::where('id', $categoryId)->select('id', 'sort')->first();
+        $category = Category::where('id', $categoryId)->select('id', 'sort')->first();
 
-    if ($category) {
-        $sort = (int) $category->sort;
+        if ($category) {
+            $sort = (int) $category->sort;
 
-        // Always force serial = 1 if category sort is 1
-        if ($sort == 1) {
-            return 1;
+            // Always force serial = 1 if category sort is 1
+            if ($sort == 1) {
+                return 1;
+            }
+
+            // If third child exists and category sort is not 1
+            if (!empty($this->thirdChildId)) {
+                $thirdCategoryName = strtolower(Category::viewCategoryName($this->thirdChildId));
+
+                $serialNumber = $thirdCategoryName == 'yes'
+                    ? 1
+                    : $sort;
+            } else {
+                // Otherwise fallback to isSenior flag.when run from custom form field
+                $serialNumber = ($isSenior == 'Yes') ? 1 : $sort;
+            }
         }
 
-        // If third child exists and category sort is not 1
-        if (!empty($this->thirdChildId)) {
-            $thirdCategoryName = strtolower(Category::viewCategoryName($this->thirdChildId));
-
-            $serialNumber = $thirdCategoryName == 'yes'
-                ? 1
-                : $sort;
-        } else {
-                       // Otherwise fallback to isSenior flag.when run from custom form field
-            $serialNumber = ($isSenior == 'Yes') ? 1 : $sort;
-        }
+        return $serialNumber;
     }
-
-    return $serialNumber;
-}
 
     // Helper method to calculate sum of all categories before a given category in the sequence
     protected function sumCategoriesBefore($categoryId, $sequencePattern)
@@ -2470,7 +1613,7 @@ class Queue extends Component
         return $countserial;
     }
 
-     public function checkAvailability()
+    public function checkAvailability()
     {
         $userTimezone = $this->siteDetails->select_timezone ?? 'UTC';
         // $userTimezone = 'UTC';
@@ -2479,32 +1622,31 @@ class Queue extends Component
         $currentTime = Carbon::now($userTimezone)->format('h:i A');
 
         $categoryLevelEnable = $this->siteData?->enable_time_slot;
-      if($this->accountSetting->booking_system == 1 ){
-        if ($categoryLevelEnable === 'category') {
-            $categoryId = match ($this->siteData?->category_slot_level) {
-                1 => $this->selectedCategoryId,
-                2 => $this->secondChildId,
-                3 => $this->thirdChildId,
-                default => null
-            };
+        if ($this->accountSetting->booking_system == 1) {
+            if ($categoryLevelEnable === 'category') {
+                $categoryId = match ($this->siteData?->category_slot_level) {
+                    1 => $this->selectedCategoryId,
+                    2 => $this->secondChildId,
+                    3 => $this->thirdChildId,
+                    default => null
+                };
 
-            if (!$categoryId) return false;
+                if (!$categoryId) return false;
 
-            return $this->isWithinTimeSlot(AccountSetting::CATEGORY_SLOT, $currentDate, $currentDay, $currentTime, $categoryId);
+                return $this->isWithinTimeSlot(AccountSetting::CATEGORY_SLOT, $currentDate, $currentDay, $currentTime, $categoryId);
+            }
+
+            if ($categoryLevelEnable === 'ticket') {
+                return $this->isWithinTimeSlot(AccountSetting::TICKET_SLOT, $currentDate, $currentDay, $currentTime);
+            }
+
+            return $this->isWithinTimeSlot(AccountSetting::LOCATION_SLOT, $currentDate, $currentDay, $currentTime);
+        } else {
+            return $this->isWithinTimeSlot(AccountSetting::LOCATION_SLOT, $currentDate, $currentDay, $currentTime);
         }
-
-        if ($categoryLevelEnable === 'ticket') {
-            return $this->isWithinTimeSlot(AccountSetting::TICKET_SLOT, $currentDate, $currentDay, $currentTime);
-        }
-
-        return $this->isWithinTimeSlot(AccountSetting::LOCATION_SLOT, $currentDate, $currentDay, $currentTime);
-    }else{
-        return $this->isWithinTimeSlot(AccountSetting::LOCATION_SLOT, $currentDate, $currentDay, $currentTime);
-
-    }
     }
 
-   private function isWithinTimeSlot($slotType, $currentDate, $currentDay, $currentTime, $categoryId=null, $userId=null)
+    private function isWithinTimeSlot($slotType, $currentDate, $currentDay, $currentTime, $categoryId = null, $userId = null)
     {
         // Check if the waitlist limit allows further processing
         if (!$this->checkLimit($currentDate, $currentDay, $currentTime)) {
@@ -2528,22 +1670,22 @@ class Queue extends Component
 
         // If no custom slots found, fallback to AccountSetting
         if (!$slotData) {
-            if($slotType !=AccountSetting::TICKET_SLOT){
-            $query = AccountSetting::where('team_id', $this->teamId)
-                ->where('location_id', $this->location)
-                ->where('slot_type', $slotType);
+            if ($slotType != AccountSetting::TICKET_SLOT) {
+                $query = AccountSetting::where('team_id', $this->teamId)
+                    ->where('location_id', $this->location)
+                    ->where('slot_type', $slotType);
 
-            if ($categoryId) {
-                $query->where('category_id', $categoryId);
-            }
-            if ($userId) {
-                $query->where('user_id', $userId);
-            }
+                if ($categoryId) {
+                    $query->where('category_id', $categoryId);
+                }
+                if ($userId) {
+                    $query->where('user_id', $userId);
+                }
 
-            $slotData = $query->select('business_hours')->first();
-        }else{
-             $slotData = $this->accountSetting;
-        }
+                $slotData = $query->select('business_hours')->first();
+            } else {
+                $slotData = $this->accountSetting;
+            }
         }
 
         // If still no slot data, return false
@@ -2600,7 +1742,7 @@ class Queue extends Component
         //     ->select('is_waitlist_limit', 'waitlist_limit')
         //     ->first();
 
-         $checkRecord = $this->accountSetting;
+        $checkRecord = $this->accountSetting;
 
         // If waitlist limit is not enabled, allow the operation
         if (!$checkRecord || $checkRecord->is_waitlist_limit == 0) {
@@ -2662,7 +1804,7 @@ class Queue extends Component
         // $this->dispatch('deny-qr-scanning');
     }
 
-     private function isWithinRadius($lat, $lng, $radius = 100)
+    private function isWithinRadius($lat, $lng, $radius = 100)
     {
 
         if ($this->accountSetting->is_geofence != 1 || is_null($this->accountSetting->is_geofence)) {
@@ -2712,7 +1854,7 @@ class Queue extends Component
 
         return $distance;
     }
-    
+
     public function getAmount()
     {
         // Check if paymentSetting exists
@@ -2935,7 +2077,7 @@ class Queue extends Component
             $data = $response->json();
             if (isset($data['access_token'])) {
 
-            // Store tokens in user table
+                // Store tokens in user table
 
                 return [
                     'status'       => 'success',
@@ -2952,42 +2094,456 @@ class Queue extends Component
         ];
     }
 
+    public function fetchAgentName($key)
+    {
+
+        $phoneNumber = $this->dynamicProperties[$key] ?? null;
+
+        $token = 'OEZBMDdCM0UtQ0M4MS00NjEwLTg5ODctNjdEQTRENTBFMjREUXVldWVWZW5kb3JTdGc=';
+        if ($phoneNumber) {
+            try {
+                $response = Http::withHeaders([
+                    'API-Key' => $token,
+                    'Access-Control-Allow-Origin' => 'qwaiting.com', // Add Origin header
+                ])->post('https://agentapistg.propnex.com:8383/api/queuevendor/queue/get-agent-name', [
+                    'agent_mobile' => (string) $phoneNumber
+                ]);
+
+                $data = $response->json();
+
+                if ($data['status_code'] == 200 && isset($data['data']['agent_name'])) {
+                    // Find the corresponding "name" field in the dynamic form
+                    foreach ($this->dynamicForm as $form) {
+                        if (strtolower($form['title']) == 'name') {
+                            $nameFieldKey = $form['title'] . '_' . $form['id'];
+                            $this->dynamicProperties[$nameFieldKey] = $data['data']['agent_name'];
+                            break;
+                        }
+                    }
+                }
+            } catch (\Exception $e) {
+                // Handle API error
+                $this->addError('api_error', 'Unable to fetch agent name.');
+            }
+        }
+    }
+
+    private function processDynamicFields()
+    {
+        $formattedFields = [];
+        $assigned_staff_id = null;
+
+        foreach ($this->dynamicProperties as $key => $value) {
+            $trimmedKey = trim($key);
+            $fieldName = preg_replace('/_\d+/', '', $trimmedKey);
+            $fieldName = strtolower($fieldName); // normalize to lowercase
+            $formattedFields[$fieldName] = $value;
+        }
+
+        $this->name = $formattedFields['name'] ?? null;
+        $this->phone = null;
+
+        $possiblePhoneKeys = FormField::possiblePhoneKeys();
+
+        foreach ($possiblePhoneKeys as $key) {
+            if (isset($formattedFields[$key]) && !empty($formattedFields[$key])) {
+                $this->phone = $formattedFields[$key];
+                $formattedFields[$key] = ('+' . $this->phone_code ?? '+91') . $formattedFields[$key];
+                break;
+            }
+        }
+        $this->email = isset($formattedFields['email']) ? $formattedFields['email'] : (isset($formattedFields['Email']) ? $formattedFields['Email'] : null);
+
+        $jsonDynamicData = json_encode($formattedFields);
+
+        return [
+            'formattedFields' => $formattedFields,
+            'jsonDynamicData' => $jsonDynamicData,
+            'assigned_staff_id' => $assigned_staff_id
+        ];
+    }
+
+    private function generateTokenAndAcronym($lastcategory = null)
+    {
+        if ((int)$this->acronym_level == 1 && !empty($this->selectedCategoryId)) {
+            $this->acronym = Category::viewAcronym($this->selectedCategoryId);
+        } elseif ((int)$this->acronym_level == 2 && !empty($this->secondChildId)) {
+            $this->acronym = Category::viewAcronym($this->secondChildId);
+        } elseif ((int)$this->acronym_level == 3 && !empty($this->thirdChildId)) {
+            $this->acronym = Category::viewAcronym($this->thirdChildId);
+        } else {
+            $this->acronym = SiteDetail::DEFAULT_WALKIN_A;
+        }
+
+        $calcLastCategory = $lastcategory ?? $this->selectedCategoryId;
+        if (!$lastcategory) {
+            if (!empty($this->thirdChildId)) {
+                $calcLastCategory = $this->thirdChildId;
+            } elseif (!empty($this->secondChildId)) {
+                $calcLastCategory = $this->secondChildId;
+            }
+        }
+
+        $lastToken = QueueDB::getLastToken($this->teamId, $this->acronym, $this->location, $calcLastCategory);
+
+        $token_digit = $this->siteDetails?->token_digit ?? 4;  //4
+        $isExistToken = true;
+
+        while ($isExistToken) {
+            $newToken = QueueDB::newGeneratedToken($lastToken, $this->siteDetails?->token_start, $token_digit);
+
+            if (strlen($newToken) > $token_digit) {
+                $this->dispatch('swal:ticket-generate', [
+                    'title' => 'Oops...',
+                    'text' => 'Unable to create more tickets',
+                    'icon' => 'error'
+                ]);
+                return false;
+            }
+
+            $isExistToken = QueueDB::checkToken($this->teamId, $this->acronym, $newToken, $this->location);
+
+            if ($isExistToken) {
+                $lastToken = $newToken;
+            } else {
+                $this->token_start = $newToken;
+                $isExistToken = false;
+            }
+        }
+        return ['last_category' => $calcLastCategory];
+    }
+
+    private function setupEnvironmentAndData($jsonDynamicData)
+    {
+        $timezone = $this->siteData->select_timezone ?? 'UTC';
+        Config::set('app.timezone', $timezone);
+        date_default_timezone_set($timezone);
+
+        $campaignId = null;
+        if (!empty($this->utm_source) && !empty($this->utm_medium) && !empty($this->utm_campaign)) {
+            $getCampaign = MetaAdsAndCampaignsLink::where('source', $this->utm_source)->where('medium', $this->utm_medium)->where('campaign', $this->utm_campaign)->first();
+            if ($getCampaign) {
+                $campaignId = $getCampaign->id;
+            }
+        }
+
+        $decodedJson = json_decode($jsonDynamicData, true);
+
+        $todayDateTime = Carbon::now($timezone);
+
+        $is_virtual_meeting = 0;
+        // if($this->enableVirtual){
+        if (isset($decodedJson['type']) && $decodedJson['type'] === 'Virtual') {
+            $is_virtual_meeting = 1;
+        }
+
+        return [
+            'todayDateTime' => $todayDateTime,
+            'campaignId' => $campaignId,
+            'is_virtual_meeting' => $is_virtual_meeting,
+            'decodedJson' => $decodedJson
+        ];
+    }
+
+    private function calculatePendingMetrics($queueStorageId)
+    {
+        $pendingwaiting = 0;
+        $pendingCount = 0;
+        $assigned_staff_id = null;
+
+        if ($this->siteDetails->category_estimated_time == SiteDetail::STATUS_YES) {
 
 
-
-public function fetchAgentName($key)
-{
-
-    $phoneNumber = $this->dynamicProperties[$key] ?? null;
-
-     $token ='OEZBMDdCM0UtQ0M4MS00NjEwLTg5ODctNjdEQTRENTBFMjREUXVldWVWZW5kb3JTdGc=';
-    if ($phoneNumber) {
-        try {
-            $response = Http::withHeaders([
-                'API-Key' => $token,
-                 'Access-Control-Allow-Origin' => 'qwaiting.com', // Add Origin header
-            ])->post('https://agentapistg.propnex.com:8383/api/queuevendor/queue/get-agent-name', [
-                'agent_mobile' =>(string) $phoneNumber
-            ]);
-
-            $data = $response->json();
-
-            if ($data['status_code'] == 200 && isset($data['data']['agent_name'])) {
-                // Find the corresponding "name" field in the dynamic form
-                foreach ($this->dynamicForm as $form) {
-                    if (strtolower($form['title']) == 'name') {
-                        $nameFieldKey = $form['title'] . '_' . $form['id'];
-                        $this->dynamicProperties[$nameFieldKey] = $data['data']['agent_name'];
-                        break;
+            if ($this->siteDetails->estimate_time_mode == 1) { //check pending according to service and staff availablilty
+                $estimatedetail = QueueStorage::countPendingByCategorywithstaff($this->teamId, $queueStorageId, $this->countCatID, $this->fieldCatName, '', $this->location);
+                if ($estimatedetail == false) {
+                    $pendingCount = QueueStorage::countPending($this->teamId, $queueStorageId, $this->countCatID, $this->fieldCatName, '', $this->location);
+                } else {
+                    $pendingCount = $estimatedetail['customers_before_me'] ?? 0;
+                    $pendingwaiting = $estimatedetail['estimated_wait_time'] ?? 0;
+                    if ($this->enablePriority == false) {
+                        $assigned_staff_id = $estimatedetail['assigned_staff_id'] ?? null;
+                    }
+                }
+            } elseif ($this->siteDetails->estimate_time_mode == 2) { //check pending according to service only
+                if ($this->siteDetails->count_all_services == 2) {
+                    $estimatedetail = QueueStorage::countAllPendingQueues($this->teamId, $queueStorageId, $this->countCatID, $this->location);
+                    $pendingCount = $estimatedetail['customers_before_me'] ?? 0;
+                } else {
+                    $estimatedetail = QueueStorage::countPendingByCategory($this->teamId, $queueStorageId, $this->countCatID, $this->fieldCatName, $this->location);
+                    $pendingCount = $estimatedetail['customers_before_me'] ?? 0;
+                    $pendingwaiting = $estimatedetail['estimated_wait_time'] ?? 0;
+                }
+            } else {
+                //  $serviceTime = $this->siteDetails->estimate_time ?? 0;
+                $estimatedetail = QueueStorage::countPendingByStaff($this->teamId, $queueStorageId, $this->countCatID, $this->location);
+                if ($estimatedetail == false) {
+                    $pendingCount = 0;
+                } else {
+                    $pendingCount = $estimatedetail['customers_before_me'] ?? 0;
+                    $pendingwaiting = $estimatedetail['estimated_wait_time'] ?? 0;
+                    if ($this->enablePriority == false) {
+                        $assigned_staff_id = $estimatedetail['assigned_staff_id'] ?? null;
                     }
                 }
             }
-        } catch (\Exception $e) {
-            // Handle API error
-            $this->addError('api_error', 'Unable to fetch agent name.');
+        } else {
+
+            $pendingCountget = (int)QueueStorage::countPending($this->teamId, $queueStorageId, '', '', '', $this->location);
+            $counterCount = Counter::where('team_id', $this->teamId)->whereJsonContains('counter_locations', "$this->location")->where('show_checkbox', 1)->count();
+            if ((int)$pendingCountget > 0 && (int)$counterCount > 0) {
+                $pendingCount = floor((int)$pendingCountget / (int)$counterCount);
+            }
         }
+
+        return [
+            'pendingCount' => $pendingCount,
+            'pendingwaiting' => $pendingwaiting,
+            'assigned_staff_id' => $assigned_staff_id
+        ];
     }
-}
 
+    private function generateMeetingLink($decodedJson, $queueCreatedId)
+    {
+        if (isset($decodedJson['type']) && $decodedJson['type'] === 'Virtual') {
+            $room = 'room_' . base64_encode($queueCreatedId);
+            $queueId = base64_encode($queueCreatedId);
 
+            return url("meeting/{$room}/{$queueId}");
+        }
+        return null;
+    }
+
+    private function preparePrintSettings($queueCreated)
+    {
+        $language = session('app_locale');
+
+        $settings = [
+            'showQrcode' => $this->siteDetails->is_qrcode_ticket == 1,
+            'showlogo' => $this->siteDetails->is_logo_on_print == 1,
+            'showusername' => $this->siteDetails->is_name_on_print == 1,
+            'showarrived' => $this->siteDetails->is_arrived_on_print == 1,
+            'showlocation' => $this->siteDetails->is_location_on_print == 1,
+            'showcategory' => $this->siteDetails->is_category_on_print == 1,
+            'showTextmessage' => $this->siteDetails->ticket_text_enable == 1,
+            'showToken' => $this->siteDetails->is_token_on_print == 1,
+            'show_category_first' => $this->siteDetails->show_category_first == 1,
+            'show_category_second' => $this->siteDetails->show_category_second == 1,
+            'show_category_third' => $this->siteDetails->show_category_third == 1,
+            'ticket_image' => $this->siteDetails->ticket_image ?? '',
+            'language' => $language
+        ];
+
+        if ($language !== 'en') {
+            $settings['nameLabel'] = isset($this->translations['Print Name Label'][$language]) ? $this->translations['Print Name Label'][$language] : ($this->siteDetails->print_name_label ?? 'Name');
+            $settings['tokenLabel'] = isset($this->translations['Print Token Label'][$language]) ? $this->translations['Print Token Label'][$language] : ($this->siteDetails->print_token_label ?? 'Token');
+            $settings['arrivedLabel'] = isset($this->translations['Arrived Time Label'][$language]) ? $this->translations['Arrived Time Label'][$language] : ($this->siteDetails->arrived_time_label ?? 'Arrived');
+        } else {
+            $settings['nameLabel'] = $this->siteDetails->print_name_label ?? 'Name';
+            $settings['tokenLabel'] = $this->siteDetails->print_token_label ?? 'Token';
+            $settings['arrivedLabel'] = $this->siteDetails->arrived_time_label ?? 'Arrived';
+        }
+
+        $baseencodeQueueId = base64_encode($queueCreated->id);
+        $customUrl = url("/visits/{$baseencodeQueueId}");
+        $settings['qrcodeSvg'] = QrCode::format('svg')
+            ->size(150)
+            ->errorCorrection('H')
+            ->generate($customUrl);
+
+        $settings['customUrl'] = $customUrl;
+        $settings['logo'] = SiteDetail::viewImage(SiteDetail::FIELD_LOGO_PRINT_TICKET, $this->teamId, $this->location);
+
+        return $settings;
+    }
+
+    private function generateTicketHtml($data, $printSettings)
+    {
+        extract($printSettings);
+
+        return ($showlogo
+            ? '<div style="text-align:center;display:flex;align-items:center;justify-content:center;">
+                                    <img src="' . asset($logo) . '" style="margin:auto;max-width:160px;width:100%;height:100%;"/>
+                            </div>'
+            : '') .
+            '<div class="flex flex-col gap-2 text-black-400 pt-5"
+                            style="line-height:1.24;text-align:center;border:1px solid #ddd;
+                                    padding:12px;border-radius:14px;margin-top:15px;font-family: Simplified Arabic Fixed;">'
+
+            . (($showusername && !empty($data['name']))
+                ? '<h3 style="font-size:16px;font-weight: bold;margin:0">' . $nameLabel . ': ' . $data['name'] . '</h3>'
+                : '')
+
+            . ($showToken
+                ? '<div><h3 style="font-size:20px;font-weight: bold;margin:0"><strong>' . $tokenLabel . ': ' . $data['token'] . '</strong></h3></div>'
+                : '')
+
+            . ($showarrived
+                ? '<div><h5 style="font-size:16px;font-weight: bold;margin:0">' . $arrivedLabel . ': ' . $data['arrives_time'] . '</h5></div>'
+                : '')
+
+            . ($showlocation
+                ? '<div><h3 style="font-size:16px;font-weight: bold;margin:0">' . $data['location_name'] . '</h3></div>'
+                : '')
+
+            // ✅ Category levels check
+            . ($showcategory
+                ? '<div>'
+                . ($show_category_first
+                    ? '<h3 style="font-size:16px;font-weight: bold;margin:0">'
+                    . (isset($this->translations[$data['category_name']][session('app_locale')])
+                        ? $this->translations[$data['category_name']][session('app_locale')]
+                        : $data['category_name'])
+                    . '</h3>'
+                    : '')
+                . ($show_category_second
+                    ? '<h3 style="font-size:16px;font-weight: bold;margin:0">'
+                    . (isset($this->translations[$data['secondC_name']][session('app_locale')])
+                        ? $this->translations[$data['secondC_name']][session('app_locale')]
+                        : $data['secondC_name'])
+                    . '</h3>'
+                    : '')
+                . ($show_category_third
+                    ? '<h3 style="font-size:16px;font-weight: bold;margin:0">'
+                    . (isset($this->translations[$data['thirdC_name']][session('app_locale')])
+                        ? $this->translations[$data['thirdC_name']][session('app_locale')]
+                        : $data['thirdC_name'])
+                    . '</h3>'
+                    : '')
+                . '</div>'
+                : '')
+
+            // ✅ Ticket Notes
+            . (($this->ticket_note_level_first || $this->ticket_note_level_second || $this->ticket_note_level_third)
+                ? '<div style="margin-top:10px;">'
+                . (!empty($this->ticket_note_level_first)  ? '<p style="font-size:14px;margin:0;">' . $this->ticket_note_level_first  . '</p>' : '')
+                . (!empty($this->ticket_note_level_second) ? '<p style="font-size:14px;margin:0;">' . $this->ticket_note_level_second . '</p>' : '')
+                . (!empty($this->ticket_note_level_third)  ? '<p style="font-size:14px;margin:0;">' . $this->ticket_note_level_third  . '</p>' : '')
+                . '</div>'
+                : '')
+
+            . ($showTextmessage
+                ? '<div><h4 style="font-size:16px;font-weight: bold;margin:0">' . $this->showTicketText . '</h4>
+                                        <h4 style="font-size:16px;font-weight: bold;margin:0">' . $this->showTicketText_2 . '</h4></div>'
+                : '')
+
+            . ($showQrcode
+                ? '<div style="display:flex;justify-content:center;align-items:center;margin-top:10px;">
+                                    <img src="data:image/svg+xml;base64,' . base64_encode($qrcodeSvg) . '" style="width:120px;height:120px;"/>
+                                </div>'
+                : '')
+            . (!empty($ticket_image)
+                ? '<div style="display:flex;justify-content:center;align-items:center;margin-top:10px;">
+           <img src="' . url('/storage/' . $ticket_image) . '" style="max-width:70px;height:70px;"/>
+       </div>'
+                : '')
+
+            . '</div>';
+    }
+
+    private function handleCustomerAndLogging($queueStorage, $queueCreated, $jsonDynamicData, $data)
+    {
+        if (!empty($this->phone)) {
+            $existingCustomer = Customer::where('phone', "$this->phone")
+                ->where('team_id', $this->teamId)
+                ->where('location_id', $this->location)
+                ->first();
+
+            // Create customer if not exists
+            if (empty($existingCustomer)) {
+                $existingCustomer = Customer::create([
+                    'team_id' => $this->teamId,
+                    'location_id' => $this->location,
+                    'name' => $this->name ?? null,
+                    'phone' => $this->phone,
+                    'json_data' => $jsonDynamicData, // casted automatically to JSON
+                ]);
+            }
+
+            // Log customer activity with type 'queue'
+            CustomerActivityLog::create([
+                'team_id' => $this->teamId,
+                'location_id' => $this->location,
+                'queue_id' => $queueStorage->id,
+                'booking_id' => null,
+                'type' => 'queue',
+                'customer_id' => $existingCustomer->id,
+                'note' => 'Customer joined the queue.',
+            ]);
+
+            $queueStorage->created_by = $existingCustomer->id;
+            $queueStorage->save();
+
+            $data['customer_id'] = $existingCustomer->id;
+        }
+
+        $data['ticket_link'] = url('/visits/' . base64_encode($queueCreated->id));
+
+        $logData = [
+            'team_id' => $this->teamId,
+            'location_id' => $this->location,
+            'user_id' => $queueStorage->served_by,
+            'customer_id' => $queueStorage->created_by,
+            'queue_id' => $queueStorage->queue_id,
+            'queue_storage_id' => $queueStorage->id,
+            'email' => $this->email,
+            'contact' => $this->phone,
+            'type' => MessageDetail::TRIGGERED_TYPE,
+            'event_name' => 'Ticket Generate',
+        ];
+
+        return ['data' => $data, 'logData' => $logData];
+    }
+
+    private function prepareStoreData($is_virtual_meeting, $jsonDynamicData, $todayDateTime, $campaignId, $nextPrioritySort, $seniorCitiizen = 'No')
+    {
+        return [
+            'name' => $this->name,
+            'phone' => $this->phone,
+            'ticket_mode' => $this->isMobile ? QueueDB::TICKET_MODE_MOBILE : QueueDB::TICKET_MODE_Walk_IN,
+            'is_virtual_meeting' => $is_virtual_meeting,
+            'phone_code' => $this->phone_code ?? '91',
+            'category_id' => $this->selectedCategoryId ?? null,
+            'sub_category_id' => $this->secondChildId ?? null,
+            'team_id' => (int)$this->teamId,
+            'token' => $this->token_start,
+            'token_with_acronym' => $this->booking_setting == QueueDB::STATUS_NO ? QueueDB::LABEL_YES : QueueDB::LABEL_NO,
+            'json' => $jsonDynamicData,
+            'arrives_time' => $todayDateTime,
+            'datetime' => $todayDateTime,
+            'start_acronym' => $this->acronym,
+            'locations_id' => (int)$this->location,
+            'priority_sort' => $nextPrioritySort ?? 0,
+            'campaign_id' => isset($campaignId) ? $campaignId : null,
+            'mode' => $this->isMobile ? 'mobile' : 'web',
+            'senior_citizen' => $seniorCitiizen,
+            'full_phone_number' => (!empty($this->phone_code) && !empty($this->phone))
+                ? $this->phone_code . $this->phone
+                : null,
+        ];
+    }
+
+    private function prepareResponseData($queueStorage, $queueCreated, $pendingCount, $nextPrioritySort, $rawArrivesTime)
+    {
+        $dateformat = AccountSetting::showDateTimeFormat();
+
+        return [
+            'name' => $queueStorage->name,
+            'phone' => $queueStorage->phone,
+            'phone_code' => $queueStorage->phone_code ?? '91',
+            'queue_no' => $queueCreated->id,
+            'queue_storage_id' => $queueStorage->id,
+            'arrives_time' => Carbon::parse($rawArrivesTime)->format($dateformat),
+            'category_name' => $this->categoryName,
+            'thirdC_name' => $this->thirdCategoryName,
+            'secondC_name' => $this->secondCategoryName,
+            'pending_count' => $pendingCount,
+            'token' => $queueCreated->start_acronym . $queueCreated->token,
+            'token_with_acronym' => $queueCreated->start_acronym,
+            'to_mail' => $this->email ?? '',
+            'locations_id' => $this->location,
+            'location_name' => $this->locationName,
+            'priority_sort' => $nextPrioritySort ?? 0,
+        ];
+    }
 }
