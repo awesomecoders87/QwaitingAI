@@ -433,6 +433,48 @@ class VendorsController extends Controller
         ]);
     }
 
+
+    /**
+     * Login as vendor (Super Admin impersonation).
+     * Redirects securely to the vendor's dashboard.
+     */
+    public function loginAsVendor($id)
+    {
+        $domain = Domain::with('team')->findOrFail($id);
+
+        if (!$domain->team) {
+            return back()->withErrors(['error' => 'No tenant found for this domain.']);
+        }
+
+        // Find admin user for this tenant
+        $adminUser = User::where('team_id', $domain->team_id)
+            ->where('is_admin', 1)
+            ->first();
+
+        if (!$adminUser) {
+            return back()->withErrors(['error' => 'No admin user found for this vendor.']);
+        }
+
+        // Generate a secure token
+        $token = Crypt::encryptString(json_encode([
+            'user_id' => $adminUser->id,
+            'expires_at' => now()->addMinutes(5)->timestamp, // Expiry time for security
+        ]));
+
+        // Determine scheme (http/https) and port
+        $scheme = request()->getScheme();
+        $port = request()->getPort(); // e.g., 80, 443, 8000
+
+        // Append port only if it's non-standard
+        $portSuffix = (!in_array($port, [80, 443])) ? ':' . $port : '';
+
+        // Generate the auto-login URL dynamically
+        $autoLoginUrl = "{$scheme}://{$domain->domain}{$portSuffix}/authenticate?token={$token}";
+
+        return redirect()->away($autoLoginUrl);
+    }
+
+
     /**
      * Export vendors to Excel.
      */

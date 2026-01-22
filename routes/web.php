@@ -104,6 +104,8 @@ Route::prefix('superadmin')->name('superadmin.')->group(function () {
             ->name('vendors.restore');
         Route::delete('/vendors/{id}', [App\Http\Controllers\SuperAdmin\VendorsController::class, 'destroy'])
             ->name('vendors.destroy');
+        Route::get('/vendors/{id}/login-as', [App\Http\Controllers\SuperAdmin\VendorsController::class, 'loginAsVendor'])
+            ->name('vendors.login-as');
     });
 });
 

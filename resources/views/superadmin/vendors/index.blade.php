@@ -356,6 +356,10 @@
                                             <a href="{{ route('superadmin.vendors.edit', $domain->id) }}" class="block px-4 py-2 text-sm text-gray-700 hover:bg-gray-100" role="menuitem">Edit</a>
                                             <a href="#" class="block px-4 py-2 text-sm text-gray-700 hover:bg-gray-100" role="menuitem" onclick="viewVendorDetails({{ $domain->id }})">View Details</a>
                                             <a href="#" class="block px-4 py-2 text-sm text-gray-700 hover:bg-gray-100" role="menuitem" onclick="changeStatus({{ $domain->id }})">Change Status</a>
+                                            <a href="{{ route('superadmin.vendors.login-as', $domain->id) }}" target="_blank" class="block px-4 py-2 text-sm text-gray-700 hover:bg-gray-100" role="menuitem">
+                                            Login as Vendor
+                                        </a>
+
                                             <a href="#" class="block px-4 py-2 text-sm text-gray-700 hover:bg-gray-100" role="menuitem" onclick="openResetPasswordModal({{ $domain->id }}, '{{ $domain->domain }}')">Reset Password</a>                                         
                                         </div>
                                     </div>
