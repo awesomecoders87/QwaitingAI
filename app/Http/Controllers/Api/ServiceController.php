@@ -2618,5 +2618,199 @@ class ServiceController extends Controller
              return response()->json(['status' => 'error', 'message' => 'Error: ' . $ex->getMessage()], 500);
         }
     }
+
+    /**
+     * Edit Booking via API using refID
+     */
+    public function editBooking(Request $request)
+    {
+        $validator = \Validator::make($request->all(), [
+            'booking_refID' => 'required|string',
+            'service_name'  => 'required|string',
+            'date'          => 'required|date',
+            'time'          => 'required|string', // Expected format "09:00 AM" or "09:00 AM - 10:00 AM"
+            'name'          => 'nullable|string',
+            'phone'         => 'nullable|string',
+            'email'         => 'nullable|email',
+        ]);
+
+        if ($validator->fails()) {
+            return response()->json([
+                'status'  => 'error',
+                'message' => $validator->errors()->first()
+            ], 400);
+        }
+
+        $refID = $request->booking_refID;
+        $booking = Booking::where('refID', $refID)->first();
+
+        if (!$booking) {
+            return response()->json(['status' => 'error', 'message' => 'Booking not found'], 404);
+        }
+
+        if ($booking->status == Booking::STATUS_COMPLETED || $booking->is_convert == Booking::STATUS_YES) {
+             return response()->json(['status' => 'error', 'message' => 'Cannot edit a completed or converted booking'], 403);
+        }
+
+        $teamId = $booking->team_id;
+        $locationId = $booking->location_id;
+        $appointmentDate = Carbon::parse($request->date);
+        
+        // Time parsing (handle both "09:00 AM" and "09:00 AM - 10:00 AM" formats)
+        $timeInput = $request->time;
+        if (strpos($timeInput, '-') !== false) {
+             $parts = explode('-', $timeInput);
+             $startTime = trim($parts[0]);
+             $endTime = trim($parts[1]);
+        } else {
+             $startTime = trim($timeInput);
+             $endTime = null; 
+        }
+
+        // 1. Find Service (Category)
+        $services = Category::getFirstCategorybooking($teamId, $locationId);
+        $queryName = strtolower($request->service_name);
+        $service = $services->first(function ($s) use ($queryName) {
+            return strtolower($s->name) === $queryName || strtolower($s->other_name ?? '') === $queryName;
+        });
+
+        if (!$service) {
+            return response()->json(['status' => 'error', 'message' => 'Service not found'], 404);
+        }
+        $selectedCategoryId = $service->id;
+
+        // 2. Site & Account Settings
+        $siteSetting = SiteDetail::where('team_id', $teamId)->where('location_id', $locationId)->first();
+        if (!$siteSetting) {
+             return response()->json(['status' => 'error', 'message' => 'Site settings not found'], 500);
+        }
+        
+        $accountSetting = AccountSetting::where('team_id', $teamId)
+            ->where('location_id', $locationId)
+            ->where('slot_type', AccountSetting::BOOKING_SLOT)
+            ->first();
+
+        if (!$accountSetting) {
+             return response()->json(['status' => 'error', 'message' => 'Booking settings not found'], 500);
+        }
+
+        // 3. Check Slot Availability (Re-validate the new slot)
+        if ($siteSetting->choose_time_slot != 'staff') {
+             $slots = AccountSetting::checktimeslot($teamId, $locationId, $appointmentDate, $selectedCategoryId, $siteSetting);
+        } else {
+             $staffIds = User::whereHas('categories', fn($q) => $q->where('categories.id', $selectedCategoryId))
+                            ->pluck('id')->toArray();
+             if (empty($staffIds)) {
+                  return response()->json(['status' => 'error', 'message' => 'No staff available for this service'], 404);
+             }
+             $slots = AccountSetting::checkStafftimeslot($teamId, $locationId, $appointmentDate, $selectedCategoryId, $siteSetting, $staffIds);
+        }
+
+        $availableSlots = $slots['start_at'] ?? [];
+        $isValidSlot = false;
+        $finalSlotString = "";
+
+        // Normalize requested start time for comparison
+        try {
+             $reqStart = Carbon::parse($startTime)->format('h:i A');
+        } catch (\Exception $e) {
+             return response()->json(['status' => 'error', 'message' => 'Invalid time format'], 400);
+        }
+
+        foreach ($availableSlots as $slot) {
+             // Slot format: "09:00 AM-09:10 AM"
+             $parts = explode('-', $slot);
+             $sStart = trim($parts[0]);
+             
+             if ($sStart === $reqStart) {
+                 $isValidSlot = true;
+                 $finalSlotString = $slot;
+                 $startTime = $sStart;
+                 $endTime = trim($parts[1]);
+                 break;
+             }
+        }
+        
+        $isSameTime = ($booking->booking_date == $appointmentDate->toDateString()) && ($booking->start_time == $startTime);
+
+        if (!$isValidSlot && !$isSameTime) {
+             return response()->json(['status' => 'error', 'message' => 'Selected time slot is not available'], 409);
+        }
+
+        // 4. Update Data
+        DB::beginTransaction();
+        try {
+            // Dynamic Fields handling
+            $jsonDynamicData = json_decode($booking->json ?? '{}', true);
+            
+            // Update core fields if provided
+            if ($request->has('name')) $booking->name = $request->name;
+            if ($request->has('phone')) $booking->phone = $request->phone;
+            if ($request->has('email')) $booking->email = $request->email;
+            
+            // Merge other dynamic fields from request into json
+            foreach ($request->all() as $key => $value) {
+                if (!in_array($key, ['booking_refID', 'service_name', 'date', 'time', 'name', 'phone', 'email', 'team_id', 'location_id'])) {
+                    $jsonDynamicData[$key] = $value;
+                }
+            }
+            $booking->json = json_encode($jsonDynamicData);
+
+            $booking->booking_date = $appointmentDate;
+            $booking->booking_time = $finalSlotString ?: ($startTime . ' - ' . $endTime);
+            $booking->start_time = $startTime;
+            $booking->end_time = $endTime;
+            $booking->category_id = $selectedCategoryId;
+            $booking->last_category = $selectedCategoryId;
+            $booking->is_rescheduled = 1;
+
+            // Handle Customer Update/Creation if phone changed
+            if ($request->has('phone') && !empty($request->phone)) {
+                 $existingCustomer = Customer::where('phone', $request->phone)
+                    ->where('team_id', $teamId)
+                    ->where('location_id', $locationId)
+                    ->first();
+                 
+                  if (!$existingCustomer) {
+                    $existingCustomer = Customer::create([
+                        'team_id' => $teamId,
+                        'location_id' => $locationId,
+                        'name' => $request->name ?? $booking->name,
+                        'phone' => $request->phone,
+                        'json_data' => json_encode($jsonDynamicData),
+                    ]);
+                  }
+                  
+                  // Log activity
+                   CustomerActivityLog::create([
+                    'team_id' => $teamId,
+                    'location_id' => $locationId,
+                    'queue_id' => null,
+                    'booking_id' =>  $booking->id,
+                    'type' => 'booking',
+                    'customer_id' => $existingCustomer->id,
+                    'note' => 'Customer rescheduled/edited the booking via API.',
+                ]);
+            }
+
+            $booking->save();
+            DB::commit();
+
+            return response()->json([
+                'status' => 'success',
+                'message' => 'Booking updated successfully',
+                'data' => [
+                    'refID' => $booking->refID,
+                    'date' => $booking->booking_date,
+                    'time' => $booking->booking_time,
+                    'service' => $request->service_name
+                ]
+            ]);
+
+        } catch (\Exception $e) {
+            DB::rollBack();
+            return response()->json(['status' => 'error', 'message' => 'Failed to update booking: ' . $e->getMessage()], 500);
+        }
+    }
 }
 
