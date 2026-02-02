@@ -2866,21 +2866,31 @@ class ServiceController extends Controller
         // Use Site Timezone for creation to ensure 00:00 start is relative to that zone
         $bookingDate = Carbon::createFromFormat('Y-m-d', $booking->booking_date, $timezone);
         
-        // As per request: "user can not cancel if date is greate after 04 Feb"
-        // This implies cancellation is allowed UP TO the end of the booking day.
-        $cancellationDeadline = $bookingDate->copy()->endOfDay();
-        // M-DEV
+        // Set deadline to End of Day (23:59:59) minus the allowed days.
+        // If allowCancelBefore is 0, deadline is booking Date 23:59:59.
+        $cancellationDeadline = $bookingDate->copy()->subDays($allowCancelBefore)->endOfDay();
+        
         $currentDate = Carbon::now($timezone);
 
         if ($currentDate->greaterThan($cancellationDeadline)) {
              return response()->json([
                  'status' => 'error', 
-                 'message' => 'Cancellation period has expired. You can not cancel appointments in the past.'
+                 'message' => 'Cancellation period has expired. You can only cancel ' . $allowCancelBefore . ' day(s) before the appointment.'
             ], 403);
         }
 
         DB::beginTransaction();
         try {
+            // Ensure last_category is updated correctly based on hierarchy
+            $lastCategory = $booking->category_id;
+            if (!empty($booking->sub_category_id)) {
+                $lastCategory = $booking->sub_category_id;
+            }
+            if (!empty($booking->child_category_id)) {
+                $lastCategory = $booking->child_category_id;
+            }
+            $booking->last_category = $lastCategory;
+
             $booking->status = Booking::STATUS_CANCELLED;
             $booking->save();
 
