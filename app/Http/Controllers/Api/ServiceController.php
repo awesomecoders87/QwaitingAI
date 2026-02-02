@@ -2624,6 +2624,8 @@ class ServiceController extends Controller
      */
     public function editBooking(Request $request)
     {
+
+        // Validation
         $validator = \Validator::make($request->all(), [
             'booking_refID' => 'required|string',
             'service_name'  => 'required|string',
