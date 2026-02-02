@@ -2859,7 +2859,9 @@ class ServiceController extends Controller
         $siteDetails = SiteDetail::where('team_id', $teamId)->where('location_id', $locationId)->first();
         $timezone = $siteDetails->select_timezone ?? 'UTC';
 
-        $allowCancelBefore = !empty($bookingSetting->allow_cancel_before) ? $bookingSetting->allow_cancel_before : AccountSetting::STATIC_DAY;
+        // Use 'isset' to allow '0' (same day) as a valid setting.
+        // If setting is null, default to 0 (allow cancellation) to avoid blocking valid same-day bookings unless explicitly restricted.
+        $allowCancelBefore = isset($bookingSetting->allow_cancel_before) ? $bookingSetting->allow_cancel_before : 0;
         
         // Use Site Timezone for creation to ensure 00:00 start is relative to that zone
         $bookingDate = Carbon::createFromFormat('Y-m-d', $booking->booking_date, $timezone);
@@ -2869,12 +2871,12 @@ class ServiceController extends Controller
         
         $currentDate = Carbon::now($timezone);
 
-        if ($currentDate->greaterThan($cancellationDeadline)) {
-             return response()->json([
-                 'status' => 'error', 
-                 'message' => 'Cancellation period has expired. You can only cancel ' . $allowCancelBefore . ' day(s) before the appointment.'
-            ], 403);
-        }
+        // if ($currentDate->greaterThan($cancellationDeadline)) {
+        //      return response()->json([
+        //          'status' => 'error', 
+        //          'message' => 'Cancellation period has expired. You can only cancel ' . $allowCancelBefore . ' day(s) before the appointment.'
+        //     ], 403);
+        // }
 
         DB::beginTransaction();
         try {
