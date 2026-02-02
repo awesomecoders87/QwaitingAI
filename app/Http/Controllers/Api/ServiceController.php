@@ -2855,22 +2855,20 @@ class ServiceController extends Controller
             ->where('slot_type', AccountSetting::BOOKING_SLOT)
             ->first();
 
-        // Determine cancellation deadline
-        $allowCancelBefore = !empty($bookingSetting->allow_cancel_before) ? $bookingSetting->allow_cancel_before : AccountSetting::STATIC_DAY;
-        
-        $bookingDate = Carbon::createFromFormat('Y-m-d', $booking->booking_date);
-        
         // Fetch Site Settings for Timezone
         $siteDetails = SiteDetail::where('team_id', $teamId)->where('location_id', $locationId)->first();
         $timezone = $siteDetails->select_timezone ?? 'UTC';
 
-        // Use Site Timezone for consistent comparison
+        $allowCancelBefore = !empty($bookingSetting->allow_cancel_before) ? $bookingSetting->allow_cancel_before : AccountSetting::STATIC_DAY;
+        
+        // Use Site Timezone for creation to ensure 00:00 start is relative to that zone
+        $bookingDate = Carbon::createFromFormat('Y-m-d', $booking->booking_date, $timezone);
+        
+        // Set deadline to End of Day (23:59:59) so that 'same day' (0 days before) covers the whole day
+        $cancellationDeadline = $bookingDate->copy()->subDays($allowCancelBefore)->endOfDay();
+        
         $currentDate = Carbon::now($timezone);
-        $cancellationDeadline = $bookingDate->copy()->subDays($allowCancelBefore)->setTimezone($timezone);
 
-        // Logic: specific time comparison. 
-        // If current time is PAST the deadline, cancellation is NOT allowed.
-        // E.g. Booking on Friday, allow_cancel_before = 1 day -> Deadline Thursday. If today is Friday, you cannot cancel.
         if ($currentDate->greaterThan($cancellationDeadline)) {
              return response()->json([
                  'status' => 'error', 
