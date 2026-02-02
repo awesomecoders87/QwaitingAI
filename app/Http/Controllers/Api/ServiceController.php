@@ -2872,12 +2872,12 @@ class ServiceController extends Controller
         
         $currentDate = Carbon::now($timezone);
 
-        if ($currentDate->greaterThan($cancellationDeadline)) {
-             return response()->json([
-                 'status' => 'error', 
-                 'message' => 'Cancellation period has expired. You can only cancel ' . $allowCancelBefore . ' day(s) before the appointment.'
-            ], 403);
-        }
+        // if ($currentDate->greaterThan($cancellationDeadline)) {
+        //      return response()->json([
+        //          'status' => 'error', 
+        //          'message' => 'Cancellation period has expired. You can only cancel ' . $allowCancelBefore . ' day(s) before the appointment.'
+        //     ], 403);
+        // }
 
         DB::beginTransaction();
         try {
