@@ -1131,13 +1131,16 @@ class ServiceController extends Controller
 
             // Filter past slots if date is today
             if ($date->isToday() && !empty($availableSlots)) {
-                $now = Carbon::now();
-                $availableSlots = array_values(array_filter($availableSlots, function($slot) use ($now) {
+                 // Use site timezone for accurate comparison
+                $timezone = $siteSetting->select_timezone ?? 'UTC';
+                $now = Carbon::now($timezone);
+                $availableSlots = array_values(array_filter($availableSlots, function($slot) use ($now, $timezone) {
                     try {
                         // Extract start time "09:00 AM" or "09:00 AM-10:00 AM"
                         $parts = explode('-', $slot);
                         $startTime = trim($parts[0]);
-                        $slotTime = Carbon::parse($startTime);
+                        $slotTime = Carbon::parse($startTime, $timezone);
+                        $slotTime->setDate($now->year, $now->month, $now->day);
                         
                         // Allow slot if it's in the future
                         return $slotTime->gt($now);
@@ -1689,13 +1692,19 @@ class ServiceController extends Controller
 
         // Filter out past times if date is today
         if ($appointmentDate->isToday()) {
-            $now = Carbon::now();
-            $availableSlots = array_values(array_filter($availableSlots, function($slot) use ($now) {
+             // Use site timezone for accurate comparison
+            $timezone = $siteSetting->select_timezone ?? 'UTC';
+            $now = Carbon::now($timezone);
+            
+            $availableSlots = array_values(array_filter($availableSlots, function($slot) use ($now, $timezone) {
                 try {
                     // Extract start time "09:00 AM" or "09:00 AM-10:00 AM"
                     $parts = explode('-', $slot);
                     $startTime = trim($parts[0]);
-                    $slotTime = Carbon::parse($startTime);
+                    
+                    // Create Carbon object for the slot time in the correct timezone
+                    $slotTime = Carbon::parse($startTime, $timezone);
+                    $slotTime->setDate($now->year, $now->month, $now->day);
                     
                     // Allow slot if it's in the future (plus maybe a buffer, but standard is just future)
                     return $slotTime->gt($now);
