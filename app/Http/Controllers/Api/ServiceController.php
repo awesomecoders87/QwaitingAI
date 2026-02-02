@@ -1080,7 +1080,7 @@ class ServiceController extends Controller
     private function getAvailableDatesForNextWeek($teamId, $locationId, $serviceId, $siteSetting, $bookingSetting, $requestedDate = null)
     {
         $availableDates = [];
-        $startDate = Carbon::now()->addDay();
+        $startDate = Carbon::now();
         
         // If requested date is provided and beyond next week, extend search range
         if ($requestedDate && $requestedDate->gt(Carbon::now()->addWeek())) {
@@ -1127,6 +1127,24 @@ class ServiceController extends Controller
             // Filter using valid logic
             if (!empty($availableSlots)) {
                 $availableSlots = $this->filterValidSlots($availableSlots, $teamId, $locationId, $serviceId, $date, $bookingSetting);
+            }
+
+            // Filter past slots if date is today
+            if ($date->isToday() && !empty($availableSlots)) {
+                $now = Carbon::now();
+                $availableSlots = array_values(array_filter($availableSlots, function($slot) use ($now) {
+                    try {
+                        // Extract start time "09:00 AM" or "09:00 AM-10:00 AM"
+                        $parts = explode('-', $slot);
+                        $startTime = trim($parts[0]);
+                        $slotTime = Carbon::parse($startTime);
+                        
+                        // Allow slot if it's in the future
+                        return $slotTime->gt($now);
+                    } catch (\Exception $e) {
+                        return true;
+                    }
+                }));
             }
 
             if (!empty($availableSlots)) {
