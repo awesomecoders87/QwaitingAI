@@ -2884,9 +2884,9 @@ class ServiceController extends Controller
             $booking->save();
 
             // Send Notifications (Email/SMS)
-            $userAuth = Auth::user(); 
-            // Note: In API context, user might not be auth'd as an admin/staff agent, but let's check
-            $bookedByName = $userAuth ? $userAuth->name : '';
+            $userAuth = \Illuminate\Support\Facades\Auth::user(); 
+            // If API is public, userAuth is null. We can use booking name or leave empty.
+            $bookedByName = $userAuth ? $userAuth->name : $booking->name;
 
             $data = [
                 'to_mail' => $booking->email,
