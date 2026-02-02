@@ -2926,7 +2926,7 @@ class ServiceController extends Controller
                 SmtpDetails::sendMail($data, 'booking cancelled', $message, $teamId, $logData);
             }
 
-            // Send SMS
+            // Send SMS to user
             if (!empty($booking->phone)) {
                  $logData['channel'] = 'sms';
                  $logData['status'] = \App\Models\MessageDetail::SENT_STATUS;
