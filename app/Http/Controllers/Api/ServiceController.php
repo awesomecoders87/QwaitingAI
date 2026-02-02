@@ -2814,5 +2814,139 @@ class ServiceController extends Controller
             return response()->json(['status' => 'error', 'message' => 'Failed to update booking: ' . $e->getMessage()], 500);
         }
     }
+
+    /**
+     * Cancel Booking via API using refID
+     */
+    public function cancelBooking(Request $request)
+    {
+        $validator = \Validator::make($request->all(), [
+            'booking_refID' => 'required|string',
+        ]);
+
+        if ($validator->fails()) {
+            return response()->json([
+                'status'  => 'error',
+                'message' => $validator->errors()->first()
+            ], 400);
+        }
+
+        $refID = $request->booking_refID;
+        $booking = Booking::where('refID', $refID)->first();
+
+        if (!$booking) {
+            return response()->json(['status' => 'error', 'message' => 'Booking not found'], 404);
+        }
+
+        // Check if already cancelled or completed
+        if ($booking->status == Booking::STATUS_CANCELLED) {
+             return response()->json(['status' => 'error', 'message' => 'Booking is already cancelled'], 400);
+        }
+        if ($booking->status == Booking::STATUS_COMPLETED || $booking->is_convert == Booking::STATUS_YES) {
+             return response()->json(['status' => 'error', 'message' => 'Cannot cancel a completed or converted booking'], 403);
+        }
+
+        $teamId = $booking->team_id;
+        $locationId = $booking->location_id;
+
+        // Fetch Booking Settings for cancellation rules
+        $bookingSetting = AccountSetting::where('team_id', $teamId)
+            ->where('location_id', $locationId)
+            ->where('slot_type', AccountSetting::BOOKING_SLOT)
+            ->first();
+
+        // Determine cancellation deadline
+        $allowCancelBefore = !empty($bookingSetting->allow_cancel_before) ? $bookingSetting->allow_cancel_before : AccountSetting::STATIC_DAY;
+        
+        $bookingDate = Carbon::createFromFormat('Y-m-d', $booking->booking_date);
+        
+        // Fetch Site Settings for Timezone
+        $siteDetails = SiteDetail::where('team_id', $teamId)->where('location_id', $locationId)->first();
+        $timezone = $siteDetails->select_timezone ?? 'UTC';
+
+        // Use Site Timezone for consistent comparison
+        $currentDate = Carbon::now($timezone);
+        $cancellationDeadline = $bookingDate->copy()->subDays($allowCancelBefore)->setTimezone($timezone);
+
+        // Logic: specific time comparison. 
+        // If current time is PAST the deadline, cancellation is NOT allowed.
+        // E.g. Booking on Friday, allow_cancel_before = 1 day -> Deadline Thursday. If today is Friday, you cannot cancel.
+        if ($currentDate->greaterThan($cancellationDeadline)) {
+             return response()->json([
+                 'status' => 'error', 
+                 'message' => 'Cancellation period has expired. You can only cancel ' . $allowCancelBefore . ' day(s) before the appointment.'
+            ], 403);
+        }
+
+        DB::beginTransaction();
+        try {
+            $booking->status = Booking::STATUS_CANCELLED;
+            $booking->save();
+
+            // Send Notifications (Email/SMS)
+            $userAuth = Auth::user(); 
+            // Note: In API context, user might not be auth'd as an admin/staff agent, but let's check
+            $bookedByName = $userAuth ? $userAuth->name : '';
+
+            $data = [
+                'to_mail' => $booking->email,
+                'booking_id' => $booking->id,
+                'name' => $booking->name,
+                'phone' => $booking->phone,
+                'booking_date' => $booking->booking_date,
+                'booking_time' => $booking->booking_time,
+                'booked_by' => $bookedByName,
+                'category_name' => $booking->categories?->name,
+                'secondC_name' => $booking->sub_category?->name,
+                'thirdC_name' => $booking->child_category?->name,
+                'location' => Location::find($locationId)->location_name ?? '',
+                'status' => $booking->status,
+                'json' => $booking->json,
+                'refID' => $booking->refID,
+                'locations_id' => $locationId,
+                'team_id' => $teamId,
+            ];
+
+            $message = 'Appointment Cancelled Successfully';
+            $logData = [
+                'team_id' => $teamId,
+                'location_id' => $locationId,
+                'customer_id' => $booking->created_by, // This might be null or ID
+                'email' => $booking->email,
+                'contact' => $booking->phone,
+                'type' => \App\Models\MessageDetail::CUSTOM_TYPE,
+                'event_name' => 'Booking Cancelled',
+            ];
+
+            // Send Email
+            if (!empty($booking->email)) {
+                if (!empty($logData)) {
+                   $logData['channel'] = 'email';
+                   $logData['status'] = \App\Models\MessageDetail::SENT_STATUS;
+               }
+               // Note: SmtpDetails trait might need explicit import if not auto-resolved, but class is imported in Controller
+                SmtpDetails::sendMail($data, 'booking cancelled', $message, $teamId, $logData);
+            }
+
+            // Send SMS
+            if (!empty($booking->phone)) {
+                 $logData['channel'] = 'sms';
+                 $logData['status'] = \App\Models\MessageDetail::SENT_STATUS;
+                 // Assuming SmsAPI class is available via alias or use statement
+                 \App\Models\SmsAPI::sendSms($teamId, $data, 'booking cancelled', 'booking cancelled', $logData);
+            }
+
+            DB::commit();
+
+            return response()->json([
+                'status' => 'success',
+                'message' => 'Booking cancelled successfully'
+            ]);
+
+        } catch (\Exception $e) {
+            DB::rollBack();
+             return response()->json(['status' => 'error', 'message' => 'Failed to cancel booking: ' . $e->getMessage()], 500);
+        }
+    }
 }
 

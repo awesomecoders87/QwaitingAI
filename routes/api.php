@@ -114,3 +114,4 @@ Route::post('/chatbot-book', [ServiceController::class, 'chatbotBook'])->name('a
 Route::post('/convert-book-to-queue', [ServiceController::class, 'ConvertBookToQueue']);
 Route::post('/save-queue-form', [ServiceController::class, 'saveQueueForm']);
 Route::post('/edit-booking', [ServiceController::class, 'editBooking']);
+Route::post('/cancel-booking', [ServiceController::class, 'cancelBooking']);
