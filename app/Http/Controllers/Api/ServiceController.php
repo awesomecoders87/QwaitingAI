@@ -2904,6 +2904,7 @@ class ServiceController extends Controller
                 'booking_id' => $booking->id,
                 'name' => $booking->name,
                 'phone' => $booking->phone,
+                'phone_code' => $booking->phone_code ?? '91',
                 'booking_date' => $booking->booking_date,
                 'booking_time' => $booking->booking_time,
                 'booked_by' => $bookedByName,
@@ -2917,6 +2918,8 @@ class ServiceController extends Controller
                 'locations_id' => $locationId,
                 'team_id' => $teamId,
             ];
+            
+            \Log::info('Cancel Booking Data: ' . json_encode($data));
 
             $message = 'Appointment Cancelled Successfully';
             $logData = [
