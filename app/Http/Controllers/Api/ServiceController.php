@@ -2994,7 +2994,7 @@ class ServiceController extends Controller
             'name' => $booking->name,
             'email' => $booking->email,
             // 'phone_code' => $booking->phone_code,
-            // 'phone' => $booking->phone,
+            'phone' => $booking->phone,
             'booking_date' => $booking->booking_date,
             'booking_time' => $booking->booking_time,
             // 'start_time' => $booking->start_time,
