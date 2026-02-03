@@ -2962,5 +2962,58 @@ class ServiceController extends Controller
              return response()->json(['status' => 'error', 'message' => 'Failed to cancel booking: ' . $e->getMessage()], 500);
         }
     }
+    /**
+     * Get Booking Details via API using refID
+     */
+    public function getBookingDetails(Request $request)
+    {
+        $validator = \Validator::make($request->all(), [
+            'booking_refID' => 'required|string',
+        ]);
+
+        if ($validator->fails()) {
+            return response()->json([
+                'status'  => 'error',
+                'message' => $validator->errors()->first()
+            ], 400);
+        }
+
+        $refID = $request->booking_refID;
+        $booking = Booking::with(['categories', 'sub_category', 'child_category'])
+                    ->where('refID', $refID)->first();
+
+        if (!$booking) {
+            return response()->json(['status' => 'error', 'message' => 'Booking not found'], 404);
+        }
+
+        $locationName = Location::where('id', $booking->location_id)->value('location_name');
+
+        $data = [
+            'booking_id' => $booking->id,
+            'refID' => $booking->refID,
+            'name' => $booking->name,
+            'email' => $booking->email,
+            // 'phone_code' => $booking->phone_code,
+            // 'phone' => $booking->phone,
+            'booking_date' => $booking->booking_date,
+            'booking_time' => $booking->booking_time,
+            // 'start_time' => $booking->start_time,
+            // 'end_time' => $booking->end_time,
+            'service_name' => $booking->categories?->name,
+            // 'sub_service_name' => $booking->sub_category?->name,
+            // 'child_service_name' => $booking->child_category?->name,
+            // 'status' => $booking->status,
+            // 'dynamic_data' => is_string($booking->json) ? json_decode($booking->json) : $booking->json,
+            // 'location_id' => $booking->location_id,
+            // 'location_name' => $locationName,
+            // 'team_id' => $booking->team_id,
+            // 'created_at' => $booking->created_at,
+        ];
+
+        return response()->json([
+            'status' => 'success',
+            'data' => $data
+        ]);
+    }
 }
 

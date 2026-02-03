@@ -115,3 +115,4 @@ Route::post('/convert-book-to-queue', [ServiceController::class, 'ConvertBookToQ
 Route::post('/save-queue-form', [ServiceController::class, 'saveQueueForm']);
 Route::post('/edit-booking', [ServiceController::class, 'editBooking']);
 Route::post('/cancel-booking', [ServiceController::class, 'cancelBooking']);
+Route::post('/get-booking-details', [ServiceController::class, 'getBookingDetails']);
