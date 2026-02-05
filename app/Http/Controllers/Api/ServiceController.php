@@ -1056,6 +1056,42 @@ class ServiceController extends Controller
                 'refID' => time() . rand(1000, 9999)
             ]);
 
+            // Prepare data for email
+            $data = [
+                'to_mail' => $booking->email,
+                'booking_id' => $booking->id,
+                'name' => $booking->name,
+                'phone' => $booking->phone,
+                'phone_code' => $booking->phone_code,
+                'booking_date' => $booking->booking_date,
+                'booking_time' => $booking->booking_time,
+                'category_name' => $service->name,
+                'location' => Location::find($locationId)->location_name ?? '',
+                'status' => $booking->status,
+                'team_id' => $teamId,
+                'locations_id' => $locationId,
+                'refID' => $booking->refID,
+                'json' => $booking->json ?? null,
+            ];
+
+            $message = 'Booking Confirmed';
+            $logData = [
+                'team_id' => $teamId,
+                'location_id' => $locationId,
+                'email' => $booking->email,
+                'contact' => $booking->phone,
+                'type' => \App\Models\MessageDetail::CUSTOM_TYPE,
+                'event_name' => 'booking confirmed',
+            ];
+
+            if (!empty($booking->email)) {
+                if (!empty($logData)) {
+                    $logData['channel'] = 'email';
+                    $logData['status'] = \App\Models\MessageDetail::SENT_STATUS;
+                }
+                SmtpDetails::sendMail($data, 'booking confirmed', $message, $teamId, $logData);
+            }
+
             // Success Case 5.1: Appointment success
             return response()->json([
                 'status'  => 'success',
@@ -2816,6 +2852,43 @@ class ServiceController extends Controller
             }
 
             $booking->save();
+
+            // Prepare data for email
+            $data = [
+                'to_mail' => $booking->email,
+                'booking_id' => $booking->id,
+                'name' => $booking->name,
+                'phone' => $booking->phone,
+                'phone_code' => $booking->phone_code,
+                'booking_date' => $booking->booking_date,
+                'booking_time' => $booking->booking_time,
+                'category_name' => $service->name,
+                'location' => Location::find($locationId)->location_name ?? '',
+                'status' => $booking->status,
+                'team_id' => $teamId,
+                'locations_id' => $locationId,
+                'refID' => $booking->refID,
+                'json' => $booking->json,
+            ];
+
+            $message = 'booking rescheduled';
+            $logData = [
+                'team_id' => $teamId,
+                'location_id' => $locationId,
+                'email' => $booking->email,
+                'contact' => $booking->phone,
+                'type' => \App\Models\MessageDetail::CUSTOM_TYPE,
+                'event_name' => 'booking rescheduled',
+            ];
+
+            if (!empty($booking->email)) {
+                if (!empty($logData)) {
+                    $logData['channel'] = 'email';
+                    $logData['status'] = \App\Models\MessageDetail::SENT_STATUS;
+                }
+                SmtpDetails::sendMail($data, 'booking rescheduled', $message, $teamId, $logData);
+            }
+
             DB::commit();
 
             return response()->json([
@@ -2953,18 +3026,18 @@ class ServiceController extends Controller
                 'email' => $booking->email,
                 'contact' => $booking->phone,
                 'type' => \App\Models\MessageDetail::CUSTOM_TYPE,
-                'event_name' => 'Booking Cancelled',
+                'event_name' => 'booking cancelled',
             ];
 
             // Send Email
-            // if (!empty($booking->email)) {
-            //     if (!empty($logData)) {
-            //         $logData['channel'] = 'email';
-            //         $logData['status'] = \App\Models\MessageDetail::SENT_STATUS;
-            //     }
-            //     // Note: SmtpDetails trait might need explicit import if not auto-resolved, but class is imported in Controller
-            //     SmtpDetails::sendMail($data, 'booking cancelled', $message, $teamId, $logData);
-            // }
+            if (!empty($booking->email)) {
+                if (!empty($logData)) {
+                    $logData['channel'] = 'email';
+                    $logData['status'] = \App\Models\MessageDetail::SENT_STATUS;
+                }
+                // Note: SmtpDetails trait might need explicit import if not auto-resolved, but class is imported in Controller
+                SmtpDetails::sendMail($data, 'booking cancelled', $message, $teamId, $logData);
+            }
 
             // Send SMS to user
             // if (!empty($booking->phone)) {
