@@ -61,7 +61,7 @@ class ServiceController extends Controller
         $locationId = $request->input('location_id');
 
         $services = Category::getFirstCategorybooking($teamId, $locationId);
-        
+
         // Filter services where service_time is not empty
         // $services = $services->filter(function ($s) {
         //     return !empty($s->service_time);
@@ -74,27 +74,27 @@ class ServiceController extends Controller
                 return isset($s->type) && $s->type === $requestedType;
             });
         }
-        
+
         $queryName = trim($request->input('service_name', ''));
-        
+
         // If service_name is provided, search for it
         if (!empty($queryName)) {
             $queryNameLower = strtolower($queryName);
-            
+
             // First try exact match
             $service = $services->first(function ($s) use ($queryNameLower) {
                 return strtolower($s->name) === $queryNameLower ||
-                       strtolower($s->other_name ?? '') === $queryNameLower;
+                    strtolower($s->other_name ?? '') === $queryNameLower;
             });
-            
+
             // If exact match not found, try partial search
             if (!$service) {
                 $service = $services->first(function ($s) use ($queryNameLower) {
                     return strpos(strtolower($s->name), $queryNameLower) !== false ||
-                           (!empty($s->other_name) && strpos(strtolower($s->other_name), $queryNameLower) !== false);
+                        (!empty($s->other_name) && strpos(strtolower($s->other_name), $queryNameLower) !== false);
                 });
             }
-            
+
             if ($service) {
                 return response()->json([
                     'status'  => 'success',
@@ -115,7 +115,7 @@ class ServiceController extends Controller
                 ])->values()
             ], 404);
         }
-        
+
         // If no service_name provided, return all services
         return response()->json([
             'status'  => 'success',
@@ -228,11 +228,11 @@ class ServiceController extends Controller
         // If time is provided, check if that specific time is available
         if ($request->has('time') && !empty($request->time)) {
             $requestedTime = trim($request->time);
-            
+
             // Normalize time format for comparison (handle different formats like "09:00 AM", "09:00", etc.)
             $timeExists = false;
             $normalizedRequestedTime = $this->normalizeTime($requestedTime);
-            
+
             foreach ($availableSlots as $slot) {
                 // Handle slot format "09:00 AM-10:00 AM" by extracting start time
                 $slotStartTime = $slot;
@@ -240,7 +240,7 @@ class ServiceController extends Controller
                     [$slotStartTime, $slotEndTime] = explode('-', $slot, 2);
                     $slotStartTime = trim($slotStartTime);
                 }
-                
+
                 $normalizedSlot = $this->normalizeTime($slotStartTime);
                 if ($normalizedSlot === $normalizedRequestedTime) {
                     $timeExists = true;
@@ -306,18 +306,20 @@ class ServiceController extends Controller
 
         // Step 1: Get available services for matching
         $services = Category::getFirstCategorybooking($teamId, $locationId);
-        
+
         // Step 2: Extract service name (try to match with available services)
         $bestMatch = null;
         $bestMatchScore = 0;
-        
+
         foreach ($services as $service) {
             $serviceNameLower = strtolower($service->name);
             $otherNameLower = strtolower($service->other_name ?? '');
-            
+
             // Check for exact match
-            if (strpos($inputLower, $serviceNameLower) !== false || 
-                (!empty($otherNameLower) && strpos($inputLower, $otherNameLower) !== false)) {
+            if (
+                strpos($inputLower, $serviceNameLower) !== false ||
+                (!empty($otherNameLower) && strpos($inputLower, $otherNameLower) !== false)
+            ) {
                 $score = strlen($serviceNameLower);
                 if ($score > $bestMatchScore) {
                     $bestMatch = $service->name;
@@ -325,7 +327,7 @@ class ServiceController extends Controller
                 }
             }
         }
-        
+
         if ($bestMatch) {
             $result['service_name'] = $bestMatch;
         }
@@ -345,19 +347,19 @@ class ServiceController extends Controller
             if (preg_match($pattern, $inputText, $matches)) {
                 try {
                     $dateString = $matches[0];
-                    
+
                     // Handle "tomorrow"
                     if (stripos($dateString, 'tomorrow') !== false) {
                         $result['date'] = Carbon::now()->addDay()->format('Y-m-d');
                         break;
                     }
-                    
+
                     // Handle "today"
                     if (stripos($dateString, 'today') !== false) {
                         $result['date'] = Carbon::now()->format('Y-m-d');
                         break;
                     }
-                    
+
                     // Parse the date - return original string for parseDate to handle
                     $result['date'] = $dateString;
                     break;
@@ -411,28 +413,39 @@ class ServiceController extends Controller
         $dateString = trim($dateString);
         $currentYear = Carbon::now()->year;
         $today = Carbon::now()->startOfDay();
-        
+
         // First, try to handle formats like "11 dec" or "11 december"
         $parts = explode(' ', strtolower($dateString));
         if (count($parts) >= 2 && is_numeric($parts[0])) {
             $day = (int)$parts[0];
             $monthName = trim($parts[1]);
-            
+
             $monthMap = [
-                'jan' => 1, 'january' => 1,
-                'feb' => 2, 'february' => 2,
-                'mar' => 3, 'march' => 3,
-                'apr' => 4, 'april' => 4,
+                'jan' => 1,
+                'january' => 1,
+                'feb' => 2,
+                'february' => 2,
+                'mar' => 3,
+                'march' => 3,
+                'apr' => 4,
+                'april' => 4,
                 'may' => 5,
-                'jun' => 6, 'june' => 6,
-                'jul' => 7, 'july' => 7,
-                'aug' => 8, 'august' => 8,
-                'sep' => 9, 'september' => 9,
-                'oct' => 10, 'october' => 10,
-                'nov' => 11, 'november' => 11,
-                'dec' => 12, 'december' => 12,
+                'jun' => 6,
+                'june' => 6,
+                'jul' => 7,
+                'july' => 7,
+                'aug' => 8,
+                'august' => 8,
+                'sep' => 9,
+                'september' => 9,
+                'oct' => 10,
+                'october' => 10,
+                'nov' => 11,
+                'november' => 11,
+                'dec' => 12,
+                'december' => 12,
             ];
-            
+
             if (isset($monthMap[$monthName])) {
                 try {
                     $date = Carbon::createFromDate($currentYear, $monthMap[$monthName], $day);
@@ -446,13 +459,13 @@ class ServiceController extends Controller
                 }
             }
         }
-        
+
         // Handle formats like "11-12-2024" or "11-12-2025" - try both DD-MM-YYYY and MM-DD-YYYY
         if (preg_match('/^(\d{1,2})[-\/](\d{1,2})[-\/](\d{4})$/', $dateString, $matches)) {
             $part1 = (int)$matches[1];
             $part2 = (int)$matches[2];
             $year = (int)$matches[3];
-            
+
             // Try DD-MM-YYYY first (more common in international format)
             if ($part1 <= 31 && $part2 <= 12) {
                 try {
@@ -465,7 +478,7 @@ class ServiceController extends Controller
                     // Invalid date, try MM-DD-YYYY
                 }
             }
-            
+
             // Try MM-DD-YYYY format
             if ($part2 <= 31 && $part1 <= 12) {
                 try {
@@ -478,7 +491,7 @@ class ServiceController extends Controller
                     // Invalid date
                 }
             }
-            
+
             // If both formats failed but year is in the future, prefer DD-MM-YYYY
             if ($year > $currentYear) {
                 try {
@@ -499,7 +512,7 @@ class ServiceController extends Controller
                 }
             }
         }
-        
+
         // Try Carbon's flexible parsing for other formats
         try {
             $date = Carbon::parse($dateString);
@@ -527,28 +540,28 @@ class ServiceController extends Controller
     {
         // Remove extra spaces
         $time = trim($time);
-        
+
         if (empty($time)) {
             return $time;
         }
-        
+
         // Handle formats like "4pm", "4 pm", "4PM", "16:00"
         $timeLower = strtolower($time);
         if (preg_match('/^(\d{1,2})\s*(am|pm)$/', $timeLower, $matches)) {
             $hour = (int)$matches[1];
             $meridiem = strtoupper($matches[2]);
-            
+
             // Convert to 24-hour format first
             if ($meridiem == 'PM' && $hour != 12) {
                 $hour += 12;
             } elseif ($meridiem == 'AM' && $hour == 12) {
                 $hour = 0;
             }
-            
+
             // Format as "04:00 PM" or "12:00 PM"
             return Carbon::createFromTime($hour, 0, 0)->format('h:i A');
         }
-        
+
         // Try to parse with Carbon to standardize format
         try {
             // Try parsing as time with AM/PM (case insensitive)
@@ -570,8 +583,8 @@ class ServiceController extends Controller
                         $parsed = Carbon::createFromFormat('g:i A', $time);
                         return strtoupper($parsed->format('h:i A'));
                     } catch (\Exception $e4) {
-                    // If parsing fails, return uppercase version (might already be in correct format)
-                    return strtoupper($time);
+                        // If parsing fails, return uppercase version (might already be in correct format)
+                        return strtoupper($time);
                     }
                 }
             }
@@ -630,7 +643,7 @@ class ServiceController extends Controller
         $queryName = strtolower($serviceName);
         $service = $services->first(function ($s) use ($queryName) {
             return strtolower($s->name) === $queryName ||
-                   strtolower($s->other_name ?? '') === $queryName;
+                strtolower($s->other_name ?? '') === $queryName;
         });
 
         // Error Case 1: Service does NOT exist - return error with service list
@@ -653,7 +666,7 @@ class ServiceController extends Controller
         // Get date and time inputs
         $appointmentDateInput = trim($request->input('appointment_date', ''));
         $timeString = trim($request->input('time', ''));
-        
+
         // If only service_name is provided (no date/time), return success message WITHOUT service list
         if (empty($appointmentDateInput) && empty($timeString)) {
             return response()->json([
@@ -684,7 +697,7 @@ class ServiceController extends Controller
         try {
             // Handle natural language dates
             $appointmentDateInputLower = strtolower($appointmentDateInput);
-            
+
             // Handle "tomorrow"
             if ($appointmentDateInputLower === 'tomorrow') {
                 $appointmentDate = Carbon::now()->addDay();
@@ -701,8 +714,7 @@ class ServiceController extends Controller
             elseif (preg_match('/next\s+(monday|tuesday|wednesday|thursday|friday|saturday|sunday)/i', $appointmentDateInputLower, $matches)) {
                 $dayName = ucfirst(strtolower($matches[1]));
                 $appointmentDate = Carbon::now()->next($dayName);
-            }
-            elseif (preg_match('/coming\s+(monday|tuesday|wednesday|thursday|friday|saturday|sunday)/i', $appointmentDateInputLower, $matches)) {
+            } elseif (preg_match('/coming\s+(monday|tuesday|wednesday|thursday|friday|saturday|sunday)/i', $appointmentDateInputLower, $matches)) {
                 $dayName = ucfirst(strtolower($matches[1]));
                 $appointmentDate = Carbon::now()->next($dayName);
             }
@@ -713,16 +725,16 @@ class ServiceController extends Controller
                 // Parse the date string (handles formats like "11 dec", "11-12-2024", etc.)
                 $appointmentDate = $this->parseDate($appointmentDateInput);
             }
-            
+
             // Validate the parsed date is valid
             if (!$appointmentDate || !$appointmentDate->isValid()) {
                 throw new \Exception('Invalid date');
             }
-            
-        $dateString = $appointmentDate->toDateString();
+
+            $dateString = $appointmentDate->toDateString();
             $today = Carbon::now()->startOfDay();
             $requestedDateObj = $appointmentDate->startOfDay();
-            
+
             // Error Case 3.3: Date invalid
             if (!$appointmentDate->isValid()) {
                 return response()->json([
@@ -736,7 +748,7 @@ class ServiceController extends Controller
                     ]
                 ], 400);
             }
-            
+
             // Note: Past date check will be done after fetching site settings to get available dates
         } catch (\Exception $e) {
             // Error Case 3.3: Date invalid
@@ -770,11 +782,11 @@ class ServiceController extends Controller
             ->where('location_id', $locationId)
             ->where('slot_type', AccountSetting::BOOKING_SLOT)
             ->first();
-        
+
         // Check if date is in the past - return error message and available dates next week
         if ($requestedDateObj->lt($today)) {
             $availableDates = $this->getAvailableDatesForNextWeek($teamId, $locationId, $serviceId, $siteSetting, $bookingSetting);
-            
+
             return response()->json([
                 'status'  => 'error',
                 'error_type' => 'date_not_available',
@@ -793,7 +805,7 @@ class ServiceController extends Controller
             $slots = AccountSetting::checktimeslot($teamId, $locationId, $appointmentDate, $serviceId, $siteSetting);
         } else {
             $staffIds = User::whereHas('categories', fn($q) => $q->where('categories.id', $serviceId))
-                            ->pluck('id')->toArray();
+                ->pluck('id')->toArray();
 
             if (empty($staffIds)) {
                 return response()->json([
@@ -819,17 +831,17 @@ class ServiceController extends Controller
             // Ensure advanceDays is numeric to avoid Carbon TypeError
             $advanceDays = is_numeric($advanceDays) ? (int)$advanceDays : 30;
             $maxBookingDate = Carbon::now()->addDays($advanceDays)->startOfDay();
-            
+
             if ($requestedDateObj->gt($maxBookingDate)) {
-            return response()->json([
-                'status'  => 'error',
+                return response()->json([
+                    'status'  => 'error',
                     'error_type' => 'date_not_available',
                     'message' => 'Date not available for this service',
-                'requested_date' => $dateString,
+                    'requested_date' => $dateString,
                     'available_dates' => $this->getAvailableDatesForNextWeek($teamId, $locationId, $serviceId, $siteSetting, $bookingSetting)
                 ], 400);
             }
-            
+
             // Get available dates (extend search if requested date is beyond next week)
             $availableDates = $this->getAvailableDatesForNextWeek($teamId, $locationId, $serviceId, $siteSetting, $bookingSetting, $requestedDateObj);
 
@@ -864,15 +876,15 @@ class ServiceController extends Controller
 
         // Step 6: Validate time format
         $requestedTime = trim($timeString);
-        
+
         try {
-        $normalizedRequestedTime = $this->normalizeTime($requestedTime);
+            $normalizedRequestedTime = $this->normalizeTime($requestedTime);
             // Try to parse the normalized time to ensure it's valid
             $testTime = Carbon::createFromFormat('h:i A', $normalizedRequestedTime);
             if (!$testTime || !$testTime->isValid()) {
                 throw new \Exception('Invalid time format');
             }
-            
+
             // Error Case 4.3: Invalid time (e.g., 25:00 PM)
             $hour = (int)$testTime->format('H');
             if ($hour < 0 || $hour > 23) {
@@ -892,7 +904,7 @@ class ServiceController extends Controller
                 'date' => $dateString
             ], 400);
         }
-        
+
         $timeExists = false;
         $matchedSlot = null;
         $matchedStartTime = null;
@@ -938,8 +950,8 @@ class ServiceController extends Controller
         // This is handled by the available slots check above, but we can add explicit check here if needed
 
         // Step 8: Check for duplicate/overlapping bookings
-            $startTime = $normalizedRequestedTime;
-        
+        $startTime = $normalizedRequestedTime;
+
         try {
             $endTime = $this->calculateEndTime($startTime, $service, $bookingSetting, $siteSetting);
         } catch (\Exception $e) {
@@ -950,11 +962,11 @@ class ServiceController extends Controller
                 'details' => 'Failed to calculate end time: ' . $e->getMessage()
             ], 500);
         }
-        
+
         // Check for duplicate booking (same phone/email at same date and time)
         $phone = $request->input('phone');
         $email = $request->input('email');
-        
+
         if ($phone || $email) {
             try {
                 $duplicateQuery = Booking::where('team_id', $teamId)
@@ -962,16 +974,16 @@ class ServiceController extends Controller
                     ->where('booking_date', $dateString)
                     ->where('start_time', $startTime)
                     ->where('status', '!=', Booking::STATUS_CANCELLED);
-                
+
                 if ($phone) {
                     $duplicateQuery->where('phone', $phone);
                 }
                 if ($email) {
                     $duplicateQuery->where('email', $email);
                 }
-                
+
                 $duplicateBooking = $duplicateQuery->first();
-                
+
                 if ($duplicateBooking) {
                     // Error Case 5.3: Duplicate booking
                     return response()->json([
@@ -994,7 +1006,7 @@ class ServiceController extends Controller
                 // If duplicate check fails, continue (don't block booking)
             }
         }
-        
+
         // Check for overlapping time slots (any booking at same date and time)
         try {
             $overlappingBooking = Booking::where('team_id', $teamId)
@@ -1003,7 +1015,7 @@ class ServiceController extends Controller
                 ->where('start_time', $startTime)
                 ->where('status', '!=', Booking::STATUS_CANCELLED)
                 ->first();
-            
+
             if ($overlappingBooking) {
                 // Error Case 5.4: Overlapping time
                 return response()->json([
@@ -1050,6 +1062,17 @@ class ServiceController extends Controller
                 'service_status' => 'available',
                 'message' => 'Your appointment is confirmed!',
                 'appointment_id' => $booking->id,
+                'data' => [
+                    'booking_id' => $booking->id,
+                    'refID' => $booking->refID,
+                    'name' => $booking->name,
+                    'email' => $booking->email,
+                    'phone_code' => $booking->phone_code,
+                    'phone' => $booking->phone,
+                    'booking_date' => $booking->booking_date,
+                    'booking_time' => $booking->booking_time,
+                    'service_name' => $service->name
+                ],
                 'booking' => [
                     'id' => $booking->id,
                     'ref_id' => $booking->refID,
@@ -1062,7 +1085,6 @@ class ServiceController extends Controller
                     'status' => $booking->status
                 ]
             ], 201);
-
         } catch (\Exception $e) {
             // Error Case 5.2: Appointment failed (internal error)
             return response()->json([
@@ -1081,14 +1103,14 @@ class ServiceController extends Controller
     {
         $availableDates = [];
         $startDate = Carbon::now();
-        
+
         // If requested date is provided and beyond next week, extend search range
         if ($requestedDate && $requestedDate->gt(Carbon::now()->addWeek())) {
             $endDate = $requestedDate->copy()->addWeek(); // Search up to requested date + 1 week
         } else {
-        $endDate = Carbon::now()->addWeek();
+            $endDate = Carbon::now()->addWeek();
         }
-        
+
         // Limit to maximum advance booking days
         $advanceDays = $bookingSetting ? ($bookingSetting->allow_req_before ?? 30) : 30;
         // Ensure advanceDays is numeric to avoid Carbon TypeError
@@ -1097,7 +1119,7 @@ class ServiceController extends Controller
         if ($endDate->gt($maxDate)) {
             $endDate = $maxDate;
         }
-        
+
         $getAdvanceBookingDates = AccountSetting::datesGet($advanceDays);
 
         for ($date = $startDate; $date->lte($endDate); $date->addDay()) {
@@ -1113,7 +1135,7 @@ class ServiceController extends Controller
                 $slots = AccountSetting::checktimeslot($teamId, $locationId, $date, $serviceId, $siteSetting);
             } else {
                 $staffIds = User::whereHas('categories', fn($q) => $q->where('categories.id', $serviceId))
-                                ->pluck('id')->toArray();
+                    ->pluck('id')->toArray();
 
                 if (!empty($staffIds)) {
                     $slots = AccountSetting::checkStafftimeslot($teamId, $locationId, $date, $serviceId, $siteSetting, $staffIds);
@@ -1123,7 +1145,7 @@ class ServiceController extends Controller
             }
 
             $availableSlots = $slots['start_at'] ?? [];
-            
+
             // Filter using valid logic
             if (!empty($availableSlots)) {
                 $availableSlots = $this->filterValidSlots($availableSlots, $teamId, $locationId, $serviceId, $date, $bookingSetting);
@@ -1131,17 +1153,17 @@ class ServiceController extends Controller
 
             // Filter past slots if date is today
             if ($date->isToday() && !empty($availableSlots)) {
-                 // Use site timezone for accurate comparison
+                // Use site timezone for accurate comparison
                 $timezone = $siteSetting->select_timezone ?? 'UTC';
                 $now = Carbon::now($timezone);
-                $availableSlots = array_values(array_filter($availableSlots, function($slot) use ($now, $timezone) {
+                $availableSlots = array_values(array_filter($availableSlots, function ($slot) use ($now, $timezone) {
                     try {
                         // Extract start time "09:00 AM" or "09:00 AM-10:00 AM"
                         $parts = explode('-', $slot);
                         $startTime = trim($parts[0]);
                         $slotTime = Carbon::parse($startTime, $timezone);
                         $slotTime->setDate($now->year, $now->month, $now->day);
-                        
+
                         // Allow slot if it's in the future
                         return $slotTime->gt($now);
                     } catch (\Exception $e) {
@@ -1203,9 +1225,9 @@ class ServiceController extends Controller
     private function filterValidSlots($slots, $teamId, $locationId, $serviceId, $date, $bookingSetting = null)
     {
         if (empty($slots)) return [];
-        
+
         $dateString = $date instanceof Carbon ? $date->toDateString() : $date;
-        
+
         // Fetch all bookings for this date/team/location strictly
         // We only care if meaningful bookings exist that are NOT cancelled
         $bookedStartTimes = Booking::where('team_id', $teamId)
@@ -1214,18 +1236,18 @@ class ServiceController extends Controller
             ->where('status', '!=', Booking::STATUS_CANCELLED)
             ->pluck('start_time')
             ->toArray();
-            
+
         // Normalize keys (times) to be safe
-        $bookedStartTimesNormalized = array_map(function($t) {
+        $bookedStartTimesNormalized = array_map(function ($t) {
             return $this->normalizeTime($t);
         }, $bookedStartTimes);
-        
+
         // Filter slots
-        return array_values(array_filter($slots, function($slot) use ($bookedStartTimesNormalized) {
+        return array_values(array_filter($slots, function ($slot) use ($bookedStartTimesNormalized) {
             $parts = explode('-', $slot);
             $startTime = trim($parts[0]);
             $normalizedStart = $this->normalizeTime($startTime);
-            
+
             // If start time is found in bookings, it is taken
             return !in_array($normalizedStart, $bookedStartTimesNormalized);
         }));
@@ -1268,12 +1290,12 @@ class ServiceController extends Controller
         // Step 1: Check if service is available
         $serviceId = null;
         $service = null;
-        
+
         if ($request->service_id) {
             // Check by service ID
             $services = Category::getFirstCategorybooking($teamId, $locationId);
             $service = $services->firstWhere('id', $request->service_id);
-            
+
             if (!$service) {
                 return response()->json([
                     'status'  => 'error',
@@ -1281,18 +1303,18 @@ class ServiceController extends Controller
                     'step'    => 'service_check'
                 ], 404);
             }
-            
+
             $serviceId = $service->id;
         } else {
             // Check by service name
             $services = Category::getFirstCategorybooking($teamId, $locationId);
             $queryName = strtolower($request->service_name);
-            
+
             $service = $services->first(function ($s) use ($queryName) {
                 return strtolower($s->name) === $queryName ||
-                      strtolower($s->other_name ?? '') === $queryName;
+                    strtolower($s->other_name ?? '') === $queryName;
             });
-            
+
             if (!$service) {
                 return response()->json([
                     'status'  => 'error',
@@ -1304,7 +1326,7 @@ class ServiceController extends Controller
                     ])
                 ], 404);
             }
-            
+
             $serviceId = $service->id;
         }
 
@@ -1327,7 +1349,7 @@ class ServiceController extends Controller
             $slots = AccountSetting::checktimeslot($teamId, $locationId, $date, $serviceId, $siteSetting);
         } else {
             $staffIds = User::whereHas('categories', fn($q) => $q->where('categories.id', $serviceId))
-                            ->pluck('id')->toArray();
+                ->pluck('id')->toArray();
 
             $slots = AccountSetting::checkStafftimeslot($teamId, $locationId, $date, $serviceId, $siteSetting, $staffIds);
         }
@@ -1340,7 +1362,7 @@ class ServiceController extends Controller
                 ->where('location_id', $locationId)
                 ->where('slot_type', AccountSetting::BOOKING_SLOT)
                 ->first();
-                
+
             $availableSlots = $this->filterValidSlots($availableSlots, $teamId, $locationId, $serviceId, $date, $bookingSetting);
         }
 
@@ -1369,163 +1391,168 @@ class ServiceController extends Controller
     }
 
     public function checkDateTimeAvailability(Request $request)
-{
-    $validator = \Validator::make($request->all(), [
-        'service_id'   => 'nullable|integer',
-        'service_name' => 'nullable|string',
-        'team_id'      => 'nullable|integer',
-        'location_id'  => 'nullable|integer',
-        'date'         => 'required|date',
-        'time'         => 'nullable|string' // <-- Add this
-    ]);
+    {
+        $validator = \Validator::make($request->all(), [
+            'service_id'   => 'nullable|integer',
+            'service_name' => 'nullable|string',
+            'team_id'      => 'nullable|integer',
+            'location_id'  => 'nullable|integer',
+            'date'         => 'required|date',
+            'time'         => 'nullable|string' // <-- Add this
+        ]);
 
-    if ($validator->fails()) {
-        return response()->json([
-            'status'  => 'error',
-            'message' => $validator->errors()->first()
-        ], 400);
-    }
-
-    // At least one of service_id or service_name must be provided
-    if (empty($request->service_id) && empty($request->service_name)) {
-        return response()->json([
-            'status'  => 'error',
-            'message' => 'Either service_id or service_name is required'
-        ], 400);
-    }
-
-    $teamId = 3;
-    $locationId = 80;
-    $date = Carbon::parse($request->date);
-    $dateString = $date->toDateString();
-
-    // STEP 1: Validate Service
-    $services = Category::getFirstCategorybooking($teamId, $locationId);
-
-    if ($request->service_id) {
-        $service = $services->firstWhere('id', $request->service_id);
-    } else {
-        $queryName = strtolower($request->service_name);
-        $service = $services->first(function ($s) use ($queryName) {
-            return strtolower($s->name) === $queryName ||
-                   strtolower($s->other_name ?? '') === $queryName;
-        });
-    }
-
-    if (!$service) {
-        return response()->json([
-            'status'  => 'error',
-            'message' => 'Service not found or not available',
-            'available_services' => $services->map(fn($s) => [
-                'id'   => $s->id,
-                'name' => $s->name
-            ])
-        ], 404);
-    }
-
-    $serviceId = $service->id;
-
-    // STEP 2: Validate Date Availability
-    $siteSetting = SiteDetail::where('team_id', $teamId)
-        ->where('location_id', $locationId)
-        ->first();
-
-    if (!$siteSetting) {
-        return response()->json([
-            'status' => 'error',
-            'message' => 'Site setting not found',
-        ], 404);
-    }
-
-    // STEP 3: Generate Available Time Slots
-    if ($siteSetting->choose_time_slot != 'staff') {
-        $slots = AccountSetting::checktimeslot($teamId, $locationId, $date, $serviceId, $siteSetting);
-    } else {
-        $staffIds = User::whereHas('categories', fn($q) => $q->where('categories.id', $serviceId))
-            ->pluck('id')->toArray();
-
-        $slots = AccountSetting::checkStafftimeslot(
-            $teamId, $locationId, $date, $serviceId, $siteSetting, $staffIds
-        );
-    }
-
-    // Check if no slots at all
-    $availableSlots = $slots['start_at'] ?? [];
-
-    if (!empty($availableSlots)) {
-        $bookingSetting = AccountSetting::where('team_id', $teamId)
-            ->where('location_id', $locationId)
-            ->where('slot_type', AccountSetting::BOOKING_SLOT)
-            ->first();
-            
-        $availableSlots = $this->filterValidSlots($availableSlots, $teamId, $locationId, $serviceId, $date, $bookingSetting);
-    }
-
-    if (empty($availableSlots)) {
-        return response()->json([
-            'status'  => 'error',
-            'message' => 'No time slots available for this date',
-            'date'    => $dateString,
-            'service_id' => $serviceId,
-            'available_dates' => $slots['disabled_date'] ?? []
-        ], 404);
-    }
-
-    // STEP 4: Time Conflict Check (BOOKING VALIDATION)
-    if ($request->time) {
-
-    // Normalize user input
-    try {
-        $requestedTime = trim($request->time);
-        $normalizedRequestedTime = $this->normalizeTime($requestedTime);
-    } catch (\Exception $e) {
-        return response()->json([
-            'status' => 'error',
-            'message' => 'Invalid time format.',
-        ], 400);
-    }
-
-    // Check availability against filtered slots
-    $timeExists = false;
-    foreach ($availableSlots as $slot) {
-        // Extract start time "09:00 AM" or "09:00 AM-10:00 AM"
-        $parts = explode('-', $slot);
-        $startTime = trim($parts[0]);
-        $normalizedStart = $this->normalizeTime($startTime);
-        
-        if ($normalizedStart === $normalizedRequestedTime) {
-            $timeExists = true;
-            break;
+        if ($validator->fails()) {
+            return response()->json([
+                'status'  => 'error',
+                'message' => $validator->errors()->first()
+            ], 400);
         }
-    }
 
-    // If user-selected time is not available → booked
-    if (!$timeExists) {
+        // At least one of service_id or service_name must be provided
+        if (empty($request->service_id) && empty($request->service_name)) {
+            return response()->json([
+                'status'  => 'error',
+                'message' => 'Either service_id or service_name is required'
+            ], 400);
+        }
+
+        $teamId = 3;
+        $locationId = 80;
+        $date = Carbon::parse($request->date);
+        $dateString = $date->toDateString();
+
+        // STEP 1: Validate Service
+        $services = Category::getFirstCategorybooking($teamId, $locationId);
+
+        if ($request->service_id) {
+            $service = $services->firstWhere('id', $request->service_id);
+        } else {
+            $queryName = strtolower($request->service_name);
+            $service = $services->first(function ($s) use ($queryName) {
+                return strtolower($s->name) === $queryName ||
+                    strtolower($s->other_name ?? '') === $queryName;
+            });
+        }
+
+        if (!$service) {
+            return response()->json([
+                'status'  => 'error',
+                'message' => 'Service not found or not available',
+                'available_services' => $services->map(fn($s) => [
+                    'id'   => $s->id,
+                    'name' => $s->name
+                ])
+            ], 404);
+        }
+
+        $serviceId = $service->id;
+
+        // STEP 2: Validate Date Availability
+        $siteSetting = SiteDetail::where('team_id', $teamId)
+            ->where('location_id', $locationId)
+            ->first();
+
+        if (!$siteSetting) {
+            return response()->json([
+                'status' => 'error',
+                'message' => 'Site setting not found',
+            ], 404);
+        }
+
+        // STEP 3: Generate Available Time Slots
+        if ($siteSetting->choose_time_slot != 'staff') {
+            $slots = AccountSetting::checktimeslot($teamId, $locationId, $date, $serviceId, $siteSetting);
+        } else {
+            $staffIds = User::whereHas('categories', fn($q) => $q->where('categories.id', $serviceId))
+                ->pluck('id')->toArray();
+
+            $slots = AccountSetting::checkStafftimeslot(
+                $teamId,
+                $locationId,
+                $date,
+                $serviceId,
+                $siteSetting,
+                $staffIds
+            );
+        }
+
+        // Check if no slots at all
+        $availableSlots = $slots['start_at'] ?? [];
+
+        if (!empty($availableSlots)) {
+            $bookingSetting = AccountSetting::where('team_id', $teamId)
+                ->where('location_id', $locationId)
+                ->where('slot_type', AccountSetting::BOOKING_SLOT)
+                ->first();
+
+            $availableSlots = $this->filterValidSlots($availableSlots, $teamId, $locationId, $serviceId, $date, $bookingSetting);
+        }
+
+        if (empty($availableSlots)) {
+            return response()->json([
+                'status'  => 'error',
+                'message' => 'No time slots available for this date',
+                'date'    => $dateString,
+                'service_id' => $serviceId,
+                'available_dates' => $slots['disabled_date'] ?? []
+            ], 404);
+        }
+
+        // STEP 4: Time Conflict Check (BOOKING VALIDATION)
+        if ($request->time) {
+
+            // Normalize user input
+            try {
+                $requestedTime = trim($request->time);
+                $normalizedRequestedTime = $this->normalizeTime($requestedTime);
+            } catch (\Exception $e) {
+                return response()->json([
+                    'status' => 'error',
+                    'message' => 'Invalid time format.',
+                ], 400);
+            }
+
+            // Check availability against filtered slots
+            $timeExists = false;
+            foreach ($availableSlots as $slot) {
+                // Extract start time "09:00 AM" or "09:00 AM-10:00 AM"
+                $parts = explode('-', $slot);
+                $startTime = trim($parts[0]);
+                $normalizedStart = $this->normalizeTime($startTime);
+
+                if ($normalizedStart === $normalizedRequestedTime) {
+                    $timeExists = true;
+                    break;
+                }
+            }
+
+            // If user-selected time is not available → booked
+            if (!$timeExists) {
+                return response()->json([
+                    'status'  => 'error',
+                    'message' => 'This time slot is already booked for the selected service.',
+                    'requested_time' => $normalizedRequestedTime,
+                    'date'    => $dateString,
+                    'available_times' => $availableSlots
+                ], 409);
+            }
+        }
+
+
+        // SUCCESS — Service, Date, and Requested Time are Available
         return response()->json([
-            'status'  => 'error',
-            'message' => 'This time slot is already booked for the selected service.',
-            'requested_time' => $normalizedRequestedTime,
+            'status'  => 'success',
+            'message' => 'Service, date, and time are available',
+            'service' => [
+                'id'   => $serviceId,
+                'name' => $service->name
+            ],
             'date'    => $dateString,
             'available_times' => $availableSlots
-        ], 409);
+        ]);
     }
-}
 
-
-    // SUCCESS — Service, Date, and Requested Time are Available
-    return response()->json([
-        'status'  => 'success',
-        'message' => 'Service, date, and time are available',
-        'service' => [
-            'id'   => $serviceId,
-            'name' => $service->name
-        ],
-        'date'    => $dateString,
-        'available_times' => $availableSlots
-    ]);
-}
-
-/**
+    /**
      * Get available dates for a specific service
      * API: Returns available dates based on service name
      */
@@ -1548,10 +1575,10 @@ class ServiceController extends Controller
         // Step 1: Find the service
         $services = Category::getFirstCategorybooking($teamId, $locationId);
         $queryName = strtolower($request->service_name);
-        
+
         $service = $services->first(function ($s) use ($queryName) {
             return strtolower($s->name) === $queryName ||
-                   strtolower($s->other_name ?? '') === $queryName;
+                strtolower($s->other_name ?? '') === $queryName;
         });
 
         if (!$service) {
@@ -1594,7 +1621,7 @@ class ServiceController extends Controller
         // Actually, let's look at getAvailableDatesForNextWeek: $startDate = Carbon::now()->addDay();
         // If the user wants "today", the helper skips it.
         // However, the requirement is just "return available dates". We will use the existing helper to be consistent.
-        
+
         $availableDates = $this->getAvailableDatesForNextWeek($teamId, $locationId, $serviceId, $siteSetting, $bookingSetting);
 
         return response()->json([
@@ -1633,10 +1660,10 @@ class ServiceController extends Controller
         // Step 1: Find the service
         $services = Category::getFirstCategorybooking($teamId, $locationId);
         $queryName = strtolower($request->service_name);
-        
+
         $service = $services->first(function ($s) use ($queryName) {
             return strtolower($s->name) === $queryName ||
-                   strtolower($s->other_name ?? '') === $queryName;
+                strtolower($s->other_name ?? '') === $queryName;
         });
 
         if (!$service) {
@@ -1670,7 +1697,7 @@ class ServiceController extends Controller
             $slots = AccountSetting::checktimeslot($teamId, $locationId, $appointmentDate, $serviceId, $siteSetting);
         } else {
             $staffIds = User::whereHas('categories', fn($q) => $q->where('categories.id', $serviceId))
-                            ->pluck('id')->toArray();
+                ->pluck('id')->toArray();
 
             if (!empty($staffIds)) {
                 $slots = AccountSetting::checkStafftimeslot($teamId, $locationId, $appointmentDate, $serviceId, $siteSetting, $staffIds);
@@ -1692,20 +1719,20 @@ class ServiceController extends Controller
 
         // Filter out past times if date is today
         if ($appointmentDate->isToday()) {
-             // Use site timezone for accurate comparison
+            // Use site timezone for accurate comparison
             $timezone = $siteSetting->select_timezone ?? 'UTC';
             $now = Carbon::now($timezone);
-            
-            $availableSlots = array_values(array_filter($availableSlots, function($slot) use ($now, $timezone) {
+
+            $availableSlots = array_values(array_filter($availableSlots, function ($slot) use ($now, $timezone) {
                 try {
                     // Extract start time "09:00 AM" or "09:00 AM-10:00 AM"
                     $parts = explode('-', $slot);
                     $startTime = trim($parts[0]);
-                    
+
                     // Create Carbon object for the slot time in the correct timezone
                     $slotTime = Carbon::parse($startTime, $timezone);
                     $slotTime->setDate($now->year, $now->month, $now->day);
-                    
+
                     // Allow slot if it's in the future (plus maybe a buffer, but standard is just future)
                     return $slotTime->gt($now);
                 } catch (\Exception $e) {
@@ -1714,7 +1741,7 @@ class ServiceController extends Controller
             }));
         }
 
-        
+
         return response()->json([
             'status' => 'success',
             'service' => [
@@ -1734,7 +1761,7 @@ class ServiceController extends Controller
         $booking_refID = $request->booking_refID;
 
         if (empty($booking_refID)) {
-             return response()->json(['status' => 'error', 'message' => 'Id is required'], 400);
+            return response()->json(['status' => 'error', 'message' => 'Id is required'], 400);
         }
 
         // $booking = Booking::where('refID', $booking_refID)
@@ -1744,29 +1771,28 @@ class ServiceController extends Controller
         //     ->first();
 
         $booking = Booking::where('refID', $booking_refID)
-        ->where('is_convert', Booking::STATUS_NO)
-        ->where('status', '!=', Booking::STATUS_CANCELLED)
-        ->first();
+            ->where('is_convert', Booking::STATUS_NO)
+            ->where('status', '!=', Booking::STATUS_CANCELLED)
+            ->first();
 
         if (!$booking) {
-             return response()->json(['status' => 'error', 'message' => 'Booking not found or already converted or not for today'], 404);
+            return response()->json(['status' => 'error', 'message' => 'Booking not found or already converted or not for today'], 404);
         }
-        
+
         $teamId = $booking->team_id;
         $locationId = $booking->location_id;
         $siteDetails = SiteDetail::where('team_id', $teamId)->where('location_id', $locationId)->first();
 
         // Check Ticket Limit
         $checkTicketLimit = SiteDetail::checkTicketLimit($teamId, $locationId, $siteDetails);
-        if($checkTicketLimit)
-        {
-             return response()->json(['status' => 'error', 'message' => 'Ticket limit exceeded'], 400);
+        if ($checkTicketLimit) {
+            return response()->json(['status' => 'error', 'message' => 'Ticket limit exceeded'], 400);
         }
 
         // Check if already queue
         $isAsQueue = QueueStorage::isBookExist($booking->id);
         if ($isAsQueue) {
-             return response()->json(['status' => 'error', 'message' => 'Already converted'], 400);
+            return response()->json(['status' => 'error', 'message' => 'Already converted'], 400);
         }
 
         DB::beginTransaction();
@@ -1776,38 +1802,38 @@ class ServiceController extends Controller
             $selectedCategoryId = $booking->category_id ?? null;
             $secondChildId = $booking->sub_category_id ?? null;
             $thirdChildId = $booking->child_category_id ?? null;
-            
+
             $acronym_level = $siteDetails->acronym_level ?? 0;
-            if((int)$acronym_level == 1 && !empty($selectedCategoryId)){
+            if ((int)$acronym_level == 1 && !empty($selectedCategoryId)) {
                 $acronym = Category::viewAcronym($selectedCategoryId);
-            }elseif((int)$acronym_level == 2 && !empty($secondChildId)){
+            } elseif ((int)$acronym_level == 2 && !empty($secondChildId)) {
                 $acronym = Category::viewAcronym($secondChildId);
-            }elseif((int)$acronym_level == 3 && !empty($thirdChildId)){
+            } elseif ((int)$acronym_level == 3 && !empty($thirdChildId)) {
                 $acronym = Category::viewAcronym($thirdChildId);
             }
 
             // Last Category Logic
             $lastcategory = $selectedCategoryId;
-            if(!empty($thirdChildId)){
+            if (!empty($thirdChildId)) {
                 $lastcategory = $thirdChildId;
-            }elseif(!empty($secondChildId)){
+            } elseif (!empty($secondChildId)) {
                 $lastcategory = $secondChildId;
             }
 
             // Token Generation
-            if($siteDetails?->count_by_service){
-                 $lastToken = Queue::getLastToken($teamId, null, $locationId);
-            }else{
-                 $lastToken = Queue::getLastToken($teamId, $acronym, $locationId, $lastcategory);
+            if ($siteDetails?->count_by_service) {
+                $lastToken = Queue::getLastToken($teamId, null, $locationId);
+            } else {
+                $lastToken = Queue::getLastToken($teamId, $acronym, $locationId, $lastcategory);
             }
-            
+
             $token_digit = $siteDetails?->token_digit ?? 4;
             $isExistToken = true;
             $token_start = "";
 
             while ($isExistToken) {
                 $newToken = QueueStorage::newGeneratedToken($lastToken, $siteDetails?->token_start, $token_digit);
-                
+
                 $isExistToken = Queue::checkToken($teamId, $acronym, $newToken, $locationId);
                 if ($isExistToken) {
                     $lastToken = $newToken;
@@ -1816,7 +1842,7 @@ class ServiceController extends Controller
                     $isExistToken = false;
                 }
             }
-            
+
             $siteData = SiteDetail::where('team_id', $teamId)->where('location_id', $locationId)->first();
             $timezone = $siteData->select_timezone ?? 'UTC';
             Config::set('app.timezone', $timezone);
@@ -1835,7 +1861,7 @@ class ServiceController extends Controller
                 $assigned_staff_id = is_numeric($booking->staff_id) ? (int)$booking->staff_id : null;
             }
 
-            $enablePriority = $siteDetails->priority_enable ?? false; 
+            $enablePriority = $siteDetails->priority_enable ?? false;
 
             $nextPrioritySort = $this->getNextPrioritySortDirect($teamId, $locationId, $booking->category_id);
             if ($enablePriority && empty($assigned_staff_id)) {
@@ -1843,13 +1869,13 @@ class ServiceController extends Controller
             }
 
             $is_virtual_meeting = 0;
-            if($booking->json){
+            if ($booking->json) {
                 $decodedJson = json_decode($booking->json, true);
                 if (isset($decodedJson['type']) && $decodedJson['type'] === 'Virtual') {
                     $is_virtual_meeting = 1;
                 }
             }
-            
+
             $phone_full = (!empty($booking->phone_code) && !empty($booking->phone)) ? $booking->phone_code . $booking->phone : null;
 
             $storeData = [
@@ -1873,7 +1899,7 @@ class ServiceController extends Controller
                 'assign_staff_id' =>  $assigned_staff_id,
                 'campaign_id' => is_numeric($booking->campaign_id) ? (int)$booking->campaign_id : null,
                 'full_phone_number' => $phone_full,
-                'is_virtual_meeting' =>$is_virtual_meeting,
+                'is_virtual_meeting' => $is_virtual_meeting,
             ];
 
             $queueCreated = Queue::storeQueue([
@@ -1901,7 +1927,7 @@ class ServiceController extends Controller
             $booking->save();
 
             // Salesforce
-             try {
+            try {
                 $salesforcessettings = SalesforceSetting::where('team_id',  $teamId)
                     ->where('location_id', $booking->location_id)
                     ->first();
@@ -1916,12 +1942,12 @@ class ServiceController extends Controller
                     ->value('salesforce_refresh_token');
 
                 if (!empty($clientId) && !empty($clientSecret) && !empty($refreshToken)) {
-                     $datetimeUtc = new \DateTime($queueStorage->arrives_time);
+                    $datetimeUtc = new \DateTime($queueStorage->arrives_time);
                     $datetimeUtc->setTimezone(new \DateTimeZone('UTC'));
                     $Qwaiting_Sync_Date__c = $datetimeUtc->format('Y-m-d\TH:i:s\Z');
-                    
+
                     $assignUserSfId = null;
-                     if (($siteDetails->assigned_staff_id ?? 0) == 1 && is_numeric($booking->staff_id)) {
+                    if (($siteDetails->assigned_staff_id ?? 0) == 1 && is_numeric($booking->staff_id)) {
                         $assignUserSfId = User::where('id', (int)$booking->staff_id)->value('saleforce_user_id');
                     } elseif (!empty($assigned_staff_id)) {
                         $assignUserSfId = User::where('id', $assigned_staff_id)->value('saleforce_user_id');
@@ -1929,8 +1955,8 @@ class ServiceController extends Controller
 
                     $customFields = json_decode($booking->json, true) ?: [];
                     $customFields = array_change_key_case($customFields, CASE_LOWER);
-                    
-                     $salesForceData = [
+
+                    $salesForceData = [
                         'refresh_token' => $refreshToken,
                         'FirstName' => $queueStorage->name ?? 'Guest',
                         'Phone' => $queueStorage->phone ?? '',
@@ -1942,27 +1968,27 @@ class ServiceController extends Controller
                         'queue_storage_id' => $queueStorage->id,
                         'AssignId' => $assignUserSfId ?: '005Hu00000SBZ8bIAH',
                     ];
-                    
+
                     $sfService = new SalesforceService($clientId, $clientSecret, $tokenUrl);
                     $leadResponse = $sfService->createLead($salesForceData);
                     $queueStorage->salesforce_lead = json_encode($leadResponse);
                     $queueStorage->save();
                 }
             } catch (\Throwable $e) {
-                 Log::error('Salesforce Error: ' . $e->getMessage());
+                Log::error('Salesforce Error: ' . $e->getMessage());
             }
 
             QueueNotification::dispatch($queueStorage);
             QueueCreated::dispatch($queueStorage);
-            
+
             // Calculate Wait Time & Pending
             $categoryName = "";
             if (!empty($queueStorage->category_id))
                 $categoryName =  Category::viewCategoryName($queueStorage->category_id);
             if (!empty($queueStorage->sub_category_id))
-                $categoryName = Category::viewCategoryName($queueStorage->sub_category_id); 
-             if (!empty($queueStorage->child_category_id))
-                $categoryName = Category::viewCategoryName($queueStorage->child_category_id); 
+                $categoryName = Category::viewCategoryName($queueStorage->sub_category_id);
+            if (!empty($queueStorage->child_category_id))
+                $categoryName = Category::viewCategoryName($queueStorage->child_category_id);
 
             // Determining Pending Count
             $pendingCount = 0;
@@ -1972,8 +1998,8 @@ class ServiceController extends Controller
             $countCatID = $selectedCategoryId;
             $fieldCatName = 'category_id';
 
-             // determineCategoryColumn logic
-             if (!empty($thirdChildId)) {
+            // determineCategoryColumn logic
+            if (!empty($thirdChildId)) {
                 if ($siteDetails->category_level_est == 'automatic') {
                     $fieldCatName = 'child_category_id';
                     $countCatID =  $thirdChildId;
@@ -1981,95 +2007,92 @@ class ServiceController extends Controller
                     $fieldCatName = 'sub_category_id';
                     $countCatID =  $secondChildId;
                 } else {
-                     $fieldCatName = 'category_id';
-                     $countCatID =  $selectedCategoryId;
+                    $fieldCatName = 'category_id';
+                    $countCatID =  $selectedCategoryId;
                 }
             } else if (!empty($secondChildId)) {
                 if ($siteDetails->category_level_est == 'child') {
                     $fieldCatName = 'sub_category_id';
                     $countCatID =  $secondChildId;
                 } else {
-                     $fieldCatName = 'category_id';
-                     $countCatID =  $selectedCategoryId;
+                    $fieldCatName = 'category_id';
+                    $countCatID =  $selectedCategoryId;
                 }
             } else {
                 $fieldCatName = 'category_id';
                 $countCatID =  $selectedCategoryId;
             }
-            
+
             if ($siteDetails->category_estimated_time == SiteDetail::STATUS_YES) {
- 
-                if($siteDetails->estimate_time_mode == 1){ //check pending according to service and staff availablilty
-                  $estimatedetail = QueueStorage::countPendingByCategorywithstaff($teamId, $queueStorage->id, $countCatID, $fieldCatName, '', $locationId);
+
+                if ($siteDetails->estimate_time_mode == 1) { //check pending according to service and staff availablilty
+                    $estimatedetail = QueueStorage::countPendingByCategorywithstaff($teamId, $queueStorage->id, $countCatID, $fieldCatName, '', $locationId);
                     if ($estimatedetail == false) {
                         $pendingCount = QueueStorage::countPending($teamId, $queueStorage->id, $countCatID, $fieldCatName, '', $locationId);
                     } else {
                         $pendingCount = $estimatedetail['customers_before_me'] ?? 0;
                         $pendingwaiting = $estimatedetail['estimated_wait_time'] ?? 0;
-                        if($enablePriority == false){
+                        if ($enablePriority == false) {
                             $assigned_staff_id = $estimatedetail['assigned_staff_id'] ?? null;
                             $queueStorage->assign_staff_id = $assigned_staff_id;
                         }
                     }
-                }elseif($siteDetails->estimate_time_mode == 2){ //check pending according to service only
-                        if($siteDetails->count_all_services == 2){
-                            $estimatedetail = QueueStorage::countAllPendingQueues($teamId, $queueStorage->id, $countCatID,$locationId);
-                            $pendingCount = $estimatedetail['customers_before_me'] ?? 0;
-                        }else{
-                            $estimatedetail = QueueStorage::countPendingByCategory($teamId, $queueStorage->id, $countCatID, $fieldCatName,$locationId);
-                            $pendingCount = $estimatedetail['customers_before_me'] ?? 0;
-                            $pendingwaiting = $estimatedetail['estimated_wait_time'] ?? 0;
-                        }
-
-                }else{
+                } elseif ($siteDetails->estimate_time_mode == 2) { //check pending according to service only
+                    if ($siteDetails->count_all_services == 2) {
+                        $estimatedetail = QueueStorage::countAllPendingQueues($teamId, $queueStorage->id, $countCatID, $locationId);
+                        $pendingCount = $estimatedetail['customers_before_me'] ?? 0;
+                    } else {
+                        $estimatedetail = QueueStorage::countPendingByCategory($teamId, $queueStorage->id, $countCatID, $fieldCatName, $locationId);
+                        $pendingCount = $estimatedetail['customers_before_me'] ?? 0;
+                        $pendingwaiting = $estimatedetail['estimated_wait_time'] ?? 0;
+                    }
+                } else {
                     //  $serviceTime = $siteDetails->estimate_time ?? 0;
-                    $estimatedetail = QueueStorage::countPendingByStaff($teamId, $queueStorage->id,$countCatID,$locationId);
-                      if ($estimatedetail == false) {
-                          $pendingCount = 0;
-                        } else {
-                            $pendingCount = $estimatedetail['customers_before_me'] ?? 0;
-                            $pendingwaiting = $estimatedetail['estimated_wait_time'] ?? 0;
-                            if($enablePriority == false){
-                                $assigned_staff_id = $estimatedetail['assigned_staff_id'] ?? null;
-                                $queueStorage->assign_staff_id = $assigned_staff_id;
-                            }
+                    $estimatedetail = QueueStorage::countPendingByStaff($teamId, $queueStorage->id, $countCatID, $locationId);
+                    if ($estimatedetail == false) {
+                        $pendingCount = 0;
+                    } else {
+                        $pendingCount = $estimatedetail['customers_before_me'] ?? 0;
+                        $pendingwaiting = $estimatedetail['estimated_wait_time'] ?? 0;
+                        if ($enablePriority == false) {
+                            $assigned_staff_id = $estimatedetail['assigned_staff_id'] ?? null;
+                            $queueStorage->assign_staff_id = $assigned_staff_id;
                         }
+                    }
                 }
-
             } else {
 
                 $pendingCountget = (int)QueueStorage::countPending($teamId, $queueStorage->id, '', '', '', $locationId);
-                $counterCount = Counter::where('team_id',$teamId)->whereJsonContains('counter_locations', "$locationId")->where('show_checkbox',1)->count();
-                if((int)$pendingCountget > 0 && (int)$counterCount > 0){
-                        $pendingCount = floor((int)$pendingCountget / (int)$counterCount);
-
-                    }
+                $counterCount = Counter::where('team_id', $teamId)->whereJsonContains('counter_locations', "$locationId")->where('show_checkbox', 1)->count();
+                if ((int)$pendingCountget > 0 && (int)$counterCount > 0) {
+                    $pendingCount = floor((int)$pendingCountget / (int)$counterCount);
+                }
             }
-            
+
             $estimate_time = $siteDetails->estimate_time ?? 0;
 
-             if ($siteDetails->category_estimated_time == SiteDetail::STATUS_YES) { // get estimate time of category wise
-                   if($siteDetails->estimate_time_mode == 2 && $siteDetails->count_all_services == 2){ //check pending according to service only
+            if ($siteDetails->category_estimated_time == SiteDetail::STATUS_YES) { // get estimate time of category wise
+                if ($siteDetails->estimate_time_mode == 2 && $siteDetails->count_all_services == 2) { //check pending according to service only
                     $waitingTime =  $estimate_time * $pendingCount;
-                   }else{
-                       $waitingTime =  $pendingwaiting != 0 ? $pendingwaiting : ($estimate_time * $pendingCount);
-                   }
-                } else {  // get estimate time of globally set
-                    $waitingTime =  $estimate_time * $pendingCount;
+                } else {
+                    $waitingTime =  $pendingwaiting != 0 ? $pendingwaiting : ($estimate_time * $pendingCount);
                 }
+            } else {  // get estimate time of globally set
+                $waitingTime =  $estimate_time * $pendingCount;
+            }
 
-             $queueStorage->waiting_time = $waitingTime;
-             $queueStorage->queue_count = $pendingCount;
-             $queueStorage->save();
-             
-             $this->sendNotification($teamId, $booking, $queueStorage, $queueCreated, $acronym, $locationId);
+            $queueStorage->waiting_time = $waitingTime;
+            $queueStorage->queue_count = $pendingCount;
+            $queueStorage->save();
+
+            $this->sendNotification($teamId, $booking, $queueStorage, $queueCreated, $acronym, $locationId);
 
             DB::commit();
 
             // QR Code
             $baseencodeQueueId = base64_encode($queueCreated->id);
             $customUrl = url("/visits/{$baseencodeQueueId}");
-            
+
             $formatted_response = "Queue No.: $token_start\n";
             $formatted_response .= "Arrived: " . $todayDateTime->format('d-m-Y H:i:s') . "\n";
             $formatted_response .= "$categoryName\n";
@@ -2081,34 +2104,33 @@ class ServiceController extends Controller
                 'status' => 'success',
                 'data' => $formatted_response,
             ]);
-
         } catch (\Exception $ex) {
             DB::rollBack();
             Log::error($ex);
-             return response()->json(['status' => 'error', 'message' => 'Error: ' . $ex->getMessage()], 500);
+            return response()->json(['status' => 'error', 'message' => 'Error: ' . $ex->getMessage()], 500);
         }
     }
 
     private function getNextPrioritySortDirect($teamId, $location, $categoryId)
     {
         $category = Category::find($categoryId);
-        if(!$category) return 0;
-        
-         $categories = Category::where('team_id', $teamId)
-        ->where(function ($query) {
-            $query->whereNull('parent_id')
-                  ->orWhere('parent_id', '');
-        })
-        ->whereJsonContains('category_locations', (string)$location)
-        ->orderBy('sort')
-        ->pluck('visitor_in_queue', 'id');
-        
+        if (!$category) return 0;
+
+        $categories = Category::where('team_id', $teamId)
+            ->where(function ($query) {
+                $query->whereNull('parent_id')
+                    ->orWhere('parent_id', '');
+            })
+            ->whereJsonContains('category_locations', (string)$location)
+            ->orderBy('sort')
+            ->pluck('visitor_in_queue', 'id');
+
         $sequencePattern = $categories;
 
         $nextserial = 1;
         $filteredCategories = $sequencePattern->except($category->id);
         $sumVisitorInQueue = $filteredCategories->sum() + ($sequencePattern[$category->id] ?? 0);
-        
+
         $queues = QueueStorage::where('team_id', $teamId)
             ->where('locations_id', $location)
             ->where('category_id', $category->id)
@@ -2118,7 +2140,7 @@ class ServiceController extends Controller
             ->pluck('priority_sort')
             ->toArray();
 
-         if (!empty($queues)) {
+        if (!empty($queues)) {
             $maxValue = max($queues);
             if ($maxValue == 0) {
                 $maxValue = $nextserial;
@@ -2127,8 +2149,8 @@ class ServiceController extends Controller
         } else {
             $maxValue = $nextserial;
         }
-        
-         if (($sequencePattern[$category->id] ?? 0) == 1) {
+
+        if (($sequencePattern[$category->id] ?? 0) == 1) {
             if (!empty($queues)) {
                 return $nextserial = $maxValue + $sumVisitorInQueue;
             } else {
@@ -2138,10 +2160,10 @@ class ServiceController extends Controller
                 return $nextserial = $maxValue + $sumBefore;
             }
         } elseif (($sequencePattern[$category->id] ?? 0) > 1) {
-              $countserial = 0;
+            $countserial = 0;
             if (!empty($queues)) {
                 for ($i = $maxValue; $i >= 1; $i--) {
-                     $checkSort = QueueStorage::where('team_id', $teamId)
+                    $checkSort = QueueStorage::where('team_id', $teamId)
                         ->where('locations_id', $location)
                         ->where('category_id', $category->id)
                         ->whereNotNull('priority_sort')
@@ -2168,48 +2190,48 @@ class ServiceController extends Controller
         }
         return $nextserial;
     }
-    
-     public function sendNotification($teamId, $booking, $queueStorage, $queueCreated, $acronym, $locationId)
-     {
-         $data = [
-                'name' => $queueStorage->name ?? '',
-                'phone' => $queueStorage->phone ?? '',
-                'phone_code' => $queueStorage->phone_code ?? '91',
-                'queue_no' => $queueCreated->id,
-                'arrives_time' => Carbon::parse($queueCreated->created_at)->format(AccountSetting::showDateTimeFormat()),
-                'token' => $queueCreated->token,
-                'token_with_acronym' => $queueCreated->start_acronym,
-                'to_mail' => $booking->email ?? '',
-                'locations_id' => $booking->location_id,
-                'team_id' => $teamId
-         ];
-         
-         $logData = [
-                'team_id' => $teamId,
-                'location_id' => $locationId,
-                'user_id' => $queueStorage->served_by,
-                'customer_id' => $queueStorage->created_by,
-                'queue_id' => $queueStorage->queue_id,
-                'queue_storage_id' => $queueStorage->id,
-                'email' => $booking->email ?? '',
-                'contact' => $queueStorage->phone,
-                'type' => MessageDetail::TRIGGERED_TYPE,
-                'event_name' => 'Ticket Generate',
-            ];
-            
-         $data['location_id'] = $locationId;
-         $type = 'ticket created';
-         
-          if (isset($data['to_mail']) && $data['to_mail'] != '') {
-                $logData['channel'] = 'email';
-                $logData['status'] = MessageDetail::SENT_STATUS;
-                SmtpDetails::sendMail($data, $type, 'ticket-created', $teamId,$logData);
-            }
 
-            if (!empty($data['phone'])) {
-                SmsAPI::sendSms( $teamId, $data,$type,$type,$logData);
-            }
-     }
+    public function sendNotification($teamId, $booking, $queueStorage, $queueCreated, $acronym, $locationId)
+    {
+        $data = [
+            'name' => $queueStorage->name ?? '',
+            'phone' => $queueStorage->phone ?? '',
+            'phone_code' => $queueStorage->phone_code ?? '91',
+            'queue_no' => $queueCreated->id,
+            'arrives_time' => Carbon::parse($queueCreated->created_at)->format(AccountSetting::showDateTimeFormat()),
+            'token' => $queueCreated->token,
+            'token_with_acronym' => $queueCreated->start_acronym,
+            'to_mail' => $booking->email ?? '',
+            'locations_id' => $booking->location_id,
+            'team_id' => $teamId
+        ];
+
+        $logData = [
+            'team_id' => $teamId,
+            'location_id' => $locationId,
+            'user_id' => $queueStorage->served_by,
+            'customer_id' => $queueStorage->created_by,
+            'queue_id' => $queueStorage->queue_id,
+            'queue_storage_id' => $queueStorage->id,
+            'email' => $booking->email ?? '',
+            'contact' => $queueStorage->phone,
+            'type' => MessageDetail::TRIGGERED_TYPE,
+            'event_name' => 'Ticket Generate',
+        ];
+
+        $data['location_id'] = $locationId;
+        $type = 'ticket created';
+
+        if (isset($data['to_mail']) && $data['to_mail'] != '') {
+            $logData['channel'] = 'email';
+            $logData['status'] = MessageDetail::SENT_STATUS;
+            SmtpDetails::sendMail($data, $type, 'ticket-created', $teamId, $logData);
+        }
+
+        if (!empty($data['phone'])) {
+            SmsAPI::sendSms($teamId, $data, $type, $type, $logData);
+        }
+    }
 
     public function saveQueueForm(Request $request)
     {
@@ -2230,9 +2252,9 @@ class ServiceController extends Controller
 
         $teamId = $request->input('team_id', 3);
         $locationId = $request->input('location_id', 80);
-        
+
         $categoryNameInput = $request->category_name;
-        
+
         // Dynamic Fields Processing (similar to Queue.php)
         $formattedFields = [];
         foreach ($request->all() as $key => $value) {
@@ -2243,12 +2265,12 @@ class ServiceController extends Controller
         }
 
         $name = $formattedFields['name'] ?? null;
-        
+
         // Phone extraction (similar to Queue.php)
         $possiblePhoneKeys = \App\Models\FormField::possiblePhoneKeys();
         $phone = null;
         $phone_code = $request->phone_code ?? '91';
-        
+
         foreach ($possiblePhoneKeys as $key) {
             if (isset($formattedFields[$key]) && !empty($formattedFields[$key])) {
                 $phone = $formattedFields[$key];
@@ -2262,13 +2284,13 @@ class ServiceController extends Controller
 
         $siteDetails = SiteDetail::where('team_id', $teamId)->where('location_id', $locationId)->first();
         if (!$siteDetails) {
-             return response()->json(['status' => 'error', 'message' => 'Site details not found'], 404);
+            return response()->json(['status' => 'error', 'message' => 'Site details not found'], 404);
         }
 
         // Check Ticket Limit
         $checkTicketLimit = SiteDetail::checkTicketLimit($teamId, $locationId, $siteDetails);
-        if($checkTicketLimit) {
-             return response()->json(['status' => 'error', 'message' => 'Ticket limit exceeded'], 400);
+        if ($checkTicketLimit) {
+            return response()->json(['status' => 'error', 'message' => 'Ticket limit exceeded'], 400);
         }
 
         // Find Category ID by Name
@@ -2282,15 +2304,15 @@ class ServiceController extends Controller
         }
 
         $selectedCategoryId = $category->id;
-        
+
         DB::beginTransaction();
         try {
             // Acronym Logic
             $acronym = SiteDetail::DEFAULT_WALKIN_A;
             $acronym_level = $siteDetails->acronym_level ?? 0;
-            
+
             // Simplified level logic: we only have one category ID here
-            if((int)$acronym_level == 1 && !empty($selectedCategoryId)){
+            if ((int)$acronym_level == 1 && !empty($selectedCategoryId)) {
                 $acronym = Category::viewAcronym($selectedCategoryId);
             }
             // If API supports sub-categories later, we would check them here
@@ -2298,19 +2320,19 @@ class ServiceController extends Controller
             $lastcategory = $selectedCategoryId;
 
             // Token Generation
-            if($siteDetails?->count_by_service){
-                 $lastToken = Queue::getLastToken($teamId, null, $locationId);
-            }else{
-                 $lastToken = Queue::getLastToken($teamId, $acronym, $locationId, $lastcategory);
+            if ($siteDetails?->count_by_service) {
+                $lastToken = Queue::getLastToken($teamId, null, $locationId);
+            } else {
+                $lastToken = Queue::getLastToken($teamId, $acronym, $locationId, $lastcategory);
             }
-            
+
             $token_digit = $siteDetails?->token_digit ?? 4;
             $isExistToken = true;
             $token_start = "";
 
             while ($isExistToken) {
                 $newToken = QueueStorage::newGeneratedToken($lastToken, $siteDetails?->token_start, $token_digit);
-                
+
                 $isExistToken = Queue::checkToken($teamId, $acronym, $newToken, $locationId);
                 if ($isExistToken) {
                     $lastToken = $newToken;
@@ -2325,39 +2347,39 @@ class ServiceController extends Controller
             date_default_timezone_set($timezone);
 
             $todayDateTime = Carbon::now($timezone);
-            
+
             // Commented old line
             // $todayDateTime = Carbon::now();
             // Senior Citizen & Priority Logic (from Queue.php)
             $seniorCitizen = 'No';
             $isSeniorCitizen = $siteDetails->enable_priority_pattern == 0 ? true : false;
-            if($isSeniorCitizen){
-                if(isset($formattedFields['are you a senior citizen']) && !empty($formattedFields['are you a senior citizen'])){
+            if ($isSeniorCitizen) {
+                if (isset($formattedFields['are you a senior citizen']) && !empty($formattedFields['are you a senior citizen'])) {
                     $seniorCitizen = $formattedFields['are you a senior citizen'];
                     // getNextSeniorPrioritySort is private/protected logic in Component, assuming simple Priority logic here or copy logic if complex
                     // For now, defaulting to standard priority call
-                     $nextPrioritySort = $this->getNextPrioritySortDirect($teamId, $locationId, $selectedCategoryId);
-                }else{
-                     $nextPrioritySort = $this->getNextPrioritySortDirect($teamId, $locationId, $selectedCategoryId);
+                    $nextPrioritySort = $this->getNextPrioritySortDirect($teamId, $locationId, $selectedCategoryId);
+                } else {
+                    $nextPrioritySort = $this->getNextPrioritySortDirect($teamId, $locationId, $selectedCategoryId);
                 }
-            }else{
-                 $nextPrioritySort = $this->getNextPrioritySortDirect($teamId, $locationId, $selectedCategoryId); 
+            } else {
+                $nextPrioritySort = $this->getNextPrioritySortDirect($teamId, $locationId, $selectedCategoryId);
             }
 
             // Assigned Staff
             $assigned_staff_id = null;
-            $enablePriority = $siteDetails->priority_enable ?? false; 
+            $enablePriority = $siteDetails->priority_enable ?? false;
             if ($enablePriority) {
-                 $assigned_staff = User::getNextAgent($teamId, $locationId);
-                 if($assigned_staff['status']){
-                     $assigned_staff_id = $assigned_staff['availableAgent'];
-                 }
+                $assigned_staff = User::getNextAgent($teamId, $locationId);
+                if ($assigned_staff['status']) {
+                    $assigned_staff_id = $assigned_staff['availableAgent'];
+                }
             }
 
             $decodedJson = json_decode($jsonDynamicData, true);
-            $is_virtual_meeting = 0; 
+            $is_virtual_meeting = 0;
             if (isset($decodedJson['type']) && $decodedJson['type'] === 'Virtual') {
-                 $is_virtual_meeting = 1;
+                $is_virtual_meeting = 1;
             }
 
             $full_phone_number = (!empty($phone_code) && !empty($phone)) ? $phone_code . $phone : null;
@@ -2393,7 +2415,7 @@ class ServiceController extends Controller
                 'last_category' => $lastcategory,
                 'start_acronym' => $acronym,
             ]);
-            
+
             if ($is_virtual_meeting) {
                 $room = 'room_' . base64_encode($queueCreated->id);
                 $queueId = base64_encode($queueCreated->id);
@@ -2404,8 +2426,8 @@ class ServiceController extends Controller
 
             $queueStorage = QueueStorage::storeQueue(array_merge($storeData, ['queue_id' => $queueCreated->id]));
 
-             // Salesforce
-             try {
+            // Salesforce
+            try {
                 $salesforcessettings = SalesforceSetting::where('team_id',  $teamId)
                     ->where('location_id', $locationId)
                     ->first();
@@ -2420,16 +2442,16 @@ class ServiceController extends Controller
                     ->value('salesforce_refresh_token');
 
                 if (!empty($clientId) && !empty($clientSecret) && !empty($refreshToken)) {
-                     $datetimeUtc = new \DateTime($queueStorage->arrives_time);
+                    $datetimeUtc = new \DateTime($queueStorage->arrives_time);
                     $datetimeUtc->setTimezone(new \DateTimeZone('UTC'));
                     $Qwaiting_Sync_Date__c = $datetimeUtc->format('Y-m-d\TH:i:s\Z');
-                    
+
                     $assignUserSfId = null;
                     if (!empty($assigned_staff_id)) {
                         $assignUserSfId = User::where('id', $assigned_staff_id)->value('saleforce_user_id');
                     }
 
-                     $salesForceData = [
+                    $salesForceData = [
                         'refresh_token' => $refreshToken,
                         'FirstName' => $queueStorage->name ?? 'Guest',
                         'Phone' => $queueStorage->phone ?? '',
@@ -2452,20 +2474,20 @@ class ServiceController extends Controller
                         'Note' => $formattedFields['notes'] ?? '',
                         'Mobile' => $formattedFields['number'] ?? '',
                     ];
-                    
+
                     $sfService = new SalesforceService($clientId, $clientSecret, $tokenUrl);
                     $leadResponse = $sfService->createLead($salesForceData);
                     $queueStorage->salesforce_lead = json_encode($leadResponse);
                     $queueStorage->save();
                 }
             } catch (\Throwable $e) {
-                 Log::error('Salesforce Error: ' . $e->getMessage());
+                Log::error('Salesforce Error: ' . $e->getMessage());
             }
 
             QueueNotification::dispatch($queueStorage);
             QueueCreated::dispatch($queueStorage);
-             // handle Customer Creation/Log
-             if (!empty($phone)) {
+            // handle Customer Creation/Log
+            if (!empty($phone)) {
                 $existingCustomer = Customer::where('phone', $phone)
                     ->where('team_id', $teamId)
                     ->where('location_id', $locationId)
@@ -2476,36 +2498,36 @@ class ServiceController extends Controller
                         'location_id' => $locationId,
                         'name' => $name,
                         'phone' => $phone,
-                        'json_data' => $jsonDynamicData, 
+                        'json_data' => $jsonDynamicData,
                     ]);
                 }
                 CustomerActivityLog::create([
                     'team_id' => $teamId,
                     'location_id' => $locationId,
                     'queue_id' => $queueStorage->id,
-                    'booking_id' => null, 
+                    'booking_id' => null,
                     'type' => 'queue',
                     'customer_id' => $existingCustomer->id,
                     'note' => 'Customer joined the queue.',
                 ]);
                 $queueStorage->created_by = $existingCustomer->id;
                 $queueStorage->save();
-             }
+            }
 
             // Calculate Wait Time & Pending
             $categoryName = $categoryNameInput;
             $pendingCount = 0;
             $waitingTime = 0;
             $pendingwaiting = 0;
-            
-            $secondChildId = null; 
+
+            $secondChildId = null;
             $thirdChildId = null;
 
             $countCatID = $selectedCategoryId;
             $fieldCatName = 'category_id';
 
-             // determineCategoryColumn logic
-             if (!empty($thirdChildId)) {
+            // determineCategoryColumn logic
+            if (!empty($thirdChildId)) {
                 if ($siteDetails->category_level_est == 'automatic') {
                     $fieldCatName = 'child_category_id';
                     $countCatID =  $thirdChildId;
@@ -2513,89 +2535,88 @@ class ServiceController extends Controller
                     $fieldCatName = 'sub_category_id';
                     $countCatID =  $secondChildId;
                 } else {
-                     $fieldCatName = 'category_id';
-                     $countCatID =  $selectedCategoryId;
+                    $fieldCatName = 'category_id';
+                    $countCatID =  $selectedCategoryId;
                 }
             } else if (!empty($secondChildId)) {
                 if ($siteDetails->category_level_est == 'child') {
                     $fieldCatName = 'sub_category_id';
                     $countCatID =  $secondChildId;
                 } else {
-                     $fieldCatName = 'category_id';
-                     $countCatID =  $selectedCategoryId;
+                    $fieldCatName = 'category_id';
+                    $countCatID =  $selectedCategoryId;
                 }
             } else {
                 $fieldCatName = 'category_id';
                 $countCatID =  $selectedCategoryId;
             }
-            
+
             if ($siteDetails->category_estimated_time == SiteDetail::STATUS_YES) {
-                if($siteDetails->estimate_time_mode == 1){ //check pending according to service and staff availablilty
-                  $estimatedetail = QueueStorage::countPendingByCategorywithstaff($teamId, $queueStorage->id, $countCatID, $fieldCatName, '', $locationId);
+                if ($siteDetails->estimate_time_mode == 1) { //check pending according to service and staff availablilty
+                    $estimatedetail = QueueStorage::countPendingByCategorywithstaff($teamId, $queueStorage->id, $countCatID, $fieldCatName, '', $locationId);
                     if ($estimatedetail == false) {
                         $pendingCount = QueueStorage::countPending($teamId, $queueStorage->id, $countCatID, $fieldCatName, '', $locationId);
                     } else {
                         $pendingCount = $estimatedetail['customers_before_me'] ?? 0;
                         $pendingwaiting = $estimatedetail['estimated_wait_time'] ?? 0;
-                        if($enablePriority == false){
+                        if ($enablePriority == false) {
                             $assigned_staff_id = $estimatedetail['assigned_staff_id'] ?? null;
                             $queueStorage->assign_staff_id = $assigned_staff_id;
                         }
                     }
-                }elseif($siteDetails->estimate_time_mode == 2){ //check pending according to service only
-                        if($siteDetails->count_all_services == 2){
-                            $estimatedetail = QueueStorage::countAllPendingQueues($teamId, $queueStorage->id, $countCatID,$locationId);
-                            $pendingCount = $estimatedetail['customers_before_me'] ?? 0;
-                        }else{
-                            $estimatedetail = QueueStorage::countPendingByCategory($teamId, $queueStorage->id, $countCatID, $fieldCatName,$locationId);
-                            $pendingCount = $estimatedetail['customers_before_me'] ?? 0;
-                            $pendingwaiting = $estimatedetail['estimated_wait_time'] ?? 0;
-                        }
-
-                }else{
+                } elseif ($siteDetails->estimate_time_mode == 2) { //check pending according to service only
+                    if ($siteDetails->count_all_services == 2) {
+                        $estimatedetail = QueueStorage::countAllPendingQueues($teamId, $queueStorage->id, $countCatID, $locationId);
+                        $pendingCount = $estimatedetail['customers_before_me'] ?? 0;
+                    } else {
+                        $estimatedetail = QueueStorage::countPendingByCategory($teamId, $queueStorage->id, $countCatID, $fieldCatName, $locationId);
+                        $pendingCount = $estimatedetail['customers_before_me'] ?? 0;
+                        $pendingwaiting = $estimatedetail['estimated_wait_time'] ?? 0;
+                    }
+                } else {
                     //  $serviceTime = $siteDetails->estimate_time ?? 0;
-                    $estimatedetail = QueueStorage::countPendingByStaff($teamId, $queueStorage->id,$countCatID,$locationId);
-                      if ($estimatedetail == false) {
-                          $pendingCount = 0;
-                        } else {
-                            $pendingCount = $estimatedetail['customers_before_me'] ?? 0;
-                            $pendingwaiting = $estimatedetail['estimated_wait_time'] ?? 0;
-                            if($enablePriority == false){
-                                $assigned_staff_id = $estimatedetail['assigned_staff_id'] ?? null;
-                                $queueStorage->assign_staff_id = $assigned_staff_id;
-                            }
+                    $estimatedetail = QueueStorage::countPendingByStaff($teamId, $queueStorage->id, $countCatID, $locationId);
+                    if ($estimatedetail == false) {
+                        $pendingCount = 0;
+                    } else {
+                        $pendingCount = $estimatedetail['customers_before_me'] ?? 0;
+                        $pendingwaiting = $estimatedetail['estimated_wait_time'] ?? 0;
+                        if ($enablePriority == false) {
+                            $assigned_staff_id = $estimatedetail['assigned_staff_id'] ?? null;
+                            $queueStorage->assign_staff_id = $assigned_staff_id;
                         }
+                    }
                 }
             } else {
                 $pendingCountget = (int)QueueStorage::countPending($teamId, $queueStorage->id, '', '', '', $locationId);
-                $counterCount = Counter::where('team_id',$teamId)->whereJsonContains('counter_locations', "$locationId")->where('show_checkbox',1)->count();
-                if((int)$pendingCountget > 0 && (int)$counterCount > 0){
-                        $pendingCount = floor((int)$pendingCountget / (int)$counterCount);
-                    }
+                $counterCount = Counter::where('team_id', $teamId)->whereJsonContains('counter_locations', "$locationId")->where('show_checkbox', 1)->count();
+                if ((int)$pendingCountget > 0 && (int)$counterCount > 0) {
+                    $pendingCount = floor((int)$pendingCountget / (int)$counterCount);
+                }
             }
 
             $estimate_time = $siteDetails->estimate_time ?? 0;
             if ($siteDetails->category_estimated_time == SiteDetail::STATUS_YES) { // get estimate time of category wise
-                   if($siteDetails->estimate_time_mode == 2 && $siteDetails->count_all_services == 2){ //check pending according to service only
+                if ($siteDetails->estimate_time_mode == 2 && $siteDetails->count_all_services == 2) { //check pending according to service only
                     $waitingTime =  $estimate_time * $pendingCount;
-                   }else{
-                       $waitingTime =  $pendingwaiting != 0 ? $pendingwaiting : ($estimate_time * $pendingCount);
-                   }
-                } else {  // get estimate time of globally set
-                    $waitingTime =  $estimate_time * $pendingCount;
+                } else {
+                    $waitingTime =  $pendingwaiting != 0 ? $pendingwaiting : ($estimate_time * $pendingCount);
                 }
+            } else {  // get estimate time of globally set
+                $waitingTime =  $estimate_time * $pendingCount;
+            }
 
             $queueStorage->waiting_time = $waitingTime;
             $queueStorage->queue_count = $pendingCount;
             $queueStorage->save();
-            
-            // Send Notification
-             // Create a dummy booking object for email notification purposes
-             $bookingSim = new Booking();
-             $bookingSim->email = $email;
-             $bookingSim->location_id = $locationId;
 
-             $this->sendNotification($teamId, $bookingSim, $queueStorage, $queueCreated, $acronym, $locationId);
+            // Send Notification
+            // Create a dummy booking object for email notification purposes
+            $bookingSim = new Booking();
+            $bookingSim->email = $email;
+            $bookingSim->location_id = $locationId;
+
+            $this->sendNotification($teamId, $bookingSim, $queueStorage, $queueCreated, $acronym, $locationId);
 
             DB::commit();
 
@@ -2611,11 +2632,10 @@ class ServiceController extends Controller
                 'status' => 'success',
                 'data' => $formatted_response,
             ]);
-
         } catch (\Exception $ex) {
             DB::rollBack();
             Log::error($ex);
-             return response()->json(['status' => 'error', 'message' => 'Error: ' . $ex->getMessage()], 500);
+            return response()->json(['status' => 'error', 'message' => 'Error: ' . $ex->getMessage()], 500);
         }
     }
 
@@ -2651,22 +2671,22 @@ class ServiceController extends Controller
         }
 
         if ($booking->status == Booking::STATUS_COMPLETED || $booking->is_convert == Booking::STATUS_YES) {
-             return response()->json(['status' => 'error', 'message' => 'Cannot edit a completed or converted booking'], 403);
+            return response()->json(['status' => 'error', 'message' => 'Cannot edit a completed or converted booking'], 403);
         }
 
         $teamId = $booking->team_id;
         $locationId = $booking->location_id;
         $appointmentDate = Carbon::parse($request->date);
-        
+
         // Time parsing (handle both "09:00 AM" and "09:00 AM - 10:00 AM" formats)
         $timeInput = $request->time;
         if (strpos($timeInput, '-') !== false) {
-             $parts = explode('-', $timeInput);
-             $startTime = trim($parts[0]);
-             $endTime = trim($parts[1]);
+            $parts = explode('-', $timeInput);
+            $startTime = trim($parts[0]);
+            $endTime = trim($parts[1]);
         } else {
-             $startTime = trim($timeInput);
-             $endTime = null; 
+            $startTime = trim($timeInput);
+            $endTime = null;
         }
 
         // 1. Find Service (Category)
@@ -2684,28 +2704,28 @@ class ServiceController extends Controller
         // 2. Site & Account Settings
         $siteSetting = SiteDetail::where('team_id', $teamId)->where('location_id', $locationId)->first();
         if (!$siteSetting) {
-             return response()->json(['status' => 'error', 'message' => 'Site settings not found'], 500);
+            return response()->json(['status' => 'error', 'message' => 'Site settings not found'], 500);
         }
-        
+
         $accountSetting = AccountSetting::where('team_id', $teamId)
             ->where('location_id', $locationId)
             ->where('slot_type', AccountSetting::BOOKING_SLOT)
             ->first();
 
         if (!$accountSetting) {
-             return response()->json(['status' => 'error', 'message' => 'Booking settings not found'], 500);
+            return response()->json(['status' => 'error', 'message' => 'Booking settings not found'], 500);
         }
 
         // 3. Check Slot Availability (Re-validate the new slot)
         if ($siteSetting->choose_time_slot != 'staff') {
-             $slots = AccountSetting::checktimeslot($teamId, $locationId, $appointmentDate, $selectedCategoryId, $siteSetting);
+            $slots = AccountSetting::checktimeslot($teamId, $locationId, $appointmentDate, $selectedCategoryId, $siteSetting);
         } else {
-             $staffIds = User::whereHas('categories', fn($q) => $q->where('categories.id', $selectedCategoryId))
-                            ->pluck('id')->toArray();
-             if (empty($staffIds)) {
-                  return response()->json(['status' => 'error', 'message' => 'No staff available for this service'], 404);
-             }
-             $slots = AccountSetting::checkStafftimeslot($teamId, $locationId, $appointmentDate, $selectedCategoryId, $siteSetting, $staffIds);
+            $staffIds = User::whereHas('categories', fn($q) => $q->where('categories.id', $selectedCategoryId))
+                ->pluck('id')->toArray();
+            if (empty($staffIds)) {
+                return response()->json(['status' => 'error', 'message' => 'No staff available for this service'], 404);
+            }
+            $slots = AccountSetting::checkStafftimeslot($teamId, $locationId, $appointmentDate, $selectedCategoryId, $siteSetting, $staffIds);
         }
 
         $availableSlots = $slots['start_at'] ?? [];
@@ -2714,29 +2734,29 @@ class ServiceController extends Controller
 
         // Normalize requested start time for comparison
         try {
-             $reqStart = Carbon::parse($startTime)->format('h:i A');
+            $reqStart = Carbon::parse($startTime)->format('h:i A');
         } catch (\Exception $e) {
-             return response()->json(['status' => 'error', 'message' => 'Invalid time format'], 400);
+            return response()->json(['status' => 'error', 'message' => 'Invalid time format'], 400);
         }
 
         foreach ($availableSlots as $slot) {
-             // Slot format: "09:00 AM-09:10 AM"
-             $parts = explode('-', $slot);
-             $sStart = trim($parts[0]);
-             
-             if ($sStart === $reqStart) {
-                 $isValidSlot = true;
-                 $finalSlotString = $slot;
-                 $startTime = $sStart;
-                 $endTime = trim($parts[1]);
-                 break;
-             }
+            // Slot format: "09:00 AM-09:10 AM"
+            $parts = explode('-', $slot);
+            $sStart = trim($parts[0]);
+
+            if ($sStart === $reqStart) {
+                $isValidSlot = true;
+                $finalSlotString = $slot;
+                $startTime = $sStart;
+                $endTime = trim($parts[1]);
+                break;
+            }
         }
-        
+
         $isSameTime = ($booking->booking_date == $appointmentDate->toDateString()) && ($booking->start_time == $startTime);
 
         if (!$isValidSlot && !$isSameTime) {
-             return response()->json(['status' => 'error', 'message' => 'Selected time slot is not available'], 409);
+            return response()->json(['status' => 'error', 'message' => 'Selected time slot is not available'], 409);
         }
 
         // 4. Update Data
@@ -2744,12 +2764,12 @@ class ServiceController extends Controller
         try {
             // Dynamic Fields handling
             $jsonDynamicData = json_decode($booking->json ?? '{}', true);
-            
+
             // Update core fields if provided
             if ($request->has('name')) $booking->name = $request->name;
             if ($request->has('phone')) $booking->phone = $request->phone;
             if ($request->has('email')) $booking->email = $request->email;
-            
+
             // Merge other dynamic fields from request into json
             foreach ($request->all() as $key => $value) {
                 if (!in_array($key, ['booking_refID', 'service_name', 'date', 'time', 'name', 'phone', 'email', 'team_id', 'location_id'])) {
@@ -2768,12 +2788,12 @@ class ServiceController extends Controller
 
             // Handle Customer Update/Creation if phone changed
             if ($request->has('phone') && !empty($request->phone)) {
-                 $existingCustomer = Customer::where('phone', $request->phone)
+                $existingCustomer = Customer::where('phone', $request->phone)
                     ->where('team_id', $teamId)
                     ->where('location_id', $locationId)
                     ->first();
-                 
-                  if (!$existingCustomer) {
+
+                if (!$existingCustomer) {
                     $existingCustomer = Customer::create([
                         'team_id' => $teamId,
                         'location_id' => $locationId,
@@ -2781,10 +2801,10 @@ class ServiceController extends Controller
                         'phone' => $request->phone,
                         'json_data' => json_encode($jsonDynamicData),
                     ]);
-                  }
-                  
-                  // Log activity
-                   CustomerActivityLog::create([
+                }
+
+                // Log activity
+                CustomerActivityLog::create([
                     'team_id' => $teamId,
                     'location_id' => $locationId,
                     'queue_id' => null,
@@ -2802,13 +2822,17 @@ class ServiceController extends Controller
                 'status' => 'success',
                 'message' => 'Booking updated successfully',
                 'data' => [
+                    'booking_id' => $booking->id,
                     'refID' => $booking->refID,
-                    'date' => $booking->booking_date,
-                    'time' => $booking->booking_time,
-                    'service' => $request->service_name
+                    'name' => $booking->name,
+                    'email' => $booking->email,
+                    'phone_code' => $booking->phone_code,
+                    'phone' => $booking->phone,
+                    'booking_date' => $booking->booking_date,
+                    'booking_time' => $booking->booking_time,
+                    'service_name' => $service->name
                 ]
             ]);
-
         } catch (\Exception $e) {
             DB::rollBack();
             return response()->json(['status' => 'error', 'message' => 'Failed to update booking: ' . $e->getMessage()], 500);
@@ -2840,10 +2864,10 @@ class ServiceController extends Controller
 
         // Check if already cancelled or completed
         if ($booking->status == Booking::STATUS_CANCELLED) {
-             return response()->json(['status' => 'error', 'message' => 'Booking is already cancelled'], 400);
+            return response()->json(['status' => 'error', 'message' => 'Booking is already cancelled'], 400);
         }
         if ($booking->status == Booking::STATUS_COMPLETED || $booking->is_convert == Booking::STATUS_YES) {
-             return response()->json(['status' => 'error', 'message' => 'Cannot cancel a completed or converted booking'], 403);
+            return response()->json(['status' => 'error', 'message' => 'Cannot cancel a completed or converted booking'], 403);
         }
 
         $teamId = $booking->team_id;
@@ -2862,14 +2886,14 @@ class ServiceController extends Controller
         // Use 'isset' to allow '0' (same day) as a valid setting.
         // If setting is null, default to 0 (allow cancellation) to avoid blocking valid same-day bookings unless explicitly restricted.
         $allowCancelBefore = isset($bookingSetting->allow_cancel_before) ? $bookingSetting->allow_cancel_before : 0;
-        
+
         // Use Site Timezone for creation to ensure 00:00 start is relative to that zone
         $bookingDate = Carbon::createFromFormat('Y-m-d', $booking->booking_date, $timezone);
-        
+
         // Set deadline to End of Day (23:59:59) minus the allowed days.
         // If allowCancelBefore is 0, deadline is booking Date 23:59:59.
         $cancellationDeadline = $bookingDate->copy()->subDays($allowCancelBefore)->endOfDay();
-        
+
         $currentDate = Carbon::now($timezone);
 
         // if ($currentDate->greaterThan($cancellationDeadline)) {
@@ -2895,7 +2919,7 @@ class ServiceController extends Controller
             $booking->save();
 
             // Send Notifications (Email/SMS)
-            $userAuth = \Illuminate\Support\Facades\Auth::user(); 
+            $userAuth = \Illuminate\Support\Facades\Auth::user();
             // If API is public, userAuth is null. We can use booking name or leave empty.
             $bookedByName = $userAuth ? $userAuth->name : $booking->name;
 
@@ -2918,7 +2942,7 @@ class ServiceController extends Controller
                 'locations_id' => $locationId,
                 'team_id' => $teamId,
             ];
-            
+
             \Log::info('Cancel Booking Data: ' . json_encode($data));
 
             $message = 'Appointment Cancelled Successfully';
@@ -2933,33 +2957,43 @@ class ServiceController extends Controller
             ];
 
             // Send Email
-            if (!empty($booking->email)) {
-                if (!empty($logData)) {
-                   $logData['channel'] = 'email';
-                   $logData['status'] = \App\Models\MessageDetail::SENT_STATUS;
-               }
-               // Note: SmtpDetails trait might need explicit import if not auto-resolved, but class is imported in Controller
-                SmtpDetails::sendMail($data, 'booking cancelled', $message, $teamId, $logData);
-            }
+            // if (!empty($booking->email)) {
+            //     if (!empty($logData)) {
+            //         $logData['channel'] = 'email';
+            //         $logData['status'] = \App\Models\MessageDetail::SENT_STATUS;
+            //     }
+            //     // Note: SmtpDetails trait might need explicit import if not auto-resolved, but class is imported in Controller
+            //     SmtpDetails::sendMail($data, 'booking cancelled', $message, $teamId, $logData);
+            // }
 
             // Send SMS to user
-            if (!empty($booking->phone)) {
-                 $logData['channel'] = 'sms';
-                 $logData['status'] = \App\Models\MessageDetail::SENT_STATUS;
-                 // Assuming SmsAPI class is available via alias or use statement
-                 \App\Models\SmsAPI::sendSms($teamId, $data, 'booking cancelled', 'booking cancelled', $logData);
-            }
+            // if (!empty($booking->phone)) {
+            //     $logData['channel'] = 'sms';
+            //     $logData['status'] = \App\Models\MessageDetail::SENT_STATUS;
+            //     // Assuming SmsAPI class is available via alias or use statement
+            //     \App\Models\SmsAPI::sendSms($teamId, $data, 'booking cancelled', 'booking cancelled', $logData);
+            // }
 
             DB::commit();
 
             return response()->json([
                 'status' => 'success',
-                'message' => 'Booking cancelled successfully'
+                'message' => 'Booking cancelled successfully',
+                'data' => [
+                    'booking_id' => $booking->id,
+                    'refID' => $booking->refID,
+                    'name' => $booking->name,
+                    'email' => $booking->email,
+                    'phone_code' => $booking->phone_code,
+                    'phone' => $booking->phone,
+                    'booking_date' => $booking->booking_date,
+                    'booking_time' => $booking->booking_time,
+                    'service_name' => $booking->categories?->name
+                ]
             ]);
-
         } catch (\Exception $e) {
             DB::rollBack();
-             return response()->json(['status' => 'error', 'message' => 'Failed to cancel booking: ' . $e->getMessage()], 500);
+            return response()->json(['status' => 'error', 'message' => 'Failed to cancel booking: ' . $e->getMessage()], 500);
         }
     }
     /**
@@ -2980,7 +3014,7 @@ class ServiceController extends Controller
 
         $refID = $request->booking_refID;
         $booking = Booking::with(['categories', 'sub_category', 'child_category'])
-                    ->where('refID', $refID)->first();
+            ->where('refID', $refID)->first();
 
         if (!$booking) {
             return response()->json(['status' => 'error', 'message' => 'Booking not found'], 404);
@@ -2993,7 +3027,7 @@ class ServiceController extends Controller
             'refID' => $booking->refID,
             'name' => $booking->name,
             'email' => $booking->email,
-            // 'phone_code' => $booking->phone_code,
+            'phone_code' => $booking->phone_code,
             'phone' => $booking->phone,
             'booking_date' => $booking->booking_date,
             'booking_time' => $booking->booking_time,
@@ -3016,4 +3050,3 @@ class ServiceController extends Controller
         ]);
     }
 }
-
