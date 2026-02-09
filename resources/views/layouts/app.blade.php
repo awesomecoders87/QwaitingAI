@@ -26,6 +26,8 @@
          $watch('darkMode', value => localStorage.setItem('darkMode', JSON.stringify(value)))"
     :class="{'dark bg-gray-900': darkMode === true}">
     @yield('content')
+
+    @include('n8n.chatbot')
 </body>
 
 </html>
