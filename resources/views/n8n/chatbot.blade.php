@@ -20,7 +20,7 @@
 <script type="module">
     import { createChat } from 'https://cdn.jsdelivr.net/npm/@n8n/chat/chat.bundle.es.js';
     createChat({
-        webhookUrl: 'https://n8n.thevistiq.com/webhook/7a9bdb2c-74c1-4cb3-bb23-1f34dbe58fd8/chat',
+        webhookUrl: 'https://n8n.thevistiq.com/webhook/aae15b55-e807-4a81-b010-e945c4bedc0d/chat',
         initialMessages: [
             'Hi there! 👋',
             'My name is Qwaiting. How can I assist you today with your appointment?'
