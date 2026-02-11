@@ -378,8 +378,6 @@
   </script>
 
     @stack('scripts')
-
-    @include('n8n.chatbot')
 </body>
 
 </html>

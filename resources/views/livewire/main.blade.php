@@ -88,4 +88,6 @@
       </a>
     </div>
   </div>
+
+  @include('n8n.chatbot')
 </div>

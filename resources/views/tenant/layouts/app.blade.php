@@ -23,8 +23,6 @@
  
   @yield('content')
 
-  @include('n8n.chatbot')
-
 </body>
 
 </html>

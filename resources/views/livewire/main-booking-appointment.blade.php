@@ -1240,7 +1240,7 @@ document.addEventListener("livewire:init", function () {
         });
     });
 </script>
+@include('n8n.chatbot')
     </div>
-
 
 </div>
