@@ -369,6 +369,21 @@ $settingsidebar = App\Models\SiteDetail::viewImage('business_logo', tenant('id')
 
                         </li>
                     @endcan
+
+                        <li>
+                            <a data-tooltip="AI Queue Analysis" href="{{ route('tenant.ai-queue-analytics') }}" class="menu-item group"
+                                :class=" (selected === 'ai-queue-analytics') || (page === 'ai-queue-analytics') ? 'menu-item-active' : 'menu-item-inactive dark:text-gray-300'">
+                                <svg :class="(selected === 'ai-queue-analytics') || (page === 'ai-queue-analytics') ? 'menu-item-icon-active'  : 'menu-item-icon-inactive'"
+                                    width="24" height="24" fill="none" xmlns="http://www.w3.org/2000/svg"
+                                    viewBox="0 0 24 24">
+                                    <path fill-rule="evenodd" clip-rule="evenodd" d="M2.75 6.5C2.75 4.98122 3.98122 3.75 5.5 3.75H18.5C20.0188 3.75 21.25 4.98122 21.25 6.5V12C21.25 13.5188 20.0188 14.75 18.5 14.75H14.75V17.5C14.75 19.0188 13.5188 20.25 12 20.25C10.4812 20.25 9.25 19.0188 9.25 17.5V14.75H5.5C3.98122 14.75 2.75 13.5188 2.75 12V6.5ZM5.5 5.25C4.80964 5.25 4.25 5.80964 4.25 6.5V12C4.25 12.6904 4.80964 13.25 5.5 13.25H9.25V17.5C9.25 18.1904 9.80964 18.75 10.5 18.75H13.5C14.1904 18.75 14.75 18.1904 14.75 17.5V13.25H18.5C19.1904 13.25 19.75 12.6904 19.75 12V6.5C19.75 5.80964 19.1904 5.25 18.5 5.25H5.5ZM8 8.75C7.58579 8.75 7.25 9.08579 7.25 9.5C7.25 9.91421 7.58579 10.25 8 10.25H16C16.4142 10.25 16.75 9.91421 16.75 9.5C16.75 9.08579 16.4142 8.75 16 8.75H8Z" fill=""/>
+                                </svg>
+                                <span class="menu-item-text" :class="sidebarToggle ? 'lg:hidden' : ''">
+                                    🤖 AI Queue Analysis
+                                </span>
+                            </a>
+
+                        </li>
                     @can('Reports')
                                     <li>
                                         <!-- <p data-tooltip="Reports" @click.prevent="selected = (selected === 'Reports' ? '':'Reports')" class="menu-item group"

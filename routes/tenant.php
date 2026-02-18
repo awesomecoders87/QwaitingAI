@@ -131,6 +131,7 @@ use App\Livewire\Package\PackageManagement;
 use App\Livewire\Package\BuySubcription;
 use App\Livewire\Branches\DashboardBranchSummary;
 use App\Livewire\Analytics;
+use App\Livewire\AIQueueAnalytics;
 use App\Livewire\MetaAdsUtmLinkGenerator;
 use App\Livewire\RatingAlreadySubmitted;
 use App\Livewire\AddTenant;
@@ -349,6 +350,7 @@ Route::middleware([
         Route::get('meta-ads-utm-link-generator', MetaAdsUtmLinkGenerator::class)->name('meta-ads-utm-link-generator');
 
         Route::get('/analytics', Analytics::class)->name('analytics');
+        Route::get('/ai-queue-analytics', AIQueueAnalytics::class)->name('ai-queue-analytics');
         Route::get('/sales-force-setting', SalesForceSetting::class)->name('sales-force-setting');
         Route::get('/dynamic-report/{id}', DynamicReport::class)->name('dynamic-report');
         Route::get('/dynamic-reports-list', DynamicReportsList::class)->name('dynamic-report-list');
@@ -601,9 +603,8 @@ Route::get('/run-queue-until-empty', function () {
         '--stop-when-empty' => true,
     ]);
 
+
     return "Queue processed until empty.";
 });
-
-
 
 
