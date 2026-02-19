@@ -48,7 +48,12 @@
             </div>
 
             <!-- Messages Area -->
-            <div class="flex-1 p-5 overflow-y-auto bg-slate-50 space-y-4 scroll-smooth">
+            <div
+                x-ref="chatMessages"
+                x-on:scroll-chat.window="$nextTick(() => { $el.scrollTop = $el.scrollHeight; })"
+                x-effect="$watch('$wire.chatMessages', () => $nextTick(() => { $el.scrollTop = $el.scrollHeight; }))"
+                class="flex-1 p-5 overflow-y-auto bg-slate-50 space-y-4 scroll-smooth"
+            >
                 <!-- Welcome Message -->
                 @if(count($chatMessages) === 0)
                     <div class="flex justify-start">

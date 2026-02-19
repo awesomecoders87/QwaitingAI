@@ -911,184 +911,142 @@ class AIQueueAnalytics extends Component
         }
 
         try {
-            // $this->logDebug('CHATBOT_DATE_CHANGE', 'processChat triggered with query: ' . $this->lastUserQuery);
-            
             // Prepared lists for AI context
-            $queuesList = $this->queues()->map(fn($q) => ['id' => $q->id, 'name' => $q->name])->toArray();
-            $agentsList = $this->agents()->map(fn($a) => ['id' => $a->id, 'name' => $a->name])->toArray();
+            $queuesList    = $this->queues()->map(fn($q) => ['id' => $q->id, 'name' => $q->name])->toArray();
+            $agentsList    = $this->agents()->map(fn($a) => ['id' => $a->id, 'name' => $a->name])->toArray();
             $locationsList = $this->allLocations->map(fn($l) => ['id' => $l->id, 'name' => $l->location_name])->toArray();
 
             $analyst = new OpenAIQueueAnalyst();
-            $params = $analyst->parseUserQuery(
-                $this->lastUserQuery, 
-                $this->teamId, 
-                $this->location, 
+            $params  = $analyst->parseUserQuery(
+                $this->lastUserQuery,
+                $this->teamId,
+                $this->location,
                 $this->timezone,
                 $queuesList,
                 $agentsList,
                 $locationsList,
-                $this->startDate, // Pass current state
+                $this->startDate,
                 $this->endDate,
                 $this->selectedQueue,
                 $this->selectedAgent
             );
-            
+
             if ($params) {
-                // Handle greetings specially - don't update dashboard
-                if (isset($params['intent']) && $params['intent'] === 'greeting') {
-                     $this->chatMessages[] = [
-                        'role' => 'assistant',
-                        'content' => $params['explanation'],
-                        'time' => Carbon::now()->format('H:i')
-                    ];
-                    $this->isChatProcessing = false;
-                    return;
-                }
+                $intent = $params['intent'] ?? null;
 
-                // Handle not_available intent - when user requests agent/queue that doesn't exist
-                if (isset($params['intent']) && $params['intent'] === 'not_available') {
+                // ── Fast-return intents: no DB reload needed ──────────────────────
+                if (in_array($intent, ['greeting', 'off_topic', 'not_available']) ||
+                    (isset($params['location_mentioned']) && $params['location_mentioned'])) {
                     $this->chatMessages[] = [
-                        'role' => 'assistant',
+                        'role'    => 'assistant',
                         'content' => $params['explanation'],
-                        'time' => Carbon::now()->format('H:i')
+                        'time'    => Carbon::now()->format('H:i')
                     ];
                     $this->isChatProcessing = false;
+                    $this->dispatch('scroll-chat');
                     return;
                 }
 
-                // Handle off-topic queries - refuse immediately using AI-generated explanation
-                if (isset($params['intent']) && $params['intent'] === 'off_topic') {
-                    $this->chatMessages[] = [
-                        'role' => 'assistant',
-                        'content' => $params['explanation'],
-                        'time' => Carbon::now()->format('H:i')
-                    ];
-                    $this->isChatProcessing = false;
-                    return;
-                }
-
-                // Handle location mentions - user tried to specify location in chat
-                if (isset($params['location_mentioned']) && $params['location_mentioned']) {
-                    $this->chatMessages[] = [
-                        'role' => 'assistant',
-                        'content' => $params['explanation'],
-                        'time' => Carbon::now()->format('H:i')
-                    ];
-                    $this->isChatProcessing = false;
-                    return;
-                }
-
-
-                // Update filters based on interpreted parameters
+                // ── Data-changing intents: update filters + reload ────────────────
                 $start = $params['start_date'] ?? null;
-                $end = $params['end_date'] ?? null;
-                $queue = $params['queue_id'] ?? null;
-                $agent = $params['agent_id'] ?? null;
+                $end   = $params['end_date']   ?? null;
+                $queue = $params['queue_id']    ?? null;
+                $agent = $params['agent_id']    ?? null;
+
+                $filtersChanged = false;
 
                 if ($start && $end) {
-                    // $this->logDebug('CHATBOT_DATE_CHANGE', "Setting dates - Start: $start, End: $end");
                     $this->startDate = $start;
-                    $this->endDate = $end;
-                    
-                    // Update the visual date picker to reflect new dates
-                    $this->dispatch('update-date-picker', [
-                        'start' => $start,
-                        'end' => $end
-                    ]);
+                    $this->endDate   = $end;
+                    $filtersChanged  = true;
+                    $this->dispatch('update-date-picker', ['start' => $start, 'end' => $end]);
                 }
-                
+
                 if ($queue) {
-                    $this->selectedQueue = $queue; 
+                    $this->selectedQueue = $queue;
+                    $filtersChanged = true;
                 }
 
                 if ($agent) {
                     $this->selectedAgent = $agent;
+                    $filtersChanged = true;
                 }
-                
-                // $this->logDebug('CHATBOT_DATE_CHANGE', 'About to call loadAnalytics()');
-                $this->loadAnalytics();
-                
-                // Add system response
+
+                // Only reload heavy analytics when something actually changed
+                if ($filtersChanged) {
+                    $this->loadAnalytics();
+                }
+
+                // Add the AI explanation reply
                 $this->chatMessages[] = [
-                    'role' => 'assistant',
+                    'role'    => 'assistant',
                     'content' => $params['explanation'],
-                    'time' => Carbon::now()->format('H:i')
+                    'time'    => Carbon::now()->format('H:i')
                 ];
-                
-                // If intent is prediction or analysis, trigger detailed insights
-                if (isset($params['intent']) && in_array($params['intent'], ['prediction', 'analysis'])) {
-                    // Log::info('[CHATBOT] Intent detected, calling generateOpenAIInsight', [
-                    //     'intent' => $params['intent'],
-                    //     'date_range' => "{$this->startDate} to {$this->endDate}"
-                    // ]);
+
+                // Trigger detailed insights for prediction/analysis intents
+                if (in_array($intent, ['prediction', 'analysis'])) {
                     $this->generateOpenAIInsight();
                 }
 
-                // NEW: Handle specific questions or scenarios
-                if (isset($params['intent']) && in_array($params['intent'], ['question', 'scenario'])) {
-                   // Log::info('[CHATBOT] Question/Scenario detected', ['intent' => $params['intent']]);
-                    
-                    // 1. Ensure we have the latest data for the selected range (loadAnalytics already called above)
-                    // 2. If it's a prediction question (future date), ensure we have predictions
+                // Handle specific questions or scenarios
+                if (in_array($intent, ['question', 'scenario'])) {
                     if (Carbon::parse($this->endDate)->isFuture() && empty($this->waitTimePredictions)) {
                         $this->generateOpenAIInsight();
                     }
 
-                    // 3. Gather context for the answer
                     $contextData = [
-                        'period' => "{$this->startDate} to {$this->endDate}",
+                        'period'  => "{$this->startDate} to {$this->endDate}",
                         'metrics' => [
-                            'incoming' => $this->incomingSessions,
-                            'engaged' => $this->engagedSessions,
-                            'avg_wait_minutes' => round($this->avgWaitTime / 60, 1),
-                            'avg_handle_minutes' => $this->avgSessionHandleTime,
-                            'sentiment' => $this->avgSessionSentiment
+                            'incoming'          => $this->incomingSessions,
+                            'engaged'           => $this->engagedSessions,
+                            'avg_wait_minutes'  => round($this->avgWaitTime / 60, 1),
+                            'avg_handle_minutes'=> $this->avgSessionHandleTime,
+                            'sentiment'         => $this->avgSessionSentiment
                         ],
                         'predictions' => [
                             'wait_time_hourly' => $this->waitTimePredictions,
-                            'staffing_hourly' => $this->staffingRecommendations,
-                            'peak_hours' => $this->peakHoursForecast,
-                            'no_show_prob' => $this->noShowProbability
+                            'staffing_hourly'  => $this->staffingRecommendations,
+                            'peak_hours'       => $this->peakHoursForecast,
+                            'no_show_prob'     => $this->noShowProbability
                         ],
                         'insights' => [
                             'bottlenecks' => $this->bottleneckDetection,
-                            'top_issues' => $this->slaBreachAlerts
+                            'top_issues'  => $this->slaBreachAlerts
                         ]
                     ];
 
-                    // 4. Get specific answer
                     $answer = $analyst->answerSpecificQuestion(
                         $this->lastUserQuery,
                         $contextData,
                         $this->timezone
                     );
 
-                    // 5. Add to chat
                     $this->chatMessages[] = [
-                        'role' => 'assistant',
+                        'role'    => 'assistant',
                         'content' => $answer,
-                        'time' => Carbon::now()->format('H:i')
+                        'time'    => Carbon::now()->format('H:i')
                     ];
                 }
 
-
             } else {
-                 $this->chatMessages[] = [
-                    'role' => 'assistant',
+                $this->chatMessages[] = [
+                    'role'    => 'assistant',
                     'content' => "I'm sorry, I couldn't understand that request. Please try asking about a specific time range (e.g., 'Show me last week's data').",
-                    'time' => Carbon::now()->format('H:i')
+                    'time'    => Carbon::now()->format('H:i')
                 ];
             }
 
         } catch (\Exception $e) {
             Log::error('Chat Error', ['message' => $e->getMessage()]);
             $this->chatMessages[] = [
-                'role' => 'assistant',
-                'content' => "An error occurred while processing your request.",
-                'time' => Carbon::now()->format('H:i')
+                'role'    => 'assistant',
+                'content' => 'An error occurred while processing your request.',
+                'time'    => Carbon::now()->format('H:i')
             ];
         } finally {
             $this->isChatProcessing = false;
+            $this->dispatch('scroll-chat'); // Auto-scroll after every response
         }
     }
 
