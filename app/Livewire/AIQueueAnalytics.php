@@ -934,19 +934,6 @@ class AIQueueAnalytics extends Component
             if ($params) {
                 $intent = $params['intent'] ?? null;
 
-                // ── Fast-return intents: no DB reload needed ──────────────────────
-                if (in_array($intent, ['greeting', 'off_topic', 'not_available']) ||
-                    (isset($params['location_mentioned']) && $params['location_mentioned'])) {
-                    $this->chatMessages[] = [
-                        'role'    => 'assistant',
-                        'content' => $params['explanation'],
-                        'time'    => Carbon::now()->format('H:i')
-                    ];
-                    $this->isChatProcessing = false;
-                    $this->dispatch('scroll-chat');
-                    return;
-                }
-
                 // ── Data-changing intents: update filters + reload ────────────────
                 $start = $params['start_date'] ?? null;
                 $end   = $params['end_date']   ?? null;
@@ -955,19 +942,19 @@ class AIQueueAnalytics extends Component
 
                 $filtersChanged = false;
 
-                if ($start && $end) {
+                if ($start && $end && ($start != $this->startDate || $end != $this->endDate)) {
                     $this->startDate = $start;
                     $this->endDate   = $end;
                     $filtersChanged  = true;
                     $this->dispatch('update-date-picker', ['start' => $start, 'end' => $end]);
                 }
 
-                if ($queue) {
+                if ($queue && $queue != $this->selectedQueue) {
                     $this->selectedQueue = $queue;
                     $filtersChanged = true;
                 }
 
-                if ($agent) {
+                if ($agent && $agent != $this->selectedAgent) {
                     $this->selectedAgent = $agent;
                     $filtersChanged = true;
                 }
@@ -977,24 +964,88 @@ class AIQueueAnalytics extends Component
                     $this->loadAnalytics();
                 }
 
-                // Add the AI explanation reply
-                $this->chatMessages[] = [
-                    'role'    => 'assistant',
-                    'content' => $params['explanation'],
-                    'time'    => Carbon::now()->format('H:i')
-                ];
+                // Add the AI explanation reply ONLY if it's NOT a complex intent that will be answered separately
+                // For 'question' or 'scenario', we want the detailed answer to stand alone
+                if (!in_array($intent, ['question', 'scenario'])) {
+                    $this->chatMessages[] = [
+                        'role'    => 'assistant',
+                        'content' => $params['explanation'],
+                        'time'    => Carbon::now()->format('H:i')
+                    ];
+                }
 
                 // Trigger detailed insights for prediction/analysis intents
                 if (in_array($intent, ['prediction', 'analysis'])) {
                     $this->generateOpenAIInsight();
                 }
 
-                // Handle specific questions or scenarios
-                if (in_array($intent, ['question', 'scenario'])) {
+                // Check for follow-up context (e.g. user answering a clarification question)
+                $isFollowUp = false;
+                $combinedQuery = $this->lastUserQuery;
+                $historyCount = count($this->chatMessages);
+                
+                if ($historyCount >= 4) {
+                     $lastAssistantMsg = $this->chatMessages[$historyCount - 3];
+                     // Check if that assistant message was asking for clarification
+                     if ($lastAssistantMsg['role'] === 'assistant' && 
+                        (str_contains(strtolower($lastAssistantMsg['content']), 'specify') || 
+                         str_contains(strtolower($lastAssistantMsg['content']), 'details') ||
+                         str_ends_with(trim($lastAssistantMsg['content']), '?'))) {
+                         
+                         $prevUserMsg = $this->chatMessages[$historyCount - 4];
+                         $combinedQuery = "Original Request: " . $prevUserMsg['content'] . "\nContext Update: " . $this->lastUserQuery;
+                         $isFollowUp = true;
+                     }
+                }
+
+                // Handle specific questions or scenarios OR if it's a follow-up answer
+                if (in_array($intent, ['question', 'scenario']) || $isFollowUp) {
                     if (Carbon::parse($this->endDate)->isFuture() && empty($this->waitTimePredictions)) {
                         $this->generateOpenAIInsight();
                     }
 
+                    // Fetch daily breakdown for "Top days" or trend analysis
+                    // Limit to last 60 days to respect token limits
+                    $dailyStats = \App\Models\QueueStorage::where('team_id', $this->teamId)
+                        ->where('locations_id', $this->location)
+                        ->whereBetween('created_at', [
+                            Carbon::parse($this->startDate)->startOfDay(), 
+                            Carbon::parse($this->endDate)->endOfDay()
+                        ]);
+                    
+                    if ($this->selectedQueue && $this->selectedQueue !== 'all') {
+                        $dailyStats->where('category_id', $this->selectedQueue);
+                    }
+                    if ($this->selectedAgent && $this->selectedAgent !== 'all') {
+                        $dailyStats->where('user_id', $this->selectedAgent);
+                    }
+
+                    $dailyData = $dailyStats->selectRaw('DATE(created_at) as date, COUNT(*) as sessions, AVG(TIMESTAMPDIFF(SECOND, arrives_time, called_datetime)) as avg_wait_sec')
+                        ->groupBy('date')
+                        ->orderBy('sessions', 'desc') // Order by volume to help AI find "busiest" quickly
+                        ->limit(60)
+                        ->get()
+                        ->map(function($row) {
+                            return [
+                                'date' => $row->date,
+                                'sessions' => $row->sessions,
+                                'avg_wait_min' => round(($row->avg_wait_sec ?? 0) / 60, 1)
+                            ];
+                        })->toArray();
+
+                    // ── INTEGRATE PREDICTION TOOL FOR SMART ANCHORING ──────────────────
+                    // Use the dedicated tool to get robust historical context and trend analysis
+                    $predTool = new \App\Mcp\Tools\PredictQueuePerformanceTool();
+                    $smartContext = $predTool->getPredictionContext(
+                        $this->teamId,
+                        $this->location,
+                        $this->startDate,
+                        $this->endDate,
+                        $this->selectedQueue ?: 'all',
+                        $this->selectedAgent ?: 'all',
+                        $this->timezone
+                    );
+                    
                     $contextData = [
                         'period'  => "{$this->startDate} to {$this->endDate}",
                         'metrics' => [
@@ -1004,6 +1055,8 @@ class AIQueueAnalytics extends Component
                             'avg_handle_minutes'=> $this->avgSessionHandleTime,
                             'sentiment'         => $this->avgSessionSentiment
                         ],
+                        'daily_performance' => $dailyData, 
+                        'smart_prediction_context' => $smartContext, // CRITICAL: Added robust tool context
                         'predictions' => [
                             'wait_time_hourly' => $this->waitTimePredictions,
                             'staffing_hourly'  => $this->staffingRecommendations,
@@ -1017,7 +1070,7 @@ class AIQueueAnalytics extends Component
                     ];
 
                     $answer = $analyst->answerSpecificQuestion(
-                        $this->lastUserQuery,
+                        $combinedQuery,
                         $contextData,
                         $this->timezone
                     );
