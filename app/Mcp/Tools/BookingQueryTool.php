@@ -73,6 +73,7 @@ Convert the user's natural language query into a structured JSON data request.
 
 Actions available:
 - 'count': (default) returning total number of bookings or grouped stats.
+- 'list': returning a detailed list of individual bookings (names, statuses, times, services). Use this when the user asks for booking statuses, lists, or details about the bookings.
 - 'check_slots': checking specific time availability.
 - 'check_dates': checking which days are free.
 
@@ -83,7 +84,7 @@ If action is 'check_slots' or 'check_dates', you can stop and just return:
   "date": "2023-11-01" 
 }
 
-For standard data queries ('count'), use this format:
+For standard data queries ('count' or 'list'), use this format:
 {
   "action": "count",
   "filters": {
@@ -194,10 +195,27 @@ PROMPT;
             'action' => $action,
             'filters_applied' => $filters,
         ];
-
         $groupBy = $requestData['group_by'] ?? null;
 
-        if ($groupBy === 'service') {
+        if ($action === 'list') {
+            $records = (clone $query)->orderByDesc('booking_date')->limit(20)->get()
+                ->map(fn($b) => [
+                    'id' => $b->id,
+                    'name' => $b->name,
+                    'service' => optional(Category::find($b->category_id))->name ?? 'Unknown',
+                    'date' => $b->booking_date,
+                    'start_time' => $b->start_time,
+                    'end_time' => $b->end_time,
+                    'status' => $b->status,
+                ])->toArray();
+
+            $result['records'] = $records;
+            $result['total'] = $query->count();
+            
+            if ($result['total'] > 20) {
+                $result['notice'] = 'Note: Only showing the 20 most recent records due to limit. Ask the user to refine their filters if they need specific ones.';
+            }
+        } elseif ($groupBy === 'service') {
             $rows = (clone $query)->selectRaw('category_id, COUNT(*) as count')
                 ->groupBy('category_id')
                 ->orderByDesc('count')
