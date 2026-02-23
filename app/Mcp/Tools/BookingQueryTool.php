@@ -89,6 +89,7 @@ For standard data queries ('count' or 'list'), use this format:
   "action": "count",
   "filters": {
     "status": ["Completed", "Cancelled"], // array of exact statuses mentioned (Confirmed, Pending, Completed, Cancelled) or null
+    "is_checkin": true, // true ONLY if the user specifically asks for "check-in" or checked-in bookings, else null
     "date_from": "YYYY-MM-DD", // start date if mentioned
     "date_to": "YYYY-MM-DD",   // end date if mentioned
     "service_id": 12 // Map the mentioned service to its exact ID from the list below, or null
@@ -167,6 +168,9 @@ PROMPT;
         // Apply filters
         if (!empty($filters['status']) && is_array($filters['status'])) {
             $query->whereIn('status', $filters['status']);
+        }
+        if (!empty($filters['is_checkin'])) {
+            $query->where('is_convert', Booking::STATUS_YES);
         }
         if (!empty($filters['service_id'])) {
             $query->where('category_id', $filters['service_id']);
