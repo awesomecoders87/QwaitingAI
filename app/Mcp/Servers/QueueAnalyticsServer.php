@@ -32,6 +32,12 @@ class QueueAnalyticsServer extends Server
         Predicts future queue performance based on historical data analysis.
         
         **Use when:** You need to predict future queue performance for capacity planning or forecasting.
+
+        ### query-bookings
+        Answers natural language booking queries: total bookings between dates, bookings for a specific service,
+        available dates for a service, and available time slots for a date.
+        
+        **Use when:** Users ask booking-related questions on the Booking List page.
         
         ## How to Use
         
@@ -64,6 +70,7 @@ class QueueAnalyticsServer extends Server
      */
     protected array $tools = [
         \App\Mcp\Tools\PredictQueuePerformanceTool::class,
+        \App\Mcp\Tools\BookingQueryTool::class,
     ];
 
     /**

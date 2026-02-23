@@ -36,8 +36,6 @@
             </div>
         </div>
 
-
-
         <div class="grid grid-cols-1 md:grid-cols-4 gap-4 my-4 items-end pb-5">
             <div>
                 <label class="block text-sm font-medium text-gray-700 dark:text-white">{{ __('report.Service') }}</label>
@@ -802,6 +800,6 @@
     });
     </script>
 
-
+    @livewire('booking-list-chatbot')
 
 </div>
