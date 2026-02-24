@@ -67,9 +67,16 @@ class BookingQueryTool extends Tool
         $today = Carbon::today()->toDateString();
         $thisMonthStart = Carbon::now()->startOfMonth()->toDateString();
         $thisMonthEnd = Carbon::now()->endOfMonth()->toDateString();
+        $nextMonthStart = Carbon::now()->addMonth()->startOfMonth()->toDateString();
+        $nextMonthEnd = Carbon::now()->addMonth()->endOfMonth()->toDateString();
+        
+        $validStatuses = implode(', ', array_keys(Booking::getStatus()));
 
         $prompt = <<<PROMPT
-You are an expert AI data analyst for a booking system. Today's date is {$today}. The current month started on {$thisMonthStart} and ends on {$thisMonthEnd}.
+You are an expert AI data analyst for a booking system. Today's date is {$today}. 
+Current month: {$thisMonthStart} to {$thisMonthEnd}.
+Next month: {$nextMonthStart} to {$nextMonthEnd}.
+
 Convert the user's natural language query into a structured JSON data request.
 
 Actions available:
@@ -89,17 +96,20 @@ For standard data queries ('count' or 'list'), use this format:
 {
   "action": "count",
   "filters": {
-    "status": ["Completed", "Cancelled"], // array of exact statuses mentioned (Confirmed, Pending, Completed, Cancelled) or null
+    "status": ["Completed", "Cancelled"], // array of exact statuses mentioned ({$validStatuses}) or null
     "is_checkin": true, // true ONLY if the user specifically asks for "check-in" or checked-in bookings, else null
     "date_from": "YYYY-MM-DD", // start date if mentioned
     "date_to": "YYYY-MM-DD",   // end date if mentioned
     "service_id": 12 // Map the mentioned service to its exact ID from the list below, or null
   },
-  "group_by": "<'status', 'date', 'service', or null>"
+  "group_by": "<'status', 'date', 'month', 'week', 'year', 'service', or null>"
 }
 
 For example, "Compare cancelled vs pending bookings for standard clean last week"
 filters: status: ["Cancelled", "Pending"], date_from/to: (last week's dates), group_by: 'status'
+
+For example, "Compare total bookings between this month and next month"
+filters: date_from: (start of this month), date_to: (end of next month), group_by: 'month' (Note: 'month' grouping natively provides status breakdown)
 
 Available Services in system:
 {$serviceList}
@@ -164,6 +174,7 @@ PROMPT;
 
         // Standard dynamic Eloquent query
         $query = Booking::where('team_id', $teamId)->where('location_id', $locationId);
+
         $filters = $requestData['filters'] ?? [];
 
         // Apply filters
@@ -239,14 +250,47 @@ PROMPT;
                 ->toArray();
             $result['grouped_data'] = $rows;
             $result['total'] = array_sum($rows);
-        } elseif ($groupBy === 'date') {
-            $rows = (clone $query)->selectRaw('booking_date, COUNT(*) as count')
-                ->groupBy('booking_date')
-                ->orderBy('booking_date')
-                ->pluck('count', 'booking_date')
-                ->toArray();
-            $result['grouped_data'] = $rows;
-            $result['total'] = array_sum($rows);
+        } elseif (in_array($groupBy, ['date', 'month', 'week', 'year'])) {
+            $formatString = '%Y-%m-%d';
+            if ($groupBy === 'month') {
+                $formatString = '%Y-%m';
+            } elseif ($groupBy === 'year') {
+                $formatString = '%Y';
+            }
+
+            if ($groupBy === 'week') {
+                $rows = (clone $query)->selectRaw('YEAR(booking_date) as yr, WEEK(booking_date, 1) as wk, status, COUNT(*) as count')
+                    ->groupBy('yr', 'wk', 'status')
+                    ->get()
+                    ->map(function ($row) {
+                        return (object)[
+                            'period' => $row->yr . '-W' . str_pad($row->wk, 2, '0', STR_PAD_LEFT),
+                            'status' => $row->status,
+                            'count' => $row->count,
+                        ];
+                    });
+            } else {
+                $rows = (clone $query)->selectRaw("DATE_FORMAT(booking_date, ?) as period, status, COUNT(*) as count", [$formatString])
+                    ->groupBy('period', 'status')
+                    ->get();
+            }
+
+            $grouped = [];
+            $totalCount = 0;
+            
+            foreach ($rows as $row) {
+                $key = $row->period;
+                if (!isset($grouped[$key])) {
+                    $grouped[$key] = ['total' => 0, 'by_status' => []];
+                }
+                $grouped[$key]['total'] += $row->count;
+                $grouped[$key]['by_status'][$row->status] = ($grouped[$key]['by_status'][$row->status] ?? 0) + $row->count;
+                $totalCount += $row->count;
+            }
+            
+            ksort($grouped);
+            $result['grouped_data'] = $grouped;
+            $result['total'] = $totalCount;
         } else {
             // Overview or raw count
             $result['total'] = $query->count();
@@ -358,81 +402,6 @@ PROMPT;
                 return true;
             }
         }));
-    }
-
-    // ─── Date Parsing ────────────────────────────────────────────
-
-    public function extractDateRange(string $query): array
-    {
-        $q = strtolower($query);
-
-        foreach ([
-            '/between\s+(.+?)\s+and\s+(.+?)(?:\s|$)/i',
-            '/from\s+(.+?)\s+to\s+(.+?)(?:\s|$)/i',
-            '/from\s+(.+?)\s+(?:through|till|until)\s+(.+?)(?:\s|$)/i',
-        ] as $pattern) {
-            if (preg_match($pattern, $q, $m)) {
-                $f = $this->tryParseDate(trim($m[1]));
-                $t = $this->tryParseDate(trim($m[2]));
-                if ($f && $t) return [$f->toDateString(), $t->toDateString()];
-            }
-        }
-
-        foreach (['january','february','march','april','may','june','july','august','september','october','november','december'] as $month) {
-            if (str_contains($q, $month)) {
-                preg_match('/\b(20\d{2})\b/', $query, $yr);
-                $year = $yr[1] ?? now()->year;
-                $dt   = Carbon::createFromFormat('F Y', ucfirst($month) . ' ' . $year);
-                return [$dt->copy()->startOfMonth()->toDateString(), $dt->copy()->endOfMonth()->toDateString()];
-            }
-        }
-
-        $relative = [
-            'this month'  => [Carbon::now()->startOfMonth()->toDateString(), Carbon::now()->endOfMonth()->toDateString()],
-            'last month'  => [Carbon::now()->subMonth()->startOfMonth()->toDateString(), Carbon::now()->subMonth()->endOfMonth()->toDateString()],
-            'this week'   => [Carbon::now()->startOfWeek()->toDateString(), Carbon::now()->endOfWeek()->toDateString()],
-            'last week'   => [Carbon::now()->subWeek()->startOfWeek()->toDateString(), Carbon::now()->subWeek()->endOfWeek()->toDateString()],
-            'last 7 days' => [Carbon::now()->subDays(6)->toDateString(), Carbon::now()->toDateString()],
-            'last 30 days'=> [Carbon::now()->subDays(29)->toDateString(), Carbon::now()->toDateString()],
-            'last 90 days'=> [Carbon::now()->subDays(89)->toDateString(), Carbon::now()->toDateString()],
-            'today'       => [Carbon::today()->toDateString(), Carbon::today()->toDateString()],
-            'yesterday'   => [Carbon::yesterday()->toDateString(), Carbon::yesterday()->toDateString()],
-        ];
-        foreach ($relative as $key => [$f, $t]) {
-            if (str_contains($q, $key)) return [$f, $t];
-        }
-
-        return [null, null];
-    }
-
-    public function extractSingleDate(string $query): ?string
-    {
-        $q = strtolower($query);
-        if (str_contains($q, 'today'))     return Carbon::today()->toDateString();
-        if (str_contains($q, 'tomorrow'))  return Carbon::tomorrow()->toDateString();
-        if (str_contains($q, 'yesterday')) return Carbon::yesterday()->toDateString();
-
-        if (preg_match('/\b(\d{4}-\d{2}-\d{2})\b/', $query, $m)) return Carbon::parse($m[1])->toDateString();
-        if (preg_match('/\b(\d{1,2}[\/\-]\d{1,2}[\/\-]\d{2,4})\b/', $query, $m)) return Carbon::parse($m[1])->toDateString();
-
-        if (preg_match('/(?:on|for|at)\s+(.+?)(?:\s+for|\s+service|$)/i', $query, $m)) {
-            $d = $this->tryParseDate(trim($m[1]));
-            if ($d) return $d->toDateString();
-        }
-
-        return null;
-    }
-
-    private function tryParseDate(string $text): ?Carbon
-    {
-        $text = trim($text);
-        if (empty($text)) return null;
-        try {
-            $dt = Carbon::parse($text);
-            return $dt->year > 2000 ? $dt : null;
-        } catch (\Throwable) {
-            return null;
-        }
     }
 
     // ─── Service Matching ────────────────────────────────────────
