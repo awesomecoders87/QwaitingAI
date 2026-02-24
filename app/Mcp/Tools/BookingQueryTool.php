@@ -66,9 +66,10 @@ class BookingQueryTool extends Tool
         $serviceList = json_encode($services, JSON_UNESCAPED_UNICODE);
         $today = Carbon::today()->toDateString();
         $thisMonthStart = Carbon::now()->startOfMonth()->toDateString();
+        $thisMonthEnd = Carbon::now()->endOfMonth()->toDateString();
 
         $prompt = <<<PROMPT
-You are an expert AI data analyst for a booking system. Today's date is {$today}. The current month started on {$thisMonthStart}.
+You are an expert AI data analyst for a booking system. Today's date is {$today}. The current month started on {$thisMonthStart} and ends on {$thisMonthEnd}.
 Convert the user's natural language query into a structured JSON data request.
 
 Actions available:
@@ -188,10 +189,10 @@ PROMPT;
         } else {
             // Default window
             $monthStart = Carbon::now()->startOfMonth()->toDateString();
-            $today = Carbon::today()->toDateString();
-            $query->whereBetween('booking_date', [$monthStart, $today]);
+            $monthEnd = Carbon::now()->endOfMonth()->toDateString();
+            $query->whereBetween('booking_date', [$monthStart, $monthEnd]);
             $filters['date_from'] = $monthStart;
-            $filters['date_to'] = $today;
+            $filters['date_to'] = $monthEnd;
         }
 
         // Action execution
