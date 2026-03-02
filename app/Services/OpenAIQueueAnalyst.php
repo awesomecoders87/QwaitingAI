@@ -224,6 +224,25 @@ class OpenAIQueueAnalyst
         $aiContent = $response->choices[0]->message->content;
         $aiData = json_decode($aiContent, true);
         
+        // Log AI Activity
+        $promptTokens = $response->usage->promptTokens ?? 0;
+        $completionTokens = $response->usage->completionTokens ?? 0;
+        $totalTokens = $response->usage->totalTokens ?? 0;
+        $creditsConsumed = $totalTokens / 1000 * 0.001;
+        
+        \App\Models\AiActivityLog::create([
+            'team_id' => $teamId,
+            'location_id' => $locationId,
+            'chatbot_name' => 'AIQueueAnalytics (Analyze)',
+            'type' => 'queue_analytics',
+            'prompt' => "Analyze queue performance data ($startDate to $endDate)",
+            'response' => $aiContent,
+            'prompt_tokens' => $promptTokens,
+            'completion_tokens' => $completionTokens,
+            'total_tokens' => $totalTokens,
+            'credits_consumed' => $creditsConsumed,
+        ]);
+        
         // Log the EXACT predictions AI generated
         // Log::info('===== FINAL AI PREDICTIONS =====', [
         //     'date_range' => "$startDate to $endDate",
@@ -430,7 +449,30 @@ class OpenAIQueueAnalyst
             'temperature' => 0.7,
         ]);
 
-        return $response->choices[0]->message->content;
+        $content = $response->choices[0]->message->content;
+        
+        // Log AI Activity
+        $promptTokens = $response->usage->promptTokens ?? 0;
+        $completionTokens = $response->usage->completionTokens ?? 0;
+        $totalTokens = $response->usage->totalTokens ?? 0;
+        $creditsConsumed = $totalTokens / 1000 * 0.001;
+        
+        $lastUserMsg = empty($messages) ? 'Queue Expert Chat' : end($messages)['content'];
+        
+        \App\Models\AiActivityLog::create([
+            'team_id' => $teamId,
+            'location_id' => $locationId,
+            'chatbot_name' => 'AIQueueAnalytics (Chat)',
+            'type' => 'queue_analytics',
+            'prompt' => is_string($lastUserMsg) ? $lastUserMsg : json_encode($lastUserMsg),
+            'response' => $content,
+            'prompt_tokens' => $promptTokens,
+            'completion_tokens' => $completionTokens,
+            'total_tokens' => $totalTokens,
+            'credits_consumed' => $creditsConsumed,
+        ]);
+
+        return $content;
     }
 
     /**
@@ -489,7 +531,28 @@ Provide concise, actionable advice based on the data. Use specific numbers and r
             'max_tokens' => 100,
         ]);
 
-        return $response->choices[0]->message->content;
+        $content = $response->choices[0]->message->content;
+        
+        // Log AI Activity
+        $promptTokens = $response->usage->promptTokens ?? 0;
+        $completionTokens = $response->usage->completionTokens ?? 0;
+        $totalTokens = $response->usage->totalTokens ?? 0;
+        $creditsConsumed = $totalTokens / 1000 * 0.001;
+        
+        \App\Models\AiActivityLog::create([
+            'team_id' => $teamId,
+            'location_id' => $locationId,
+            'chatbot_name' => 'AIQueueAnalytics (Quick Insight)',
+            'type' => 'queue_analytics',
+            'prompt' => $prompt,
+            'response' => $content,
+            'prompt_tokens' => $promptTokens,
+            'completion_tokens' => $completionTokens,
+            'total_tokens' => $totalTokens,
+            'credits_consumed' => $creditsConsumed,
+        ]);
+
+        return $content;
     }
 
     /**
@@ -609,6 +672,26 @@ Provide concise, actionable advice based on the data. Use specific numbers and r
             ]);
 
             $content = $response->choices[0]->message->content;
+
+            // Log AI Activity
+            $promptTokens = $response->usage->promptTokens ?? 0;
+            $completionTokens = $response->usage->completionTokens ?? 0;
+            $totalTokens = $response->usage->totalTokens ?? 0;
+            $creditsConsumed = $totalTokens / 1000 * 0.001;
+            
+            \App\Models\AiActivityLog::create([
+                'team_id' => $teamId,
+                'location_id' => $locationId,
+                'chatbot_name' => 'AIQueueAnalytics (Parse User Query)',
+                'type' => 'queue_analytics',
+                'prompt' => $query,
+                'response' => $content,
+                'prompt_tokens' => $promptTokens,
+                'completion_tokens' => $completionTokens,
+                'total_tokens' => $totalTokens,
+                'credits_consumed' => $creditsConsumed,
+            ]);
+
             return json_decode($content, true);
         } catch (\Exception $e) {
             Log::error('OpenAIQueueAnalyst: Parse Query Error', ['message' => $e->getMessage()]);
@@ -647,7 +730,30 @@ Provide concise, actionable advice based on the data. Use specific numbers and r
                 'temperature' => 0.3, // Lower temperature for more focused, restrictive behavior
             ]);
 
-            return $response->choices[0]->message->content;
+            $content = $response->choices[0]->message->content;
+
+            // Log AI Activity
+            $promptTokens = $response->usage->promptTokens ?? 0;
+            $completionTokens = $response->usage->completionTokens ?? 0;
+            $totalTokens = $response->usage->totalTokens ?? 0;
+            $creditsConsumed = $totalTokens / 1000 * 0.001;
+            
+            // Assume teamId and locationId are not explicitly passed here, get from session/auth or context if possible
+            // We'll fall back to tenant('id') and session('selectedLocation');
+            \App\Models\AiActivityLog::create([
+                'team_id' => tenant('id'),
+                'location_id' => session('selectedLocation'),
+                'chatbot_name' => 'AIQueueAnalytics (Specific Question)',
+                'type' => 'queue_analytics',
+                'prompt' => $question,
+                'response' => $content,
+                'prompt_tokens' => $promptTokens,
+                'completion_tokens' => $completionTokens,
+                'total_tokens' => $totalTokens,
+                'credits_consumed' => $creditsConsumed,
+            ]);
+
+            return $content;
         } catch (\Exception $e) {
             Log::error('OpenAIQueueAnalyst: Answer Question Error', ['message' => $e->getMessage()]);
             return "I'm having trouble analyzing that specific question right now. Please try again.";
@@ -711,7 +817,27 @@ Do NOT include technical jargon or mention 'filters' or 'selection'. Speak natur
                 'max_tokens' => 150,
             ]);
 
-            return $response->choices[0]->message->content;
+            $content = $response->choices[0]->message->content;
+
+            // Log AI Activity
+            $promptTokens = $response->usage->promptTokens ?? 0;
+            $completionTokens = $response->usage->completionTokens ?? 0;
+            $totalTokens = $response->usage->totalTokens ?? 0;
+            $creditsConsumed = $totalTokens / 1000 * 0.001;
+            
+            \App\Models\AiActivityLog::create([
+                'team_id' => $teamId,
+                'location_id' => $locationId,
+                'chatbot_name' => 'AIQueueAnalytics (No Data Message)',
+                'prompt' => "Generate no data message",
+                'response' => $content,
+                'prompt_tokens' => $promptTokens,
+                'completion_tokens' => $completionTokens,
+                'total_tokens' => $totalTokens,
+                'credits_consumed' => $creditsConsumed,
+            ]);
+
+            return $content;
         } catch (\Exception $e) {
             Log::error('OpenAIQueueAnalyst: Error generating no-data message', ['message' => $e->getMessage()]);
             // Fallback to a generic message if AI fails

@@ -63,6 +63,10 @@ Route::prefix('superadmin')->name('superadmin.')->group(function () {
         Route::put('/password', [App\Http\Controllers\SuperAdmin\SuperAdminProfileController::class, 'updatePassword'])
             ->name('password.update');
 		
+        // AI Activity Log
+        Route::get('/ai-activity-log', \App\Livewire\Superadmin\AiActivityLogComponent::class)
+            ->name('ai-activity-log');
+		
 		// Package routes
         Route::get('/packages', [App\Http\Controllers\SuperAdmin\PackageController::class, 'index'])->name('packages.index');
         Route::get('/packages/create', [App\Http\Controllers\SuperAdmin\PackageController::class, 'create'])->name('packages.create');

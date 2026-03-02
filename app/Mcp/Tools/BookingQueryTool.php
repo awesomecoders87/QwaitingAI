@@ -121,8 +121,14 @@ PROMPT;
             $messages = $history;
             $messages[] = ['role' => 'user', 'content' => $query];
             
-            $openai = new OpenAIService();
-            $response = $openai->generateResponse($messages, $prompt);
+            $loggingContext = [
+                'team_id' => $teamId,
+                'location_id' => $locationId,
+                'chatbot_name' => 'BookingListChatbot (Parser)',
+                'type' => 'booking_chatbot'
+            ];
+            $openai = app(\App\Services\OpenAIService::class);
+            $response = $openai->generateResponse($messages, $prompt, $loggingContext);
             
             $response = preg_replace('/```json\s*/', '', $response);
             $response = preg_replace('/```\s*/', '', $response);

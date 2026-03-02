@@ -47,7 +47,7 @@ class OpenAIService
         $this->apiKey = config('services.openai.api_key');        
     }
 
-    public function generateResponse($messages, $systemPrompt = null)
+    public function generateResponse($messages, $systemPrompt = null, $loggingContext = [])
     {
         try {
             $messageArray = [];
@@ -79,7 +79,34 @@ class OpenAIService
             ]);
 
             if ($response->successful()) {
-                return $response->json()['choices'][0]['message']['content'];
+                $responseData = $response->json();
+                $content = $responseData['choices'][0]['message']['content'] ?? '';
+                $usage = $responseData['usage'] ?? [];
+                
+                $promptTokens = $usage['prompt_tokens'] ?? 0;
+                $completionTokens = $usage['completion_tokens'] ?? 0;
+                $totalTokens = $usage['total_tokens'] ?? 0;
+                
+                // Simple credit calculation: e.g. 0.001 credits per 1000 tokens (adjust as needed)
+                $creditsConsumed = $totalTokens / 1000 * 0.001;
+                
+                // Log to AiActivityLog
+                $lastUserMsg = empty($messages) ? '' : end($messages)['content'];
+                
+                \App\Models\AiActivityLog::create([
+                    'team_id' => $loggingContext['team_id'] ?? tenant('id'),
+                    'location_id' => $loggingContext['location_id'] ?? session('selectedLocation'),
+                    'chatbot_name' => $loggingContext['chatbot_name'] ?? 'OpenAIService',
+                    'type' => $loggingContext['type'] ?? 'general',
+                    'prompt' => $lastUserMsg,
+                    'response' => $content,
+                    'prompt_tokens' => $promptTokens,
+                    'completion_tokens' => $completionTokens,
+                    'total_tokens' => $totalTokens,
+                    'credits_consumed' => $creditsConsumed,
+                ]);
+
+                return $content;
             }
 
             Log::error('OpenAI API Error', [

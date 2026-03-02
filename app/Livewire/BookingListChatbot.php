@@ -173,7 +173,14 @@ PROMPT;
         $finalHistory = $history;
         $finalHistory[] = ['role' => 'user', 'content' => $userQuery];
         
-        $response = $openai->generateResponse($finalHistory, $systemPrompt);
+        $loggingContext = [
+            'team_id' => $this->teamId,
+            'location_id' => $this->locationId,
+            'chatbot_name' => 'BookingListChatbot',
+            'type' => 'booking_chatbot'
+        ];
+        
+        $response = $openai->generateResponse($finalHistory, $systemPrompt, $loggingContext);
 
         return $response ?? "I'm having trouble connecting right now. Please try again shortly.";
     }
