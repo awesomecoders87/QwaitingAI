@@ -1020,15 +1020,15 @@ class AIQueueAnalytics extends Component
                         $dailyStats->where('user_id', $this->selectedAgent);
                     }
 
-                    $dailyData = $dailyStats->selectRaw('DATE(created_at) as date, COUNT(*) as sessions, AVG(TIMESTAMPDIFF(SECOND, arrives_time, called_datetime)) as avg_wait_sec')
+                    $dailyData = $dailyStats->selectRaw('DATE(created_at) as date, COUNT(*) as tickets, AVG(TIMESTAMPDIFF(SECOND, arrives_time, called_datetime)) as avg_wait_sec')
                         ->groupBy('date')
-                        ->orderBy('sessions', 'desc') // Order by volume to help AI find "busiest" quickly
+                        ->orderBy('tickets', 'desc') // Order by volume to help AI find "busiest" quickly
                         ->limit(60)
                         ->get()
                         ->map(function($row) {
                             return [
                                 'date' => $row->date,
-                                'sessions' => $row->sessions,
+                                'tickets' => $row->tickets,
                                 'avg_wait_min' => round(($row->avg_wait_sec ?? 0) / 60, 1)
                             ];
                         })->toArray();
@@ -1050,7 +1050,7 @@ class AIQueueAnalytics extends Component
                         'period'  => "{$this->startDate} to {$this->endDate}",
                         'metrics' => [
                             'incoming'          => $this->incomingSessions,
-                            'engaged'           => $this->engagedSessions,
+                            'served'            => $this->engagedSessions,
                             'avg_wait_minutes'  => round($this->avgWaitTime / 60, 1),
                             'avg_handle_minutes'=> $this->avgSessionHandleTime,
                             'sentiment'         => $this->avgSessionSentiment

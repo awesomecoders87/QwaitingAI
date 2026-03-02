@@ -246,7 +246,7 @@
                 </div>
                 <div class="text-4xl font-bold text-slate-800 mb-2">{{ $incomingSessions }}</div>
                 <div class="text-xs font-medium text-slate-500 uppercase tracking-wider">
-                    {!! $isShowingPrediction ? '<span class="text-purple-600 font-bold">Predicted</span>' : '' !!} Incoming Sessions
+                    {!! $isShowingPrediction ? '<span class="text-purple-600 font-bold">Predicted</span>' : '' !!} Incoming Tickets
                 </div>
             </div>
 
@@ -262,7 +262,7 @@
                 </div>
                 <div class="text-4xl font-bold text-slate-800 mb-2">{{ $engagedSessions }}</div>
                 <div class="text-xs font-medium text-slate-500 uppercase tracking-wider">
-                    {!! $isShowingPrediction ? '<span class="text-purple-600 font-bold">Predicted</span>' : '' !!} Engaged Sessions
+                    {!! $isShowingPrediction ? '<span class="text-purple-600 font-bold">Predicted</span>' : '' !!} Served Tickets
                 </div>
             </div>
 
@@ -328,7 +328,7 @@
             </div>
              <div class="text-4xl font-bold text-slate-800 mb-2">{{ number_format($avgSessionSentiment, 1) }}%</div>
             <div class="text-xs font-medium text-slate-500 uppercase tracking-wider">
-                {!! $isShowingPrediction ? '<span class="text-purple-600 font-bold">Predicted</span>' : '' !!} Avg Sentiment
+                {!! $isShowingPrediction ? '<span class="text-purple-600 font-bold">Predicted</span>' : '' !!} Average Rating
             </div>
         </div>
     </div>
@@ -338,7 +338,7 @@
         <div class="rounded-xl bg-white p-6 shadow-sm border border-slate-100">
             <h3 class="text-lg font-bold text-slate-800 mb-4 flex items-center gap-2">
                 <span class="p-1 rounded bg-indigo-50 text-indigo-600"><svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z"></path></svg></span>
-                Incoming vs. Engaged Sessions
+                Incoming vs. Served Tickets
             </h3>
             <div class="h-80 w-full relative">
                  @if(count($sessionsChartData) > 0)
@@ -561,7 +561,7 @@
                                     pointHoverRadius: 7
                                 },
                                 {
-                                    label: 'Engaged',
+                                    label: 'Served',
                                     data: sessionsData.map(d => d.engaged),
                                     borderColor: '#10b981', // Emerald 500
                                     backgroundColor: 'transparent',

@@ -116,9 +116,9 @@ class OpenAIQueueAnalyst
             $context .= "Period: {$historicalPeriod['start']} to {$historicalPeriod['end']} ({$historicalDays} days)\n\n";
             
             $context .= "Metrics:\n";
-            $context .= "- Incoming Sessions: {$historicalMetrics['incoming_sessions']}\n";
-            $context .= "- Engaged Sessions: {$historicalMetrics['engaged_sessions']}\n";
-            $context .= "- Engagement Rate: {$historicalMetrics['engagement_rate_percent']}%\n";
+            $context .= "- Incoming Tickets: {$historicalMetrics['incoming_sessions']}\n";
+            $context .= "- Served Tickets: {$historicalMetrics['engaged_sessions']}\n";
+            $context .= "- Served Rate: {$historicalMetrics['engagement_rate_percent']}%\n";
             $context .= "- Average Wait Time: {$historicalMetrics['avg_wait_time_minutes']} minutes\n";
             $context .= "- Average Handle Time: {$historicalMetrics['avg_handle_time_minutes']} minutes\n";
             $context .= "- Transfer Rate: {$historicalMetrics['transfer_rate_percent']}%\n";
@@ -127,7 +127,7 @@ class OpenAIQueueAnalyst
             if (isset($mcpData['historical_context']['trends'])) {
                 $trends = $mcpData['historical_context']['trends'];
                 $context .= "Trends (vs previous period):\n";
-                $context .= "- Incoming Sessions: {$trends['incoming_sessions_percent']}%\n";
+                $context .= "- Incoming Tickets: {$trends['incoming_sessions_percent']}%\n";
                 $context .= "- Wait Time: {$trends['wait_time_percent']}%\n";
                 $context .= "- Handle Time: {$trends['handle_time_percent']}%\n\n";
             }
@@ -135,7 +135,7 @@ class OpenAIQueueAnalyst
             if (isset($mcpData['historical_context']['hourly_breakdown'])) {
                 $context .= "Historical Hourly Patterns (CRITICAL for predictions):\n";
                 foreach ($mcpData['historical_context']['hourly_breakdown'] as $hour) {
-                    $context .= "- {$hour['hour']}: {$hour['volume']} sessions, Avg Wait: {$hour['avg_wait_minutes']} min\n";
+                    $context .= "- {$hour['hour']}: {$hour['volume']} tickets, Avg Wait: {$hour['avg_wait_minutes']} min\n";
                 }
                 $context .= "NOTE: You MUST reflect these specific hourly peaks in your 'wait_time_predictions' and 'staffing_recommendations'. Do not use generic business hours.\n\n";
             }
@@ -153,11 +153,11 @@ class OpenAIQueueAnalyst
             $context .= "CALCULATION METHOD:\n";
             $context .= "Step 1 - Calculate Daily Averages:\n";
             $context .= "  Incoming per day: {$historicalMetrics['incoming_sessions']} ÷ {$historicalDays} = {$dailyIncoming}\n";
-            $context .= "  Engaged per day: {$historicalMetrics['engaged_sessions']} ÷ {$historicalDays} = {$dailyEngaged}\n\n";
+            $context .= "  Served per day: {$historicalMetrics['engaged_sessions']} ÷ {$historicalDays} = {$dailyEngaged}\n\n";
             
             $context .= "Step 2 - Predict for {$targetDays} Days:\n";
             $context .= "  Incoming: {$dailyIncoming} × {$targetDays} = {$predictedIncoming}\n";
-            $context .= "  Engaged: {$dailyEngaged} × {$targetDays} = {$predictedEngaged}\n\n";
+            $context .= "  Served: {$dailyEngaged} × {$targetDays} = {$predictedEngaged}\n\n";
             
             $context .= "Step 3 - Other Metrics:\n";
             $context .= "  Wait Time: Keep similar to historical ({$historicalMetrics['avg_wait_time_minutes']} min) with small variation\n";
@@ -285,16 +285,16 @@ class OpenAIQueueAnalyst
         $context .= "Filters - Queue: {$analytics->selectedQueue}, Agent: {$analytics->selectedAgent}\n\n";
         
         $context .= "Performance Metrics:\n";
-        $context .= "- Incoming Sessions: {$analytics->incomingSessions}\n";
-        $context .= "- Engaged Sessions: {$analytics->engagedSessions}\n";
-        $context .= "- Engagement Rate: {$engagementRate}%\n";
+        $context .= "- Incoming Tickets: {$analytics->incomingSessions}\n";
+        $context .= "- Served Tickets: {$analytics->engagedSessions}\n";
+        $context .= "- Served Rate: {$engagementRate}%\n";
         $context .= "- Average Wait Time: " . round($analytics->avgWaitTime / 60, 1) . " minutes\n";
         $context .= "- Average Handle Time: {$analytics->avgSessionHandleTime} minutes\n";
         $context .= "- Transfer Rate: {$analytics->transferRate}%\n";
         $context .= "- Customer Sentiment: {$analytics->avgSessionSentiment}/100\n\n";
 
         $context .= "Trends (vs previous period):\n";
-        $context .= "- Incoming Sessions: {$analytics->incomingSessionsTrend}%\n";
+        $context .= "- Incoming Tickets: {$analytics->incomingSessionsTrend}%\n";
         $context .= "- Wait Time: {$analytics->waitTimeTrend}%\n";
         $context .= "- Handle Time: {$analytics->handleTimeTrend}%\n\n";
 
@@ -359,7 +359,7 @@ class OpenAIQueueAnalyst
         
         foreach ($fullDayStats as $hour => $stats) {
             if ($stats['volume'] > 0) {
-                $context .= "- {$hour}: {$stats['volume']} sessions, Avg Wait: {$stats['avg_wait']} min\n";
+                $context .= "- {$hour}: {$stats['volume']} tickets, Avg Wait: {$stats['avg_wait']} min\n";
                 $peaks[$hour] = $stats['volume'];
             }
             // We implicitly skip 0 volume hours in the text to save tokens, 
@@ -487,7 +487,7 @@ class OpenAIQueueAnalyst
         return "You are a queue management expert with access to real-time queue data for the past 7 days.
 
 Current Performance:
-- Engagement Rate: {$engagementRate}%
+- Served Rate: {$engagementRate}%
 - Average Wait Time: " . round($analytics->avgWaitTime / 60, 1) . " minutes
 - Customer Sentiment: {$analytics->avgSessionSentiment}/100
 
@@ -515,7 +515,7 @@ Provide concise, actionable advice based on the data. Use specific numbers and r
         $analytics->loadAnalytics();
 
         $prompt = "Based on today's queue performance, provide a one-sentence insight:\n\n";
-        $prompt .= "Sessions: {$analytics->incomingSessions}, ";
+        $prompt .= "Tickets: {$analytics->incomingSessions}, ";
         $prompt .= "Wait Time: " . round($analytics->avgWaitTime / 60, 1) . " min, ";
         $prompt .= "Sentiment: {$analytics->avgSessionSentiment}/100";
 
