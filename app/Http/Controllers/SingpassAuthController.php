@@ -21,11 +21,17 @@ class SingpassAuthController extends Controller
     {
         $state = Str::random(40);
         $nonce = Str::random(40);
+        $codeVerifier = '';
 
         $request->session()->put('singpass_state', $state);
         $request->session()->put('singpass_nonce', $nonce);
 
-        $authUrl = $this->singpassService->getAuthUrl($state, $nonce);
+        // getAuthUrl now does PAR and returns /auth?request_uri=... URL
+        // It also populates $codeVerifier (passed by reference)
+        $authUrl = $this->singpassService->getAuthUrl($state, $nonce, $codeVerifier);
+
+        // Store the code verifier for PKCE verification at token exchange
+        $request->session()->put('singpass_code_verifier', $codeVerifier);
 
         return redirect()->away($authUrl);
     }
@@ -41,8 +47,9 @@ class SingpassAuthController extends Controller
         }
 
         try {
-            // Exchange code for tokens
-            $tokens = $this->singpassService->exchangeCodeForToken($code, $state);
+            // Exchange code for tokens (include PKCE code_verifier)
+            $codeVerifier = $request->session()->pull('singpass_code_verifier');
+            $tokens = $this->singpassService->exchangeCodeForToken($code, $codeVerifier);
             
             if (!isset($tokens['id_token'])) {
                 throw new \Exception('Failed to retrieve ID token from Singpass.');
