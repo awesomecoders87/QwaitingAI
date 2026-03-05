@@ -122,18 +122,22 @@
                                 </div>
                             </div>
                         </form>
+                        
                         @if(isset($addon) && $addon->office_enabled == 1)
-                        <div class="mt-5">
+                            <div class="mt-5 w-full relative z-20">
+                                <a href="{{ url('office365/login') }}">
+                                    <button type="submit" class="flex items-center justify-center w-full px-4 py-3 text-sm font-medium text-white transition rounded-lg shadow-theme-xs bg-brand-500 hover:bg-brand-600">Login With Office 365</button>
+                                </a>
+                            </div>
+                        @endif
 
-                    <a
-                      href="{{ url('office365/login') }}"
-
-                      ><button type="submit"
-                                        class="flex items-center justify-center w-full px-4 py-3 text-sm font-medium text-white transition rounded-lg  shadow-theme-xs bg-brand-500 hover:bg-brand-600">Login With Office 365</button> </a
-                    >
-
-                </div>
-                @endif
+                        <div class="mt-5 w-full relative z-30 pointer-events-auto">
+                            <hr class="my-4 border-gray-300 dark:border-gray-700" />
+                            <p class="text-center text-sm text-gray-500 dark:text-gray-400 mb-3 block">Or login with:</p>
+                            <a href="{{ route('tenant.singpass.login') }}" style="pointer-events: all; z-index: 9999; display: flex;" class="flex items-center justify-center w-full px-4 py-3 text-sm font-medium text-white transition rounded-lg shadow-theme-xs bg-red-600 hover:bg-red-700 cursor-pointer">
+                                Login with Singpass
+                            </a>
+                        </div>
                     </div>
                 </div>
             </div>
