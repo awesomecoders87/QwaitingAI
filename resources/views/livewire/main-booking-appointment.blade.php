@@ -1240,7 +1240,8 @@ document.addEventListener("livewire:init", function () {
         });
     });
 </script>
-@include('n8n.chatbot')
+<!-- @include('n8n.chatbot') -->
+@livewire('booking-chatbot')
     </div>
 
 </div>

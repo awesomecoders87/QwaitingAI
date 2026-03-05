@@ -1,0 +1,385 @@
+{
+  "info": {
+    "_postman_id": "9c5a0bf8-de06-4b2f-b7b2-16d4f335e6af",
+    "name": "Qwaiting AI",
+    "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json",
+    "_exporter_id": "50743216",
+    "_collection_link": "https://go.postman.co/collection/50743216-9c5a0bf8-de06-4b2f-b7b2-16d4f335e6af?source=collection_link"
+  },
+  "item": [
+    {
+      "name": "Service Bookings",
+      "request": {
+        "method": "POST",
+        "header": [],
+        "body": {
+          "mode": "formdata",
+          "formdata": [
+            {
+              "key": "appointment_date",
+              "value": "2026-02-24",
+              "type": "text"
+            },
+            {
+              "key": "time",
+              "value": "06:00 PM",
+              "type": "text"
+            },
+            {
+              "key": "name",
+              "value": "Mohan Maximo",
+              "type": "text"
+            },
+            {
+              "key": "phone",
+              "value": "7870359434",
+              "type": "text",
+              "disabled": true
+            },
+            {
+              "key": "email",
+              "value": "mohan@stelleninfotech.com.au",
+              "type": "text",
+              "disabled": true
+            },
+            {
+              "key": "phone_code",
+              "value": "91",
+              "type": "text",
+              "disabled": true
+            },
+            {
+              "key": "service_name",
+              "value": "School Management",
+              "type": "text"
+            }
+          ]
+        },
+        "url": {
+          "raw": "https://qwaiting-ai.thevistiq.com/api/check-and-book",
+          "protocol": "https",
+          "host": [
+            "qwaiting-ai",
+            "thevistiq",
+            "com"
+          ],
+          "path": [
+            "api",
+            "check-and-book"
+          ],
+          "query": [
+            {
+              "key": "appointment_date",
+              "value": "2026-01-07",
+              "disabled": true
+            },
+            {
+              "key": "time",
+              "value": "09:00 AM",
+              "disabled": true
+            },
+            {
+              "key": "name",
+              "value": "Mohan Maximo",
+              "disabled": true
+            },
+            {
+              "key": "phone",
+              "value": "7870359434",
+              "disabled": true
+            },
+            {
+              "key": "phone_code",
+              "value": "91",
+              "disabled": true
+            },
+            {
+              "key": "service_name",
+              "value": "Pediatrics",
+              "disabled": true
+            }
+          ]
+        }
+      },
+      "response": []
+    },
+    {
+      "name": "https://qwaiting-ai.thevistiq.com/api/check-datetime-availability",
+      "request": {
+        "method": "POST",
+        "header": [],
+        "url": {
+          "raw": "https://qwaiting-ai.thevistiq.com/api/check-datetime-availability?service_name=School Management&date=2025-12-26&time=2PM",
+          "protocol": "https",
+          "host": [
+            "qwaiting-ai",
+            "thevistiq",
+            "com"
+          ],
+          "path": [
+            "api",
+            "check-datetime-availability"
+          ],
+          "query": [
+            {
+              "key": "service_name",
+              "value": "School Management"
+            },
+            {
+              "key": "date",
+              "value": "2025-12-26"
+            },
+            {
+              "key": "time",
+              "value": "2PM"
+            }
+          ]
+        }
+      },
+      "response": []
+    },
+    {
+      "name": "https://qwaiting-ai.thevistiq.com/api/check-service",
+      "request": {
+        "method": "GET",
+        "header": [],
+        "url": {
+          "raw": "https://qwaiting-ai.thevistiq.com/api/check-service",
+          "protocol": "https",
+          "host": [
+            "qwaiting-ai",
+            "thevistiq",
+            "com"
+          ],
+          "path": [
+            "api",
+            "check-service"
+          ],
+          "query": [
+            {
+              "key": "service_name",
+              "value": "School Management",
+              "disabled": true
+            },
+            {
+              "key": "type",
+              "value": "appointment",
+              "disabled": true
+            },
+            {
+              "key": "type",
+              "value": "service",
+              "disabled": true
+            }
+          ]
+        }
+      },
+      "response": []
+    },
+    {
+      "name": "GetAvailbalesDates",
+      "request": {
+        "method": "POST",
+        "header": [],
+        "body": {
+          "mode": "formdata",
+          "formdata": [
+            {
+              "key": "service_name",
+              "value": "School Management",
+              "type": "text",
+              "uuid": "cb0d04a0-ec3b-4ad7-a6df-652853a4d7eb"
+            }
+          ]
+        },
+        "url": {
+          "raw": "https://qwaiting-ai.thevistiq.com/api/get-available-dates",
+          "protocol": "https",
+          "host": [
+            "qwaiting-ai",
+            "thevistiq",
+            "com"
+          ],
+          "path": [
+            "api",
+            "get-available-dates"
+          ]
+        }
+      },
+      "response": []
+    },
+    {
+      "name": "GetAvailbalesTimes",
+      "request": {
+        "method": "POST",
+        "header": [],
+        "body": {
+          "mode": "formdata",
+          "formdata": [
+            {
+              "key": "service_name",
+              "value": "Orthopedics",
+              "type": "text",
+              "uuid": "cb0d04a0-ec3b-4ad7-a6df-652853a4d7eb"
+            },
+            {
+              "key": "date",
+              "value": "2026-02-24",
+              "type": "text",
+              "uuid": "f06d41b5-e06e-4647-a36f-abd1fb143783"
+            }
+          ]
+        },
+        "url": {
+          "raw": "https://qwaiting-ai.thevistiq.com/api/get-available-times",
+          "protocol": "https",
+          "host": [
+            "qwaiting-ai",
+            "thevistiq",
+            "com"
+          ],
+          "path": [
+            "api",
+            "get-available-times"
+          ]
+        }
+      },
+      "response": []
+    },
+    {
+      "name": "Reschdule",
+      "request": {
+        "method": "POST",
+        "header": [],
+        "body": {
+          "mode": "formdata",
+          "formdata": [
+            {
+              "key": "booking_refID",
+              "value": "17702853221539",
+              "type": "text",
+              "uuid": "86f1f195-19fa-4706-a29f-3b1422eda04b"
+            },
+            {
+              "key": "service_name",
+              "value": "Orthopedics",
+              "type": "text",
+              "uuid": "48152cc2-c60a-495d-98b9-d7877b0024ec"
+            },
+            {
+              "key": "date",
+              "value": "2026-02-12",
+              "type": "text",
+              "uuid": "000a4e8a-eb45-4c0c-89d3-f433d8e54565"
+            },
+            {
+              "key": "time",
+              "value": "10:00 AM",
+              "type": "text",
+              "uuid": "59985ef3-b45e-4adc-921e-918f839d1748"
+            },
+            {
+              "key": "name",
+              "value": "MAN SINGH TOMAR",
+              "description": "Not required",
+              "type": "text",
+              "uuid": "ff2f761c-1da0-4787-aa0c-d2df8c23f483"
+            },
+            {
+              "key": "phone",
+              "value": "7870359434",
+              "description": "Not required",
+              "type": "text",
+              "uuid": "adc5e7c3-87f0-4353-ae9e-50dedd16c3ac"
+            },
+            {
+              "key": "email",
+              "value": "mohan@stelleninfotech.com.au",
+              "description": "Not required",
+              "type": "text",
+              "uuid": "3f955e47-9e37-45b8-9837-d747a6f5cb6c"
+            }
+          ]
+        },
+        "url": {
+          "raw": "https://qwaiting-ai.thevistiq.com/api/edit-booking",
+          "protocol": "https",
+          "host": [
+            "qwaiting-ai",
+            "thevistiq",
+            "com"
+          ],
+          "path": [
+            "api",
+            "edit-booking"
+          ]
+        }
+      },
+      "response": []
+    },
+    {
+      "name": "CancelBooking",
+      "request": {
+        "method": "POST",
+        "header": [],
+        "body": {
+          "mode": "formdata",
+          "formdata": [
+            {
+              "key": "booking_refID",
+              "value": "17702723464211",
+              "type": "text",
+              "uuid": "e231cf7a-34c8-4f68-aed1-9672221de5c9"
+            }
+          ]
+        },
+        "url": {
+          "raw": "https://qwaiting-ai.thevistiq.com/api/cancel-booking",
+          "protocol": "https",
+          "host": [
+            "qwaiting-ai",
+            "thevistiq",
+            "com"
+          ],
+          "path": [
+            "api",
+            "cancel-booking"
+          ]
+        }
+      },
+      "response": []
+    },
+    {
+      "name": "BookingDetails",
+      "request": {
+        "method": "POST",
+        "header": [],
+        "body": {
+          "mode": "formdata",
+          "formdata": [
+            {
+              "key": "booking_refID",
+              "value": "17700944495100",
+              "type": "text",
+              "uuid": "86f1f195-19fa-4706-a29f-3b1422eda04b"
+            }
+          ]
+        },
+        "url": {
+          "raw": "https://qwaiting-ai.thevistiq.com/api/get-booking-details",
+          "protocol": "https",
+          "host": [
+            "qwaiting-ai",
+            "thevistiq",
+            "com"
+          ],
+          "path": [
+            "api",
+            "get-booking-details"
+          ]
+        }
+      },
+      "response": []
+    }
+  ]
+}
