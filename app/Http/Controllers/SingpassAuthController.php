@@ -2,110 +2,136 @@
 
 namespace App\Http\Controllers;
 
-use Illuminate\Http\Request;
-use Illuminate\Support\Str;
 use App\Models\User;
-use Illuminate\Support\Facades\Auth;
 use App\Services\SingpassService;
+use Illuminate\Http\Request;
+use Illuminate\Support\Facades\Auth;
+use Illuminate\Support\Facades\Log;
+use Illuminate\Support\Str;
 
 class SingpassAuthController extends Controller
 {
-    protected $singpassService;
+    protected SingpassService $singpassService;
 
     public function __construct(SingpassService $singpassService)
     {
         $this->singpassService = $singpassService;
     }
 
+    /**
+     * Step 1: Initiate Singpass login via PAR.
+     */
     public function redirectToSingpass(Request $request)
     {
         $state = Str::random(40);
         $nonce = Str::random(40);
-        $codeVerifier = '';
 
         $request->session()->put('singpass_state', $state);
         $request->session()->put('singpass_nonce', $nonce);
 
-        // getAuthUrl now does PAR and returns /auth?request_uri=... URL
-        // It also populates $codeVerifier (passed by reference)
-        $authUrl = $this->singpassService->getAuthUrl($state, $nonce, $codeVerifier);
+        try {
+            // FIX #2: buildAuthorizationRequest returns url + code_verifier + dpop_pem
+            $result = $this->singpassService->buildAuthorizationRequest($state, $nonce);
 
-        // Store the code verifier for PKCE verification at token exchange
-        $request->session()->put('singpass_code_verifier', $codeVerifier);
+            // Persist BOTH the code_verifier AND the DPoP PEM for use at callback
+            $request->session()->put('singpass_code_verifier', $result['code_verifier']);
+            $request->session()->put('singpass_dpop_pem',      $result['dpop_pem']);   // ← was missing
 
-        return redirect()->away($authUrl);
+            return redirect()->away($result['url']);
+
+        } catch (\Exception $e) {
+            Log::error('[Singpass] Failed to build auth URL', ['error' => $e->getMessage()]);
+            return redirect()->route('tenant.login')
+                ->withErrors(['login' => 'Could not connect to Singpass. Please try again or contact helpdesk.']);
+        }
     }
 
+    /**
+     * Step 2: Handle the Singpass callback.
+     */
     public function handleSingpassCallback(Request $request)
     {
         $state = $request->query('state');
-        $code = $request->query('code');
+        $code  = $request->query('code');
         $error = $request->query('error');
 
+        // Validate state and check for upstream errors
         if ($error || $state !== $request->session()->get('singpass_state')) {
-            return redirect()->route('tenant.login')->withErrors(['login' => 'Singpass authentication failed or was interrupted. Please contact system helpdesk.']);
+            Log::warning('[Singpass] Callback state mismatch or upstream error', [
+                'error'           => $error,
+                'received_state'  => $state,
+                'expected_state'  => $request->session()->get('singpass_state'),
+            ]);
+            return redirect()->route('tenant.login')
+                ->withErrors(['login' => 'Singpass authentication failed or was interrupted. Please contact system helpdesk.']);
         }
 
         try {
-            // Exchange code for tokens (include PKCE code_verifier)
+            // Pull session values (pull = get + delete)
             $codeVerifier = $request->session()->pull('singpass_code_verifier');
-            $tokens = $this->singpassService->exchangeCodeForToken($code, $codeVerifier);
-            
-            if (!isset($tokens['id_token'])) {
-                throw new \Exception('Failed to retrieve ID token from Singpass.');
+            $dpopPem      = $request->session()->pull('singpass_dpop_pem');   // ← FIX #2
+
+            // Exchange code for tokens — pass DPoP PEM so the proof matches dpop_jkt
+            $tokens = $this->singpassService->exchangeCodeForToken($code, $codeVerifier, $dpopPem);
+
+            if (empty($tokens['id_token'])) {
+                throw new \RuntimeException('No id_token in Singpass token response.');
             }
 
-            // Get user information from ID Token
-            $userInfo = $this->singpassService->getUserInfo($tokens['id_token']);
+            // Decode and verify the ID token (FIX #4: signature verified inside getUserInfo)
+            $userInfo   = $this->singpassService->getUserInfo($tokens['id_token']);
             $singpassId = $userInfo['sub'] ?? null;
 
-            if (!$singpassId) {
-                throw new \Exception('Invalid Singpass Identity.');
+            if (empty($singpassId)) {
+                throw new \RuntimeException('id_token missing sub claim — invalid Singpass identity.');
             }
 
-            // Find user in database
+            // Find or auto-register the user
             $user = User::where('singpass_id', $singpassId)->first();
 
             if ($user) {
-                // User exists, log them in
                 Auth::login($user);
-                
-                // Track login
-                $user->is_login = 1;
-                $user->login_datetime = now();
-                $user->save();
-                
-                return redirect()->intended(route('tenant.dashboard'))->with('success', 'Logged in successfully via Singpass.');
-            } else {
-                // User does not exist, auto-register and log them in
-                $user = new User();
-                
-                // Fallback details if scopes are missing from Singpass token
-                $user->name = $userInfo['name'] ?? 'Singpass User';
-                $user->email = $userInfo['email'] ?? ($singpassId . '@singpass.user');
-                $user->phone = $userInfo['mobile_number'] ?? null;
-                $user->singpass_id = $singpassId;
-                
-                // Set standard required fields
-                $user->password = bcrypt(Str::random(16)); // Random password as they use Singpass
-                $user->role_id = 3; // Basic staff/user role, adjust as needed 
-                $user->is_login = 1;
-                $user->login_datetime = now();
-                $user->save();
+                $user->forceFill(['is_login' => 1, 'login_datetime' => now()])->save();
 
-                Auth::login($user);
-
-                return redirect()->intended(route('tenant.dashboard'))->with('success', 'Account created and logged in successfully via Singpass.');
+                return redirect()->intended(route('tenant.dashboard'))
+                    ->with('success', 'Logged in successfully via Singpass.');
             }
 
+            // Auto-register
+            $user = User::create([
+                'name'           => $userInfo['name']          ?? 'Singpass User',
+                'email'          => $userInfo['email']         ?? ($singpassId . '@singpass.user'),
+                'phone'          => $userInfo['mobile_number'] ?? null,
+                'singpass_id'    => $singpassId,
+                'password'       => bcrypt(Str::random(32)),   // Random — user authenticates via Singpass only
+                'role_id'        => 3,
+                'is_login'       => 1,
+                'login_datetime' => now(),
+            ]);
+
+            Auth::login($user);
+
+            return redirect()->intended(route('tenant.dashboard'))
+                ->with('success', 'Account created and logged in successfully via Singpass.');
+
         } catch (\Exception $e) {
-            \Illuminate\Support\Facades\Log::error('Singpass callback error: ' . $e->getMessage());
-            return redirect()->route('tenant.login')->withErrors(['login' => 'Authentication error. Please contact application helpdesk instead of Singpass.']);
+            Log::error('[Singpass] Callback error', [
+                'message' => $e->getMessage(),
+                'trace'   => $e->getTraceAsString(),
+            ]);
+
+            return redirect()->route('tenant.login')
+                ->withErrors(['login' => 'Authentication error. Please contact application helpdesk.']);
         }
     }
 
+    /**
+     * Expose the RP's JWKS endpoint for Singpass to verify client assertions.
+     * Register https://qwaiting-ai.thevistiq.com/sp/jwks in Developer Portal.
+     */
     public function jwks()
     {
-        return response()->json($this->singpassService->getJwks());
+        return response()->json($this->singpassService->getJwks())
+            ->header('Cache-Control', 'public, max-age=3600');
     }
 }

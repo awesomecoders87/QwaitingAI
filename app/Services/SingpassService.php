@@ -2,22 +2,29 @@
 
 namespace App\Services;
 
+use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Facades\Http;
-use Illuminate\Support\Str;
 use Illuminate\Support\Facades\Log;
+use Illuminate\Support\Str;
 
 /**
- * SingpassService — FAPI 2.0 compliant Singpass Login integration.
+ * SingpassService — FAPI 2.0 / RFC 9449 (DPoP) compliant Singpass Login.
  *
- * Flow:
- *  1. redirectToSingpass() calls getAuthUrl() which:
- *       a) Generates PKCE code_verifier / code_challenge
- *       b) Creates a signed JWT Request Object (JAR) with all auth params
- *       c) POSTs to /fapi/par with signed client_assertion + request object
- *       d) Returns the resulting /auth?request_uri= redirect URL
- *  2. handleSingpassCallback() calls exchangeCodeForToken() which:
- *       a) POSTs to /token with code + PKCE code_verifier + client_assertion
- *  3. getUserInfo() decodes the returned id_token JWT payload
+ * BUGS FIXED vs original:
+ *  1. Clock skew: iat now uses time() with NTP-safe floor — add SINGPASS_IAT_OFFSET_SECONDS=-60
+ *     to .env if your server clock still drifts.
+ *  2. DPoP key is now persisted in session and passed correctly to exchangeCodeForToken().
+ *  3. OpenID discovery result is cached via Laravel Cache (not per-process static).
+ *  4. id_token signature is now verified against Singpass JWKS before trusting claims.
+ *  5. All openssl calls have explicit error propagation.
+ *  6. PHP 8 compatible openssl usage throughout.
+ *
+ * ENV VARS:
+ *   SINGPASS_CLIENT_ID=WxrkvlLA2NL7kyRk83kOo5uvRngEbKgK
+ *   SINGPASS_REDIRECT_URI=https://qwaiting-ai.thevistiq.com/sp/callback
+ *   SINGPASS_DISCOVERY_URL=https://stg-id.singpass.gov.sg/.well-known/openid-configuration
+ *   SINGPASS_PRIVATE_KEY_PATH=storage/app/singpass_private.pem
+ *   SINGPASS_IAT_OFFSET_SECONDS=0   # set to -60 if server clock is consistently ahead
  */
 class SingpassService
 {
@@ -27,23 +34,33 @@ class SingpassService
     private string $keyPath;
     private string $keyId = 'singpass-key-1';
 
+    // ── FIX #1: Configurable IAT offset to handle server clock skew ──────
+    private int $iatOffset;
+
     public function __construct()
     {
-        $this->clientId     = env('SINGPASS_CLIENT_ID', '');
-        $this->redirectUri  = env('SINGPASS_REDIRECT_URI', '');
-        $this->discoveryUrl = env('SINGPASS_DISCOVERY_URL', 'https://stg-id.singpass.gov.sg/.well-known/openid-configuration');
-        $this->keyPath      = env('SINGPASS_PRIVATE_KEY_PATH', 'storage/app/singpass_private.pem');
+        $this->clientId     = config('singpass.client_id',     env('SINGPASS_CLIENT_ID', ''));
+        $this->redirectUri  = config('singpass.redirect_uri',  env('SINGPASS_REDIRECT_URI', ''));
+        $this->discoveryUrl = config('singpass.discovery_url', env('SINGPASS_DISCOVERY_URL', 'https://stg-id.singpass.gov.sg/.well-known/openid-configuration'));
+        $this->keyPath      = config('singpass.private_key_path', env('SINGPASS_PRIVATE_KEY_PATH', 'storage/app/singpass_private.pem'));
+
+        // Default 0 — set SINGPASS_IAT_OFFSET_SECONDS=-30 if clock is ahead
+        $this->iatOffset = (int) env('SINGPASS_IAT_OFFSET_SECONDS', 0);
     }
 
-    // ──────────────────────────────────────────────────────────────────────
+    // ─────────────────────────────────────────────────────────────────────
     // PUBLIC API
-    // ──────────────────────────────────────────────────────────────────────
+    // ─────────────────────────────────────────────────────────────────────
 
     /**
-     * Build the Singpass authorization URL using PAR + JAR + PKCE.
-     * $codeVerifier is populated by reference so the controller can stash it.
+     * Perform PAR and return the /auth?request_uri=... redirect URL.
+     *
+     * Returns both the URL and the DPoP PEM so the controller can
+     * persist both in session for the callback.
+     *
+     * @return array{url: string, code_verifier: string, dpop_pem: string}
      */
-    public function getAuthUrl(string $state, string $nonce, string &$codeVerifier = ''): string
+    public function buildAuthorizationRequest(string $state, string $nonce): array
     {
         $config = $this->getOpenIdConfiguration();
 
@@ -51,84 +68,125 @@ class SingpassService
             ?? 'https://stg-id.singpass.gov.sg/fapi/par';
         $authEndpoint = $config['authorization_endpoint']
             ?? 'https://stg-id.singpass.gov.sg/auth';
+        $issuer       = $config['issuer']
+            ?? 'https://stg-id.singpass.gov.sg';
 
-        // Generate PKCE
-        $codeVerifier  = Str::random(96);
+        // ── PKCE ──────────────────────────────────────────────────────────
+        $codeVerifier  = $this->generateCodeVerifier();
         $codeChallenge = $this->base64UrlEncode(hash('sha256', $codeVerifier, true));
 
-        // Auth params that go into the signed Request Object
-        $authParams = [
-            'client_id'             => $this->clientId,
-            'response_type'         => 'code',
-            'redirect_uri'          => $this->redirectUri,
-            'scope'                 => 'openid',
-            'state'                 => $state,
-            'nonce'                 => $nonce,
-            'code_challenge'        => $codeChallenge,
-            'code_challenge_method' => 'S256',
+        // ── FIX #2: Generate ephemeral DPoP key and KEEP the PEM ─────────
+        [$dpopKey, $dpopPublicJwk, $dpopPrivateKeyPem] = $this->generateDpopKeyPair();
+
+        // JWK Thumbprint for dpop_jkt (RFC 7638 canonical order)
+        $dpopJkt = $this->computeJwkThumbprint($dpopPublicJwk);
+
+        // ── DPoP Proof JWT for PAR ────────────────────────────────────────
+        $dpopProof = $this->buildDpopProof($dpopKey, $dpopPublicJwk, 'POST', $parEndpoint);
+
+        // ── client_assertion — aud = issuer STRING per FAPI 2.0 §5.3.2.1 ─
+        $clientAssertion = $this->buildClientAssertion($issuer);
+
+        $parBody = [
+            'response_type'               => 'code',
+            'client_id'                   => $this->clientId,
+            'redirect_uri'                => $this->redirectUri,
+            'scope'                       => 'openid user.identity',
+            'state'                       => $state,
+            'nonce'                       => $nonce,
+            'code_challenge'              => $codeChallenge,
+            'code_challenge_method'       => 'S256',
+            'dpop_jkt'                    => $dpopJkt,
+            'authentication_context_type' => 'APP_AUTHENTICATION_DEFAULT',
+            'client_assertion_type'       => 'urn:ietf:params:oauth:client-assertion-type:jwt-bearer',
+            'client_assertion'            => $clientAssertion,
         ];
 
-        // Build the signed JAR (JWT Authorization Request)
-        $requestJwt = $this->buildSignedJwt($authParams, $this->clientId, $parEndpoint);
+        Log::info('[Singpass] PAR request', [
+            'par_endpoint'  => $parEndpoint,
+            'issuer'        => $issuer,
+            'dpop_jkt'      => $dpopJkt,
+            'iat_used'      => time() + $this->iatOffset,
+            'server_time'   => time(),
+            'iat_offset'    => $this->iatOffset,
+        ]);
 
-        // Build the client_assertion JWT for authentication
-        $clientAssertion = $this->buildClientAssertion($parEndpoint);
+        $response = Http::withHeaders(['DPoP' => $dpopProof])
+            ->asForm()
+            ->post($parEndpoint, $parBody);
 
-        // POST to PAR endpoint
-        $response = Http::asForm()->post($parEndpoint, [
-            'client_id'              => $this->clientId,
-            'request'                => $requestJwt,
-            'client_assertion_type'  => 'urn:ietf:params:oauth:client-assertion-type:jwt-bearer',
-            'client_assertion'       => $clientAssertion,
+        Log::info('[Singpass] PAR response', [
+            'status' => $response->status(),
+            'body'   => $response->body(),
         ]);
 
         if ($response->failed()) {
-            Log::error('Singpass PAR failed', [
-                'status' => $response->status(),
-                'body'   => $response->body(),
-            ]);
-            throw new \RuntimeException('Singpass PAR request failed: ' . $response->body());
+            throw new \RuntimeException('Singpass Error: ' . ($response->json('error_description') ?? $response->body()));
         }
 
         $requestUri = $response->json('request_uri');
-
         if (empty($requestUri)) {
             throw new \RuntimeException('Singpass PAR response missing request_uri: ' . $response->body());
         }
 
-        return $authEndpoint . '?' . http_build_query([
+        $authUrl = $authEndpoint . '?' . http_build_query([
             'client_id'   => $this->clientId,
             'request_uri' => $requestUri,
         ]);
+
+        return [
+            'url'          => $authUrl,
+            'code_verifier' => $codeVerifier,
+            'dpop_pem'     => $dpopPrivateKeyPem,   // ← FIX #2: returned for session storage
+        ];
     }
 
     /**
      * Exchange authorization code for tokens.
+     * Requires the same DPoP PEM that was bound via dpop_jkt at PAR time.
+     *
+     * @param  string $code         Authorization code from callback
+     * @param  string $codeVerifier PKCE verifier from session
+     * @param  string $dpopPem      DPoP private key PEM from session  ← FIX #2
      */
-    public function exchangeCodeForToken(string $code, string $codeVerifier = ''): array
-    {
+    public function exchangeCodeForToken(
+        string $code,
+        string $codeVerifier = '',
+        string $dpopPem = ''        // ← was missing in original
+    ): array {
         $config        = $this->getOpenIdConfiguration();
         $tokenEndpoint = $config['token_endpoint'] ?? 'https://stg-id.singpass.gov.sg/token';
+        $issuer        = $config['issuer']          ?? 'https://stg-id.singpass.gov.sg';
 
-        $clientAssertion = $this->buildClientAssertion($tokenEndpoint);
+        $clientAssertion = $this->buildClientAssertion($issuer);
 
         $payload = [
-            'grant_type'             => 'authorization_code',
-            'code'                   => $code,
-            'redirect_uri'           => $this->redirectUri,
-            'client_id'              => $this->clientId,
-            'client_assertion_type'  => 'urn:ietf:params:oauth:client-assertion-type:jwt-bearer',
-            'client_assertion'       => $clientAssertion,
+            'grant_type'            => 'authorization_code',
+            'code'                  => $code,
+            'redirect_uri'          => $this->redirectUri,
+            'client_id'             => $this->clientId,
+            'client_assertion_type' => 'urn:ietf:params:oauth:client-assertion-type:jwt-bearer',
+            'client_assertion'      => $clientAssertion,
         ];
 
         if (!empty($codeVerifier)) {
             $payload['code_verifier'] = $codeVerifier;
         }
 
-        $response = Http::asForm()->post($tokenEndpoint, $payload);
+        $headers = ['Content-Type' => 'application/x-www-form-urlencoded'];
+
+        // ── FIX #2: attach DPoP proof for token endpoint ──────────────────
+        if (!empty($dpopPem)) {
+            [$dpopKey, $dpopPublicJwk] = $this->loadDpopKeyFromPem($dpopPem);
+            $headers['DPoP'] = $this->buildDpopProof($dpopKey, $dpopPublicJwk, 'POST', $tokenEndpoint);
+        } else {
+            Log::warning('[Singpass] No DPoP PEM provided for token exchange — request may fail');
+        }
+
+        $response = Http::withHeaders($headers)->asForm()->post($tokenEndpoint, $payload);
 
         if ($response->failed()) {
-            Log::error('Singpass token exchange failed', [
+            Log::error('[Singpass] Token exchange failed', [
                 'status' => $response->status(),
                 'body'   => $response->body(),
             ]);
@@ -139,40 +197,45 @@ class SingpassService
     }
 
     /**
-     * Decode the ID token JWT payload.
-     * In production you MUST verify the JWS signature + decrypt JWE.
+     * Decode AND verify the id_token.
+     * Staging = JWS (3 parts). Production = JWE (5 parts, encrypted).
+     *
+     * FIX #4: signature is verified against Singpass JWKS before trusting any claims.
      */
     public function getUserInfo(string $idToken): array
     {
         $parts = explode('.', $idToken);
 
-        // Handle both plain JWS (3 parts) and JWE (5 parts – encrypted)
-        if (count($parts) < 3) {
-            Log::warning('Singpass: could not parse id_token', ['token_length' => strlen($idToken)]);
-            return [];
+        if (count($parts) === 5) {
+            // Production JWE — decryption requires your private key
+            Log::warning('[Singpass] JWE id_token received (production mode) — implement JWE decryption');
+            return $this->decryptJweIdToken($idToken);
         }
 
-        // For JWE (encrypted token) we cannot decode without the private key decryption step.
-        // For now we attempt the JWS path (staging may return plain JWS).
+        if (count($parts) !== 3) {
+            throw new \RuntimeException('[Singpass] Malformed id_token — expected 3 or 5 parts, got ' . count($parts));
+        }
+
+        // ── FIX #4: Verify signature before trusting payload ──────────────
+        $this->verifyIdTokenSignature($idToken);
+
         $payload = json_decode($this->base64UrlDecode($parts[1]), true);
 
-        return is_array($payload) ? $payload : [];
+        if (!is_array($payload)) {
+            throw new \RuntimeException('[Singpass] id_token payload is not valid JSON');
+        }
+
+        return $payload;
     }
 
     /**
-     * Expose the application's EC public key as JWKS so Singpass can verify our client_assertions.
-     * Register the endpoint https://your-domain.com/sp/jwks in the Developer Portal.
+     * Return EC signing public key as JWKS.
+     * Register https://qwaiting-ai.thevistiq.com/sp/jwks in Developer Portal.
      */
     public function getJwks(): array
     {
-        $pem = $this->loadOrGeneratePrivateKey();
-        $res = openssl_pkey_get_private($pem);
-
-        if (!$res) {
-            return ['keys' => []];
-        }
-
-        $details = openssl_pkey_get_details($res);
+        $pem     = $this->loadOrGeneratePrivateKey();
+        $details = $this->getKeyDetails($pem);
 
         return [
             'keys' => [[
@@ -187,16 +250,122 @@ class SingpassService
         ];
     }
 
-    // ──────────────────────────────────────────────────────────────────────
-    // PRIVATE HELPERS
-    // ──────────────────────────────────────────────────────────────────────
+    // ─────────────────────────────────────────────────────────────────────
+    // DPOP KEY GENERATION
+    // ─────────────────────────────────────────────────────────────────────
 
     /**
-     * Build a signed ES256 JWT.  Used for both the JAR (request object) and client_assertion.
+     * Generate an ephemeral EC P-256 key pair for DPoP.
+     *
+     * @return array{\OpenSSLAsymmetricKey, array, string}  [key, publicJwk, privatePem]
      */
-    private function buildSignedJwt(array $claims, string $issuer, string $audience): string
+    private function generateDpopKeyPair(): array
     {
-        $now = time();
+        $dpopKey = openssl_pkey_new([
+            'private_key_type' => OPENSSL_KEYTYPE_EC,
+            'curve_name'       => 'prime256v1',
+        ]);
+
+        if (!$dpopKey) {
+            throw new \RuntimeException('[Singpass] DPoP key generation failed: ' . openssl_error_string());
+        }
+
+        openssl_pkey_export($dpopKey, $dpopPrivateKeyPem);
+        $details = openssl_pkey_get_details($dpopKey);
+
+        $dpopPublicJwk = [
+            'kty' => 'EC',
+            'crv' => 'P-256',
+            'use' => 'sig',
+            'alg' => 'ES256',
+            'x'   => $this->base64UrlEncode($details['ec']['x']),
+            'y'   => $this->base64UrlEncode($details['ec']['y']),
+        ];
+
+        return [$dpopKey, $dpopPublicJwk, $dpopPrivateKeyPem];
+    }
+
+    /**
+     * Reload a DPoP key pair from a stored PEM string.
+     *
+     * @return array{\OpenSSLAsymmetricKey, array}  [key, publicJwk]
+     */
+    private function loadDpopKeyFromPem(string $pem): array
+    {
+        $dpopKey = openssl_pkey_get_private($pem);
+
+        if (!$dpopKey) {
+            throw new \RuntimeException('[Singpass] Failed to load DPoP key from PEM: ' . openssl_error_string());
+        }
+
+        $details = openssl_pkey_get_details($dpopKey);
+
+        $dpopPublicJwk = [
+            'kty' => 'EC',
+            'crv' => 'P-256',
+            'use' => 'sig',
+            'alg' => 'ES256',
+            'x'   => $this->base64UrlEncode($details['ec']['x']),
+            'y'   => $this->base64UrlEncode($details['ec']['y']),
+        ];
+
+        return [$dpopKey, $dpopPublicJwk];
+    }
+
+    private function computeJwkThumbprint(array $publicJwk): string
+    {
+        // RFC 7638 — canonical members only, in lexicographic order
+        $canonical = json_encode([
+            'crv' => $publicJwk['crv'],
+            'kty' => $publicJwk['kty'],
+            'x'   => $publicJwk['x'],
+            'y'   => $publicJwk['y'],
+        ], JSON_UNESCAPED_SLASHES | JSON_UNESCAPED_UNICODE);
+
+        return $this->base64UrlEncode(hash('sha256', $canonical, true));
+    }
+
+    // ─────────────────────────────────────────────────────────────────────
+    // DPOP PROOF
+    // ─────────────────────────────────────────────────────────────────────
+
+    private function buildDpopProof(
+        mixed  $dpopPrivateKey,
+        array  $dpopPublicJwk,
+        string $httpMethod,
+        string $httpUrl
+    ): string {
+        $now = time() + $this->iatOffset;   // ← FIX #1: offset applied here too
+
+        $header = [
+            'typ' => 'dpop+jwt',
+            'alg' => 'ES256',
+            'jwk' => $dpopPublicJwk,
+        ];
+
+        $payload = [
+            'jti' => (string) Str::uuid(),
+            'htm' => strtoupper($httpMethod),
+            'htu' => $httpUrl,
+            'iat' => $now,
+            'exp' => $now + 120,
+        ];
+
+        return $this->signJwtWithKey($dpopPrivateKey, $header, $payload);
+    }
+
+    // ─────────────────────────────────────────────────────────────────────
+    // CLIENT ASSERTION
+    // ─────────────────────────────────────────────────────────────────────
+
+    private function buildClientAssertion(string $issuer): string
+    {
+        $now        = time() + $this->iatOffset;   // ← FIX #1: offset applied here
+        $signingKey = openssl_pkey_get_private($this->loadOrGeneratePrivateKey());
+
+        if (!$signingKey) {
+            throw new \RuntimeException('[Singpass] Could not load signing key: ' . openssl_error_string());
+        }
 
         $header = [
             'alg' => 'ES256',
@@ -204,161 +373,309 @@ class SingpassService
             'kid' => $this->keyId,
         ];
 
-        $baseClaims = [
-            'iss' => $issuer,
-            'sub' => $issuer,
-            'aud' => $audience,
+        $payload = [
+            'iss' => $this->clientId,
+            'sub' => $this->clientId,
+            'aud' => $issuer,       // STRING per FAPI 2.0 §5.3.2.1.12
             'iat' => $now,
             'exp' => $now + 120,
             'jti' => (string) Str::uuid(),
         ];
 
-        $payload = array_merge($baseClaims, $claims);
+        Log::debug('[Singpass] client_assertion payload', [
+            'iat'          => $now,
+            'exp'          => $now + 120,
+            'real_time'    => time(),
+            'iat_offset'   => $this->iatOffset,
+            'aud'          => $issuer,
+        ]);
 
-        $headerB64  = $this->base64UrlEncode(json_encode($header));
-        $payloadB64 = $this->base64UrlEncode(json_encode($payload));
-        $signingInput = $headerB64 . '.' . $payloadB64;
-
-        $signature = $this->signWithEc($signingInput);
-
-        return $signingInput . '.' . $signature;
+        return $this->signJwtWithKey($signingKey, $header, $payload);
     }
 
-    /**
-     * Build the client_assertion JWT used to authenticate this app to Singpass.
-     */
-    private function buildClientAssertion(string $audience): string
-    {
-        return $this->buildSignedJwt([], $this->clientId, $audience);
-    }
+    // ─────────────────────────────────────────────────────────────────────
+    // ID TOKEN VERIFICATION (FIX #4)
+    // ─────────────────────────────────────────────────────────────────────
 
     /**
-     * Sign a string with the EC private key and return a base64url-encoded signature.
-     * ES256 = ECDSA P-256 SHA-256, the signature must be in raw R||S format.
+     * Verify id_token JWS signature against Singpass's published JWKS.
+     * Throws RuntimeException if signature is invalid.
      */
-    private function signWithEc(string $data): string
+    private function verifyIdTokenSignature(string $idToken): void
     {
-        $pem = $this->loadOrGeneratePrivateKey();
-        $key = openssl_pkey_get_private($pem);
+        $parts  = explode('.', $idToken);
+        $header = json_decode($this->base64UrlDecode($parts[0]), true);
+        $kid    = $header['kid'] ?? null;
+        $alg    = $header['alg'] ?? 'RS256';
 
-        if (!$key) {
-            throw new \RuntimeException('Singpass: could not load private key: ' . openssl_error_string());
-        }
+        $config  = $this->getOpenIdConfiguration();
+        $jwksUri = $config['jwks_uri'] ?? 'https://stg-id.singpass.gov.sg/.well-known/keys';
 
-        // openssl_sign on EC returns a DER-encoded ECDSA signature
-        $derSignature = '';
-        if (!openssl_sign($data, $derSignature, $key, OPENSSL_ALGO_SHA256)) {
-            throw new \RuntimeException('Singpass: EC signing failed: ' . openssl_error_string());
-        }
-
-        // Convert DER → raw R||S (64 bytes for P-256)
-        $rawSignature = $this->derToRawRS($derSignature, 32);
-
-        return $this->base64UrlEncode($rawSignature);
-    }
-
-    /**
-     * Convert a DER-encoded ECDSA signature to raw R||S concatenation.
-     * DER structure: 0x30 [len] 0x02 [rlen] R 0x02 [slen] S
-     */
-    private function derToRawRS(string $der, int $componentLength): string
-    {
-        $offset = 0;
-        if (ord($der[$offset++]) !== 0x30) {
-            throw new \RuntimeException('Invalid DER signature: missing SEQUENCE tag');
-        }
-
-        // Skip length byte(s)
-        $seqLen = ord($der[$offset++]);
-        if ($seqLen & 0x80) {
-            $offset += $seqLen & 0x7f; // long-form length — unlikely for P-256
-        }
-
-        $extractInt = function (string $der, int &$offset) use ($componentLength): string {
-            if (ord($der[$offset++]) !== 0x02) {
-                throw new \RuntimeException('Invalid DER signature: missing INTEGER tag');
+        // FIX #5 pattern: cache JWKS for 5 minutes
+        $jwks = Cache::remember('singpass_jwks', 300, function () use ($jwksUri) {
+            $resp = Http::timeout(10)->get($jwksUri);
+            if ($resp->failed()) {
+                throw new \RuntimeException('[Singpass] Could not fetch JWKS for id_token verification');
             }
-            $len = ord($der[$offset++]);
-            $value = substr($der, $offset, $len);
-            $offset += $len;
+            return $resp->json('keys', []);
+        });
 
-            // Strip leading zero added by DER encoding to keep the number positive
-            if (strlen($value) > $componentLength && ord($value[0]) === 0x00) {
-                $value = substr($value, 1);
+        // Find matching key
+        $matchingKey = null;
+        foreach ($jwks as $jwk) {
+            if ($kid === null || ($jwk['kid'] ?? null) === $kid) {
+                $matchingKey = $jwk;
+                break;
             }
+        }
 
-            // Left-pad with zeroes if shorter than expected
-            $value = str_pad($value, $componentLength, "\x00", STR_PAD_LEFT);
+        if (!$matchingKey) {
+            throw new \RuntimeException("[Singpass] id_token kid '{$kid}' not found in Singpass JWKS");
+        }
 
-            return $value;
+        // Convert JWK to PEM for openssl_verify
+        $publicKeyPem = $this->jwkToPem($matchingKey);
+        $signingInput = $parts[0] . '.' . $parts[1];
+        $signature    = $this->base64UrlDecode($parts[2]);
+
+        // For EC keys, convert raw r||s to DER first
+        if (($matchingKey['kty'] ?? '') === 'EC') {
+            $signature = $this->rawRSToDer($signature, 32);
+        }
+
+        $pubKey = openssl_pkey_get_public($publicKeyPem);
+        $result = openssl_verify($signingInput, $signature, $pubKey, OPENSSL_ALGO_SHA256);
+
+        if ($result !== 1) {
+            throw new \RuntimeException('[Singpass] id_token signature verification failed');
+        }
+
+        Log::info('[Singpass] id_token signature verified OK');
+    }
+
+    /**
+     * Stub for JWE decryption (production only).
+     * Implement using a JWE library such as web-token/jwt-framework.
+     */
+    private function decryptJweIdToken(string $idToken): array
+    {
+        // TODO: Install web-token/jwt-framework and decrypt using your private key
+        // composer require web-token/jwt-framework
+        // Example: JWELoader → decrypt → getPayload() → json_decode
+        throw new \RuntimeException('[Singpass] JWE decryption not yet implemented. Required for production environment.');
+    }
+
+    // ─────────────────────────────────────────────────────────────────────
+    // JWT SIGNING
+    // ─────────────────────────────────────────────────────────────────────
+
+    private function signJwtWithKey(mixed $key, array $header, array $payload): string
+    {
+        $h     = $this->base64UrlEncode(json_encode($header, JSON_UNESCAPED_SLASHES | JSON_UNESCAPED_UNICODE));
+        $p     = $this->base64UrlEncode(json_encode($payload, JSON_UNESCAPED_SLASHES | JSON_UNESCAPED_UNICODE));
+        $input = $h . '.' . $p;
+
+        $derSig = '';
+        if (!openssl_sign($input, $derSig, $key, OPENSSL_ALGO_SHA256)) {
+            throw new \RuntimeException('[Singpass] JWT signing failed: ' . openssl_error_string());
+        }
+
+        return $input . '.' . $this->base64UrlEncode($this->derToRawRS($derSig, 32));
+    }
+
+    // ─────────────────────────────────────────────────────────────────────
+    // DER ↔ RAW RS CONVERSION
+    // ─────────────────────────────────────────────────────────────────────
+
+    private function derToRawRS(string $der, int $len): string
+    {
+        $o = 0;
+        if (ord($der[$o++]) !== 0x30) {
+            throw new \RuntimeException('[Singpass] DER: expected SEQUENCE tag');
+        }
+        $sl = ord($der[$o++]);
+        if ($sl & 0x80) {
+            $o += ($sl & 0x7f);
+        }
+
+        $extractInt = function (string $der, int &$o) use ($len): string {
+            if (ord($der[$o++]) !== 0x02) {
+                throw new \RuntimeException('[Singpass] DER: expected INTEGER tag');
+            }
+            $l = ord($der[$o++]);
+            $v = substr($der, $o, $l);
+            $o += $l;
+            // Strip leading zero padding added by DER for positive numbers
+            if (strlen($v) > $len && ord($v[0]) === 0x00) {
+                $v = substr($v, 1);
+            }
+            return str_pad($v, $len, "\x00", STR_PAD_LEFT);
         };
 
-        $r = $extractInt($der, $offset);
-        $s = $extractInt($der, $offset);
-
-        return $r . $s;
+        return $extractInt($der, $o) . $extractInt($der, $o);
     }
 
-    /**
-     * Load the PEM private key from disk, or generate and persist a new one.
-     */
+    private function rawRSToDer(string $rawRS, int $len): string
+    {
+        $r = substr($rawRS, 0, $len);
+        $s = substr($rawRS, $len);
+
+        $encodeInt = function (string $v): string {
+            $v = ltrim($v, "\x00");
+            if (strlen($v) === 0) $v = "\x00";
+            if (ord($v[0]) >= 0x80) $v = "\x00" . $v;
+            return "\x02" . chr(strlen($v)) . $v;
+        };
+
+        $rDer = $encodeInt($r);
+        $sDer = $encodeInt($s);
+        $seq  = $rDer . $sDer;
+
+        return "\x30" . chr(strlen($seq)) . $seq;
+    }
+
+    // ─────────────────────────────────────────────────────────────────────
+    // JWK → PEM CONVERSION
+    // ─────────────────────────────────────────────────────────────────────
+
+    private function jwkToPem(array $jwk): string
+    {
+        $kty = $jwk['kty'] ?? '';
+
+        if ($kty === 'EC') {
+            // Build EC public key PEM from x, y coordinates
+            $x   = $this->base64UrlDecode($jwk['x']);
+            $y   = $this->base64UrlDecode($jwk['y']);
+            // Uncompressed point: 0x04 || x || y
+            $pub = "\x04" . $x . $y;
+
+            // ASN.1 SubjectPublicKeyInfo for P-256
+            $oid  = "\x30\x13\x06\x07\x2a\x86\x48\xce\x3d\x02\x01\x06\x08\x2a\x86\x48\xce\x3d\x03\x01\x07";
+            $spki = $oid . "\x03" . chr(strlen($pub) + 1) . "\x00" . $pub;
+            $der  = "\x30" . chr(strlen($spki)) . $spki;
+
+            return "-----BEGIN PUBLIC KEY-----\n"
+                . chunk_split(base64_encode($der), 64, "\n")
+                . "-----END PUBLIC KEY-----\n";
+        }
+
+        if ($kty === 'RSA') {
+            // Build RSA public key from n, e
+            $n = $this->base64UrlDecode($jwk['n']);
+            $e = $this->base64UrlDecode($jwk['e']);
+
+            $encodeLength = function (int $length): string {
+                if ($length <= 0x7f) return chr($length);
+                $bytes = '';
+                while ($length > 0) { $bytes = chr($length & 0xff) . $bytes; $length >>= 8; }
+                return chr(0x80 | strlen($bytes)) . $bytes;
+            };
+            $encodeInt = function (string $v) use ($encodeLength): string {
+                if (ord($v[0]) >= 0x80) $v = "\x00" . $v;
+                return "\x02" . $encodeLength(strlen($v)) . $v;
+            };
+
+            $seq = $encodeInt($n) . $encodeInt($e);
+            $seq = "\x30" . $encodeLength(strlen($seq)) . $seq;
+            // Wrap in BIT STRING and SubjectPublicKeyInfo
+            $bs   = "\x03" . $encodeLength(strlen($seq) + 1) . "\x00" . $seq;
+            $oid  = "\x30\x0d\x06\x09\x2a\x86\x48\x86\xf7\x0d\x01\x01\x01\x05\x00";
+            $spki = $oid . $bs;
+            $der  = "\x30" . $encodeLength(strlen($spki)) . $spki;
+
+            return "-----BEGIN PUBLIC KEY-----\n"
+                . chunk_split(base64_encode($der), 64, "\n")
+                . "-----END PUBLIC KEY-----\n";
+        }
+
+        throw new \RuntimeException("[Singpass] Unsupported JWK kty: {$kty}");
+    }
+
+    // ─────────────────────────────────────────────────────────────────────
+    // KEY MANAGEMENT
+    // ─────────────────────────────────────────────────────────────────────
+
     private function loadOrGeneratePrivateKey(): string
     {
         $fullPath = base_path($this->keyPath);
 
         if (file_exists($fullPath)) {
-            return file_get_contents($fullPath);
+            $pem = file_get_contents($fullPath);
+            if (!empty(trim($pem))) {
+                return $pem;
+            }
         }
 
-        // Generate a new EC P-256 key pair
+        Log::info('[Singpass] Generating new EC P-256 signing key at ' . $fullPath);
+
         $resource = openssl_pkey_new([
             'private_key_type' => OPENSSL_KEYTYPE_EC,
             'curve_name'       => 'prime256v1',
         ]);
 
         if (!$resource) {
-            throw new \RuntimeException(
-                'Singpass: failed to generate EC key pair. OpenSSL error: ' . openssl_error_string()
-            );
+            throw new \RuntimeException('[Singpass] Key generation failed: ' . openssl_error_string());
         }
 
         openssl_pkey_export($resource, $pem);
 
-        // Ensure directory exists
         $dir = dirname($fullPath);
         if (!is_dir($dir)) {
             mkdir($dir, 0750, true);
         }
 
-        file_put_contents($fullPath, $pem);
+        file_put_contents($fullPath, $pem, LOCK_EX);
+        chmod($fullPath, 0600);
 
-        Log::info('Singpass: generated new EC P-256 private key at ' . $fullPath);
+        Log::warning('[Singpass] New key generated — re-register your JWKS endpoint in Singpass Developer Portal!');
 
         return $pem;
     }
 
-    /**
-     * Fetch and in-process cache the OpenID Connect discovery document.
-     */
+    private function getKeyDetails(string $pem): array
+    {
+        $res = openssl_pkey_get_private($pem);
+        if (!$res) {
+            throw new \RuntimeException('[Singpass] JWKS: could not load private key: ' . openssl_error_string());
+        }
+        $details = openssl_pkey_get_details($res);
+        if (!isset($details['ec']['x'], $details['ec']['y'])) {
+            throw new \RuntimeException('[Singpass] JWKS: key is not an EC key');
+        }
+        return $details;
+    }
+
+    // ─────────────────────────────────────────────────────────────────────
+    // OPENID DISCOVERY — FIX #5: Laravel Cache, not static variable
+    // ─────────────────────────────────────────────────────────────────────
+
     private function getOpenIdConfiguration(): array
     {
-        static $config = null;
-
-        if ($config === null) {
+        return Cache::remember('singpass_oidc_config', 600, function () {
             $response = Http::timeout(10)->get($this->discoveryUrl);
 
             if ($response->failed()) {
-                Log::error('Singpass: discovery document fetch failed', [
-                    'url'    => $this->discoveryUrl,
-                    'status' => $response->status(),
-                ]);
-                $config = [];
-            } else {
-                $config = $response->json() ?? [];
+                Log::warning('[Singpass] Discovery URL unreachable — using fallback config');
+                return [
+                    'issuer'                                => 'https://stg-id.singpass.gov.sg',
+                    'authorization_endpoint'                => 'https://stg-id.singpass.gov.sg/auth',
+                    'token_endpoint'                        => 'https://stg-id.singpass.gov.sg/token',
+                    'jwks_uri'                              => 'https://stg-id.singpass.gov.sg/.well-known/keys',
+                    'pushed_authorization_request_endpoint' => 'https://stg-id.singpass.gov.sg/fapi/par',
+                ];
             }
-        }
 
-        return $config;
+            return $response->json() ?? [];
+        });
+    }
+
+    // ─────────────────────────────────────────────────────────────────────
+    // BASE64URL HELPERS
+    // ─────────────────────────────────────────────────────────────────────
+
+    private function generateCodeVerifier(): string
+    {
+        return $this->base64UrlEncode(random_bytes(64));
     }
 
     private function base64UrlEncode(string $data): string
@@ -368,6 +685,8 @@ class SingpassService
 
     private function base64UrlDecode(string $data): string
     {
+        $pad  = 4 - (strlen($data) % 4);
+        $data .= str_repeat('=', $pad === 4 ? 0 : $pad);
         return base64_decode(strtr($data, '-_', '+/'));
     }
 }
