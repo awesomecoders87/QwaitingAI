@@ -69,6 +69,7 @@ class User extends Authenticatable
 		'is_superadmin',
         'sms_credits_balance',
         'additional_info',
+        'singpass_id',
     ];
 
 

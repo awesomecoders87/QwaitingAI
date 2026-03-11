@@ -22,6 +22,7 @@
         "microsoft/microsoft-graph": "^1.100",
         "onelogin/php-saml": "^4.3",
         "openai-php/client": "^0.19.0",
+        "phpseclib/phpseclib": "~3.0",
         "pragmarx/google2fa": "^8.0",
         "simplesoftwareio/simple-qrcode": "^4.2",
         "spatie/laravel-permission": "^6.14",

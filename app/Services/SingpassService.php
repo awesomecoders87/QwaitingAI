@@ -5,38 +5,36 @@ namespace App\Services;
 use Illuminate\Support\Facades\Http;
 use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Str;
+use phpseclib3\Crypt\EC;
+use phpseclib3\Crypt\EC\Curves\Prime256v1;
 
 class SingpassService
 {
     private string $clientId;
     private string $redirectUri;
     private string $keyPath;
-    private string $keyId  = 'singpass-key-1';
+    private string $keyId = 'singpass-key-1';
     private int    $iatOffset;
 
-    // ── Hardcoded Singpass staging constants ──────────────────────────────
-    private string $issuer        = 'https://stg-id.singpass.gov.sg';
+    // ✅ Issuer from: https://stg-id.singpass.gov.sg/fapi/.well-known/openid-configuration
+    private string $issuer        = 'https://stg-id.singpass.gov.sg/fapi';
     private string $parEndpoint   = 'https://stg-id.singpass.gov.sg/fapi/par';
-    private string $authEndpoint  = 'https://stg-id.singpass.gov.sg/auth';
-    private string $tokenEndpoint = 'https://stg-id.singpass.gov.sg/token';
+    private string $authEndpoint  = 'https://stg-id.singpass.gov.sg/fapi/auth';
+    private string $tokenEndpoint = 'https://stg-id.singpass.gov.sg/fapi/token';
     private string $jwksUri       = 'https://stg-id.singpass.gov.sg/.well-known/keys';
 
     public function __construct()
     {
-        $this->clientId    = 'QA7M3gEqL5XeCchggRsoFGpApfLoa1bJ';
-        $this->redirectUri = 'https://qwaiting-ai.thevistiq.com/sp/callback';
-        $this->keyPath     = 'storage/app/singpass_private.pem';
-        $this->iatOffset   = 0;
+        $this->clientId   = env('SINGPASS_CLIENT_ID', 'QA7M3gEqL5XeCchggRsoFGpApfLoa1bJ');
+        $this->redirectUri = env('SINGPASS_REDIRECT_URI', 'https://qwaiting-ai.thevistiq.com/sp/callback');
+        $this->keyPath    = env('SINGPASS_PRIVATE_KEY_PATH', 'storage/app/singpass_private.pem');
+        $this->iatOffset  = (int) env('SINGPASS_IAT_OFFSET_SECONDS', 0);
 
         Log::info('[Singpass] Loaded client_id: ' . $this->clientId);
     }
 
-    // ─────────────────────────────────────────────────────────────────────
-    // PUBLIC API
-    // ─────────────────────────────────────────────────────────────────────
-
     /**
-     * @return array{url: string, code_verifier: string, dpop_pem: string}
+     * Step 1 & 2: PAR + build auth URL
      */
     public function buildAuthorizationRequest(string $state, string $nonce): array
     {
@@ -47,20 +45,19 @@ class SingpassService
         $dpopJkt   = $this->computeJwkThumbprint($dpopPublicJwk);
         $dpopProof = $this->buildDpopProof($dpopKey, $dpopPublicJwk, 'POST', $this->parEndpoint);
 
-        // aud MUST be $this->issuer — NOT $this->parEndpoint
         $clientAssertion = $this->buildClientAssertion($this->issuer);
 
         $parBody = [
             'response_type'               => 'code',
             'client_id'                   => $this->clientId,
             'redirect_uri'                => $this->redirectUri,
-            'scope'                       => 'openid',
+            'scope'                       => 'openid name email mobileno user.identity',
             'state'                       => $state,
             'nonce'                       => $nonce,
             'code_challenge'              => $codeChallenge,
             'code_challenge_method'       => 'S256',
             'dpop_jkt'                    => $dpopJkt,
-            // 'authentication_context_type' => 'urn:singpass:authn:context:qr',
+            'authentication_context_type' => 'APP_AUTHENTICATION_DEFAULT',
             'client_assertion_type'       => 'urn:ietf:params:oauth:client-assertion-type:jwt-bearer',
             'client_assertion'            => $clientAssertion,
         ];
@@ -103,12 +100,14 @@ class SingpassService
         ];
     }
 
+    /**
+     * Step 3: Exchange auth code for tokens
+     */
     public function exchangeCodeForToken(
         string $code,
         string $codeVerifier = '',
         string $dpopPem = ''
     ): array {
-        // aud MUST be $this->issuer
         $clientAssertion = $this->buildClientAssertion($this->issuer);
 
         $payload = [
@@ -133,42 +132,54 @@ class SingpassService
             Log::warning('[Singpass] No DPoP PEM for token exchange — may fail');
         }
 
+        Log::info('[Singpass] Token exchange request', ['code' => substr($code, 0, 10) . '...']);
+
         $response = Http::withHeaders($headers)->asForm()->post($this->tokenEndpoint, $payload);
 
+        Log::info('[Singpass] Token exchange response', [
+            'status' => $response->status(),
+            'body'   => substr($response->body(), 0, 200),
+        ]);
+
         if ($response->failed()) {
-            Log::error('[Singpass] Token exchange failed', [
-                'status' => $response->status(),
-                'body'   => $response->body(),
-            ]);
             throw new \RuntimeException('Singpass token exchange failed: ' . $response->body());
         }
 
         return $response->json();
     }
 
+    /**
+     * Step 4: Parse id_token
+     * Staging & Production both return JWE (5-part encrypted token)
+     */
     public function getUserInfo(string $idToken): array
     {
         $parts = explode('.', $idToken);
 
         if (count($parts) === 5) {
-            Log::warning('[Singpass] JWE id_token — needs decryption for production');
+            Log::info('[Singpass] JWE id_token detected — decrypting');
             return $this->decryptJweIdToken($idToken);
         }
 
         if (count($parts) !== 3) {
-            throw new \RuntimeException('[Singpass] Malformed id_token — expected 3 or 5 parts');
+            throw new \RuntimeException('[Singpass] Malformed id_token — expected 3 or 5 parts, got ' . count($parts));
         }
 
+        // Plain JWS — verify and return
         $this->verifyIdTokenSignature($idToken);
-
         $payload = json_decode($this->base64UrlDecode($parts[1]), true);
+
         if (!is_array($payload)) {
             throw new \RuntimeException('[Singpass] id_token payload is not valid JSON');
         }
 
+        Log::info('[Singpass] id_token claims', ['sub' => $payload['sub'] ?? 'unknown']);
         return $payload;
     }
 
+    /**
+     * JWKS endpoint — returns both sig and enc public keys
+     */
     public function getJwks(): array
     {
         $sigPem     = $this->loadOrGeneratePrivateKey();
@@ -210,9 +221,253 @@ class SingpassService
         return ['keys' => $keys];
     }
 
-    // ─────────────────────────────────────────────────────────────────────
-    // DPOP
-    // ─────────────────────────────────────────────────────────────────────
+    // =========================================================================
+    // JWE DECRYPTION (ECDH-ES+A128KW + A256CBC-HS512)
+    // Uses phpseclib3 for ECDH since openssl_pkey_derive is unavailable
+    // =========================================================================
+
+    private function decryptJweIdToken(string $idToken): array
+    {
+        $parts = explode('.', $idToken);
+        if (count($parts) !== 5) {
+            throw new \RuntimeException('[Singpass] JWE must have 5 parts');
+        }
+
+        [$headerB64, $encryptedKeyB64, $ivB64, $ciphertextB64, $tagB64] = $parts;
+
+        $header = json_decode($this->base64UrlDecode($headerB64), true);
+        Log::info('[Singpass] JWE header', [
+            'alg' => $header['alg'] ?? '?',
+            'enc' => $header['enc'] ?? '?',
+            'kid' => $header['kid'] ?? '?',
+        ]);
+
+        // Load enc private key
+        $encKeyPath = env('SINGPASS_ENC_PRIVATE_KEY_PATH', '');
+        if (empty($encKeyPath)) {
+            throw new \RuntimeException('[Singpass] SINGPASS_ENC_PRIVATE_KEY_PATH not set');
+        }
+
+        $encPem = file_get_contents(base_path($encKeyPath));
+        if (empty(trim($encPem))) {
+            throw new \RuntimeException('[Singpass] Enc private key file is empty');
+        }
+
+        // Get ephemeral public key from JWE header
+        $epk = $header['epk'] ?? null;
+        if (!$epk) {
+            throw new \RuntimeException('[Singpass] JWE header missing epk');
+        }
+
+        // Compute ECDH shared secret using phpseclib3
+        $sharedSecret = $this->ecdhComputeSharedSecret($encPem, $epk);
+        Log::info('[Singpass] ECDH shared secret computed', ['len' => strlen($sharedSecret)]);
+
+        // Derive KEK using Concat KDF
+        $alg    = $header['alg']; // ECDH-ES+A128KW
+        $enc    = $header['enc']; // A256CBC-HS512 or A128CBC-HS256
+        $keyLen = $this->getKeyLength($alg);
+        $kek    = $this->concatKdf($sharedSecret, $alg, $keyLen, $header);
+        Log::info('[Singpass] KEK derived', ['len' => strlen($kek), 'alg' => $alg]);
+
+        // Unwrap CEK using AES Key Wrap
+        $encryptedKey = $this->base64UrlDecode($encryptedKeyB64);
+        $cek          = $this->aesKeyUnwrap($kek, $encryptedKey);
+        Log::info('[Singpass] CEK unwrapped', ['len' => strlen($cek)]);
+
+        // Decrypt ciphertext
+        $iv         = $this->base64UrlDecode($ivB64);
+        $ciphertext = $this->base64UrlDecode($ciphertextB64);
+        $tag        = $this->base64UrlDecode($tagB64);
+
+        $plaintext = $this->aesCbcHmacDecrypt($cek, $iv, $ciphertext, $headerB64, $tag, $enc);
+        Log::info('[Singpass] JWE decrypted — inner JWT length: ' . strlen($plaintext));
+
+        // The plaintext is the inner JWS
+        $innerJwt = trim($plaintext);
+        $this->verifyIdTokenSignature($innerJwt);
+
+        $innerParts   = explode('.', $innerJwt);
+        $innerPayload = json_decode($this->base64UrlDecode($innerParts[1]), true);
+
+        if (!is_array($innerPayload)) {
+            throw new \RuntimeException('[Singpass] Decrypted id_token payload is not valid JSON');
+        }
+
+        Log::info('[Singpass] id_token ALL claims', $innerPayload);
+        return $innerPayload;
+    }
+
+    /**
+     * ECDH shared secret using phpseclib3
+     */
+    private function ecdhComputeSharedSecret(string $ourPrivatePem, array $epkJwk): string
+    {
+        // Load our private key via phpseclib
+        $privateKey = \phpseclib3\Crypt\PublicKeyLoader::loadPrivateKey($ourPrivatePem);
+
+        // Reconstruct ephemeral public key PEM from JWK x,y coordinates
+        $x = $this->base64UrlDecode($epkJwk['x']);
+        $y = $this->base64UrlDecode($epkJwk['y']);
+        $epkPem = $this->ecPointToPem($x, $y);
+        $epkPublicKey = \phpseclib3\Crypt\PublicKeyLoader::loadPublicKey($epkPem);
+
+        // Compute ECDH shared secret using DH::computeSecret
+        $sharedSecret = \phpseclib3\Crypt\DH::computeSecret($privateKey, $epkPublicKey);
+
+        if (empty($sharedSecret)) {
+            throw new \RuntimeException('[Singpass] ECDH shared secret is empty');
+        }
+
+        return $sharedSecret;
+    }
+
+    /**
+     * Build EC public key PEM from raw x,y coordinates
+     */
+    private function ecPointToPem(string $x, string $y): string
+    {
+        // Pad to 32 bytes each
+        $x = str_pad($x, 32, "\x00", STR_PAD_LEFT);
+        $y = str_pad($y, 32, "\x00", STR_PAD_LEFT);
+
+        $pub  = "\x04" . $x . $y;
+        $oid  = "\x30\x13\x06\x07\x2a\x86\x48\xce\x3d\x02\x01\x06\x08\x2a\x86\x48\xce\x3d\x03\x01\x07";
+        $spki = $oid . "\x03" . chr(strlen($pub) + 1) . "\x00" . $pub;
+        $der  = "\x30" . chr(strlen($spki)) . $spki;
+
+        return "-----BEGIN PUBLIC KEY-----\n" . chunk_split(base64_encode($der), 64, "\n") . "-----END PUBLIC KEY-----\n";
+    }
+
+    /**
+     * Concat KDF (JWA RFC 7518 Section 4.6.2)
+     */
+    private function concatKdf(string $sharedSecret, string $alg, int $keyLenBits, array $header): string
+    {
+        $keyLenBytes = $keyLenBits / 8;
+        $algId       = pack('N', strlen($alg)) . $alg;
+        $apu         = !empty($header['apu']) ? $this->base64UrlDecode($header['apu']) : '';
+        $apv         = !empty($header['apv']) ? $this->base64UrlDecode($header['apv']) : '';
+        $apuData     = pack('N', strlen($apu)) . $apu;
+        $apvData     = pack('N', strlen($apv)) . $apv;
+        $suppPubInfo = pack('N', $keyLenBits);
+
+        $hashInput = pack('N', 1) . $sharedSecret . $algId . $apuData . $apvData . $suppPubInfo;
+        $digest    = hash('sha256', $hashInput, true);
+
+        return substr($digest, 0, $keyLenBytes);
+    }
+
+    /**
+     * AES Key Unwrap (RFC 3394)
+     */
+    private function aesKeyUnwrap(string $kek, string $wrappedKey): string
+    {
+        $n = intdiv(strlen($wrappedKey), 8) - 1;
+        $r = [];
+        $a = substr($wrappedKey, 0, 8);
+
+        for ($i = 1; $i <= $n; $i++) {
+            $r[$i] = substr($wrappedKey, $i * 8, 8);
+        }
+
+        $cipherLen = strlen($kek) === 16 ? 'aes-128-ecb' : 'aes-256-ecb';
+
+        for ($j = 5; $j >= 0; $j--) {
+            for ($i = $n; $i >= 1; $i--) {
+                $t     = ($n * $j) + $i;
+                $tBytes = pack('J', $t);
+                $aXorT = $a ^ $tBytes;
+                $b     = openssl_decrypt(
+                    $aXorT . $r[$i],
+                    $cipherLen,
+                    $kek,
+                    OPENSSL_RAW_DATA | OPENSSL_ZERO_PADDING
+                );
+                if ($b === false) {
+                    throw new \RuntimeException('[Singpass] AES Key Unwrap decryption failed at j=' . $j . ' i=' . $i);
+                }
+                $a    = substr($b, 0, 8);
+                $r[$i] = substr($b, 8, 8);
+            }
+        }
+
+        if ($a !== "\xa6\xa6\xa6\xa6\xa6\xa6\xa6\xa6") {
+            throw new \RuntimeException('[Singpass] AES Key Unwrap integrity check failed — wrong enc key?');
+        }
+
+        $cek = '';
+        for ($i = 1; $i <= $n; $i++) {
+            $cek .= $r[$i];
+        }
+
+        return $cek;
+    }
+
+    /**
+     * AES-CBC + HMAC decrypt (JWA RFC 7516)
+     */
+    private function aesCbcHmacDecrypt(
+        string $cek,
+        string $iv,
+        string $ciphertext,
+        string $aad,
+        string $tag,
+        string $enc
+    ): string {
+        $halfLen = intdiv(strlen($cek), 2);
+        $macKey  = substr($cek, 0, $halfLen);
+        $encKey  = substr($cek, $halfLen);
+
+        $cipherAlg = match ($enc) {
+            'A128CBC-HS256' => 'aes-128-cbc',
+            'A256CBC-HS512' => 'aes-256-cbc',
+            default         => throw new \RuntimeException('[Singpass] Unsupported enc: ' . $enc),
+        };
+
+        $macAlg = match ($enc) {
+            'A128CBC-HS256' => 'sha256',
+            'A256CBC-HS512' => 'sha512',
+            default         => 'sha256',
+        };
+
+        // Verify MAC: AAD || IV || Ciphertext || AAD_length_in_bits
+        $aadLenBits = strlen($aad) * 8;
+        // Pack as 64-bit big-endian
+        $aadLenBytes = pack('J', $aadLenBits);
+        $macInput    = $aad . $iv . $ciphertext . $aadLenBytes;
+        $mac         = hash_hmac($macAlg, $macInput, $macKey, true);
+        $expectedTag = substr($mac, 0, $halfLen);
+
+        if (!hash_equals($expectedTag, $tag)) {
+            throw new \RuntimeException('[Singpass] JWE MAC verification failed — data tampered or wrong key');
+        }
+
+        $plaintext = openssl_decrypt($ciphertext, $cipherAlg, $encKey, OPENSSL_RAW_DATA, $iv);
+
+        if ($plaintext === false) {
+            throw new \RuntimeException('[Singpass] JWE AES-CBC decryption failed: ' . openssl_error_string());
+        }
+
+        return $plaintext;
+    }
+
+    /**
+     * Returns key length in bits for Concat KDF based on alg
+     */
+    private function getKeyLength(string $alg): int
+    {
+        return match ($alg) {
+            'ECDH-ES+A128KW' => 128,
+            'ECDH-ES+A256KW' => 256,
+            'ECDH-ES'        => 256,
+            default          => 128,
+        };
+    }
+
+    // =========================================================================
+    // PRIVATE HELPERS
+    // =========================================================================
 
     private function generateDpopKeyPair(): array
     {
@@ -226,8 +481,7 @@ class SingpassService
         }
 
         openssl_pkey_export($dpopKey, $dpopPrivateKeyPem);
-        $details = openssl_pkey_get_details($dpopKey);
-
+        $details       = openssl_pkey_get_details($dpopKey);
         $dpopPublicJwk = [
             'kty' => 'EC',
             'crv' => 'P-256',
@@ -244,7 +498,7 @@ class SingpassService
         if (!$dpopKey) {
             throw new \RuntimeException('[Singpass] Failed to load DPoP key: ' . openssl_error_string());
         }
-        $details = openssl_pkey_get_details($dpopKey);
+        $details       = openssl_pkey_get_details($dpopKey);
         $dpopPublicJwk = [
             'kty' => 'EC',
             'crv' => 'P-256',
@@ -268,8 +522,7 @@ class SingpassService
 
     private function buildDpopProof(mixed $dpopPrivateKey, array $dpopPublicJwk, string $httpMethod, string $httpUrl): string
     {
-        $now = time() + $this->iatOffset;
-
+        $now    = time() + $this->iatOffset;
         $header = [
             'typ' => 'dpop+jwt',
             'alg' => 'ES256',
@@ -280,7 +533,6 @@ class SingpassService
                 'y'   => $dpopPublicJwk['y'],
             ],
         ];
-
         $payload = [
             'jti' => (string) Str::uuid(),
             'htm' => strtoupper($httpMethod),
@@ -292,10 +544,6 @@ class SingpassService
         return $this->signJwtWithKey($dpopPrivateKey, $header, $payload);
     }
 
-    // ─────────────────────────────────────────────────────────────────────
-    // CLIENT ASSERTION
-    // ─────────────────────────────────────────────────────────────────────
-
     private function buildClientAssertion(string $aud): string
     {
         $now        = time() + $this->iatOffset;
@@ -305,12 +553,7 @@ class SingpassService
             throw new \RuntimeException('[Singpass] Could not load signing key: ' . openssl_error_string());
         }
 
-        $header = [
-            'alg' => 'ES256',
-            'typ' => 'JWT',
-            'kid' => $this->keyId,
-        ];
-
+        $header  = ['alg' => 'ES256', 'typ' => 'JWT', 'kid' => $this->keyId];
         $payload = [
             'iss' => $this->clientId,
             'sub' => $this->clientId,
@@ -320,19 +563,10 @@ class SingpassService
             'jti' => (string) Str::uuid(),
         ];
 
-        $jwt = $this->signJwtWithKey($signingKey, $header, $payload);
+        Log::debug('[Singpass] client_assertion', ['payload' => $payload]);
 
-        $jwtParts = explode('.', $jwt);
-        Log::debug('[Singpass] client_assertion', [
-            'payload' => json_decode($this->base64UrlDecode($jwtParts[1]), true),
-        ]);
-
-        return $jwt;
+        return $this->signJwtWithKey($signingKey, $header, $payload);
     }
-
-    // ─────────────────────────────────────────────────────────────────────
-    // ID TOKEN VERIFICATION
-    // ─────────────────────────────────────────────────────────────────────
 
     private function verifyIdTokenSignature(string $idToken): void
     {
@@ -378,22 +612,13 @@ class SingpassService
         Log::info('[Singpass] id_token signature verified OK');
     }
 
-    private function decryptJweIdToken(string $idToken): array
-    {
-        throw new \RuntimeException('[Singpass] JWE decryption not yet implemented — required for production.');
-    }
-
-    // ─────────────────────────────────────────────────────────────────────
-    // JWT SIGNING
-    // ─────────────────────────────────────────────────────────────────────
-
     private function signJwtWithKey(mixed $key, array $header, array $payload): string
     {
         $h     = $this->base64UrlEncode(json_encode($header, JSON_UNESCAPED_SLASHES | JSON_UNESCAPED_UNICODE));
         $p     = $this->base64UrlEncode(json_encode($payload, JSON_UNESCAPED_SLASHES | JSON_UNESCAPED_UNICODE));
         $input = $h . '.' . $p;
-
         $derSig = '';
+
         if (!openssl_sign($input, $derSig, $key, OPENSSL_ALGO_SHA256)) {
             throw new \RuntimeException('[Singpass] JWT signing failed: ' . openssl_error_string());
         }
@@ -438,10 +663,6 @@ class SingpassService
         return "\x30" . chr(strlen($seq)) . $seq;
     }
 
-    // ─────────────────────────────────────────────────────────────────────
-    // JWK → PEM
-    // ─────────────────────────────────────────────────────────────────────
-
     private function jwkToPem(array $jwk): string
     {
         $kty = $jwk['kty'] ?? '';
@@ -457,8 +678,8 @@ class SingpassService
         }
 
         if ($kty === 'RSA') {
-            $n = $this->base64UrlDecode($jwk['n']);
-            $e = $this->base64UrlDecode($jwk['e']);
+            $n            = $this->base64UrlDecode($jwk['n']);
+            $e            = $this->base64UrlDecode($jwk['e']);
             $encodeLength = function (int $length): string {
                 if ($length <= 0x7f) return chr($length);
                 $bytes = '';
@@ -480,10 +701,6 @@ class SingpassService
 
         throw new \RuntimeException("[Singpass] Unsupported JWK kty: {$kty}");
     }
-
-    // ─────────────────────────────────────────────────────────────────────
-    // KEY MANAGEMENT
-    // ─────────────────────────────────────────────────────────────────────
 
     private function loadOrGeneratePrivateKey(): string
     {
@@ -523,10 +740,6 @@ class SingpassService
         return $details;
     }
 
-    // ─────────────────────────────────────────────────────────────────────
-    // FILE CACHE
-    // ─────────────────────────────────────────────────────────────────────
-
     private function fileCache(string $key, int $ttlSeconds, callable $callback): mixed
     {
         $path = storage_path('framework/cache/singpass_' . $key . '.json');
@@ -542,10 +755,6 @@ class SingpassService
         @file_put_contents($path, json_encode(['expires_at' => time() + $ttlSeconds, 'value' => $value]), LOCK_EX);
         return $value;
     }
-
-    // ─────────────────────────────────────────────────────────────────────
-    // BASE64URL HELPERS
-    // ─────────────────────────────────────────────────────────────────────
 
     private function generateCodeVerifier(): string
     {
