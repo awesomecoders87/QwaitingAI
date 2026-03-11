@@ -236,12 +236,15 @@ Route::middleware([
         // Route::post('register',[AuthController::class, 'registerstore'])->name('registerstore');
         Route::get('/authenticate', [AuthController::class, 'authenticate'])->name('tenant.authenticate');
         Route::get('send-reminder-email/{id}', [TestController::class, 'sendReminderEmail']);
-
-        // Singpass Routes
-        Route::get('sp/login', [\App\Http\Controllers\SingpassAuthController::class, 'redirectToSingpass'])->name('singpass.login');
-        Route::get('sp/callback', [\App\Http\Controllers\SingpassAuthController::class, 'handleSingpassCallback'])->name('singpass.callback');
-        Route::get('sp/jwks', [\App\Http\Controllers\SingpassAuthController::class, 'jwks'])->name('singpass.jwks');
     });
+
+    // Placed OUTSIDE TenantGuestMiddleware → callback is not blocked after Singpass redirects back
+    Route::name('tenant.')->group(function () {
+        Route::get('sp/login',    [\App\Http\Controllers\SingpassAuthController::class, 'redirectToSingpass'])->name('singpass.login');
+        Route::get('sp/callback', [\App\Http\Controllers\SingpassAuthController::class, 'handleSingpassCallback'])->name('singpass.callback');
+        Route::get('sp/jwks',     [\App\Http\Controllers\SingpassAuthController::class, 'jwks'])->name('singpass.jwks');
+    });
+
     Route::middleware([TenantAuthMiddleware::class])->name('tenant.')->group(function () {
         Route::post('logout', [AuthController::class, 'logout'])->name('logout');
         Route::get('/locations', Locations::class)->name('locations');

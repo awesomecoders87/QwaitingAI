@@ -23,9 +23,8 @@ Route::group(['domain'=>config('tenancy.central_domains.0')],function(){
 
     require __DIR__.'/auth.php';
 });
-Route::get('/sp/login',    [App\Http\Controllers\SingpassAuthController::class, 'redirectToSingpass']);
-Route::get('/sp/callback', [App\Http\Controllers\SingpassAuthController::class, 'handleSingpassCallback']);
-Route::get('/sp/jwks',     [App\Http\Controllers\SingpassAuthController::class, 'jwks']);
+
+
 // SuperAdmin Routes (accessible from any domain, including localhost)
 Route::prefix('superadmin')->name('superadmin.')->group(function () {
     // Redirect root superadmin path to login
