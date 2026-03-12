@@ -25,44 +25,54 @@ class SingpassService
     private string $tokenEndpoint = 'https://stg-id.singpass.gov.sg/fapi/token';
     private string $jwksUri       = 'https://stg-id.singpass.gov.sg/.well-known/keys';
 
+    private ?SingpassSetting $setting = null;
+
     public function __construct()
     {
-        $teamId     = tenant('id');
-        $locationId = (int) Session::get('selectedLocation');
+        $this->resolveSetting();
+        $this->iatOffset = (int) env('SINGPASS_IAT_OFFSET_SECONDS', 0);
+    }
 
-        // Load settings from DB instead of .env
-        $setting = SingpassSetting::forTeamLocation($teamId, $locationId)->first();
+    /**
+     * Resolve the Singpass setting using a hierarchical lookup.
+     */
+    private function resolveSetting(): void
+    {
+        $this->setting = SingpassSetting::where('is_enabled', 1)->first();
 
-        if (!$setting || !$setting->is_enabled) {
-            Log::warning('[SingpassService] Singpass is not enabled or not configured for this location.', [
-                'team_id'     => $teamId,
-                'location_id' => $locationId,
-            ]);
-            // Fallbacks so code doesn't crash on init, but API calls will likely fail
+        if (!$this->setting) {
+            Log::warning('[SingpassService] Singpass is not enabled or not configured.');
             $this->clientId    = '';
             $this->redirectUri = url('/sp/callback');
-        } else {
-            $this->clientId    = $setting->client_id;
-            $this->redirectUri = url('/sp/callback');
-
-            // Switch endpoints based on environment
-            if ($setting->environment === 'production') {
-                $this->issuer        = 'https://id.singpass.gov.sg/fapi';
-                $this->parEndpoint   = 'https://id.singpass.gov.sg/fapi/par';
-                $this->authEndpoint  = 'https://id.singpass.gov.sg/fapi/auth';
-                $this->tokenEndpoint = 'https://id.singpass.gov.sg/fapi/token';
-                $this->jwksUri       = 'https://id.singpass.gov.sg/.well-known/keys';
-            } else {
-                // Staging (Testing) Endpoints
-                $this->issuer        = 'https://stg-id.singpass.gov.sg/fapi';
-                $this->parEndpoint   = 'https://stg-id.singpass.gov.sg/fapi/par';
-                $this->authEndpoint  = 'https://stg-id.singpass.gov.sg/fapi/auth';
-                $this->tokenEndpoint = 'https://stg-id.singpass.gov.sg/fapi/token';
-                $this->jwksUri       = 'https://stg-id.singpass.gov.sg/.well-known/keys';
-            }
+            return;
         }
 
-        $this->iatOffset = (int) env('SINGPASS_IAT_OFFSET_SECONDS', 0);
+        $this->clientId    = $this->setting->client_id;
+        $this->redirectUri = url('/sp/callback');
+
+        // Switch endpoints based on environment
+        if ($this->setting->environment === 'production') {
+            Log::info('[Singpass] Using PRODUCTION endpoints');
+
+            $this->issuer        = 'https://id.singpass.gov.sg/fapi';
+            $this->parEndpoint   = 'https://id.singpass.gov.sg/fapi/par';
+            $this->authEndpoint  = 'https://id.singpass.gov.sg/fapi/auth';
+            $this->tokenEndpoint = 'https://id.singpass.gov.sg/fapi/token';
+            $this->jwksUri       = 'https://id.singpass.gov.sg/.well-known/keys';
+        } else {
+            Log::info('[Singpass] Using STAGING endpoints');
+
+            $this->issuer        = 'https://stg-id.singpass.gov.sg/fapi';
+            $this->parEndpoint   = 'https://stg-id.singpass.gov.sg/fapi/par';
+            $this->authEndpoint  = 'https://stg-id.singpass.gov.sg/fapi/auth';
+            $this->tokenEndpoint = 'https://stg-id.singpass.gov.sg/fapi/token';
+            $this->jwksUri       = 'https://stg-id.singpass.gov.sg/.well-known/keys';
+        }
+ 
+        // Key ID logic
+        $tId = $this->setting->team_id ?? 'default';
+        $lId = $this->setting->location_id ?? 'default';
+        $this->keyId = "sig-{$tId}-{$lId}";
 
         Log::info('[Singpass] Loaded client_id: ' . $this->clientId);
     }
@@ -216,7 +226,9 @@ class SingpassService
      */
     public function getJwks(): array
     {
-        $sigPem     = $this->loadOrGeneratePrivateKey();
+        if (!$this->setting) return ['keys' => []];
+
+        $sigPem     = $this->setting->signing_private_key;
         $sigDetails = $this->getKeyDetails($sigPem);
 
         $keys = [[
@@ -229,12 +241,8 @@ class SingpassService
             'y'   => $this->base64UrlEncode($sigDetails['ec']['y']),
         ]];
 
-        $teamId     = tenant('id');
-        $locationId = (int) \Illuminate\Support\Facades\Session::get('selectedLocation');
-        $setting    = \App\Models\SingpassSetting::forTeamLocation($teamId, $locationId)->first();
-
-        if ($setting && !empty($setting->enc_private_key)) {
-            $encPem = $setting->enc_private_key;
+        if (!empty($this->setting->enc_private_key)) {
+            $encPem = $this->setting->enc_private_key;
             $encRes = openssl_pkey_get_private($encPem);
             if ($encRes) {
                 $encDetails = openssl_pkey_get_details($encRes);
@@ -243,7 +251,7 @@ class SingpassService
                     'use' => 'enc',
                     'crv' => 'P-256',
                     'alg' => 'ECDH-ES+A128KW',
-                    'kid' => 'singpass-enc-1',
+                    'kid' => 'enc-' . ($this->setting->team_id ?? 'default') . '-' . ($this->setting->location_id ?? 'default'),
                     'x'   => $this->base64UrlEncode($encDetails['ec']['x']),
                     'y'   => $this->base64UrlEncode($encDetails['ec']['y']),
                 ];
@@ -274,16 +282,11 @@ class SingpassService
             'kid' => $header['kid'] ?? '?',
         ]);
 
-        // Load enc private key from DB
-        $teamId     = tenant('id');
-        $locationId = (int) Session::get('selectedLocation');
-        $setting    = SingpassSetting::forTeamLocation($teamId, $locationId)->first();
-
-        if (!$setting || empty($setting->enc_private_key)) {
+        if (!$this->setting || empty($this->setting->enc_private_key)) {
             throw new \RuntimeException('[Singpass] Encryption private key not configured in settings');
         }
 
-        $encPem = $setting->enc_private_key;
+        $encPem = $this->setting->enc_private_key;
 
         // Get ephemeral public key from JWE header
         $epk = $header['epk'] ?? null;
@@ -736,12 +739,8 @@ class SingpassService
 
     private function loadOrGeneratePrivateKey(): string
     {
-        $teamId     = tenant('id');
-        $locationId = (int) Session::get('selectedLocation');
-        $setting    = SingpassSetting::forTeamLocation($teamId, $locationId)->first();
-
-        if ($setting && !empty($setting->signing_private_key)) {
-            return $setting->signing_private_key;
+        if ($this->setting && !empty($this->setting->signing_private_key)) {
+            return $this->setting->signing_private_key;
         }
 
         throw new \RuntimeException('[Singpass] Signing private key not found in database settings');

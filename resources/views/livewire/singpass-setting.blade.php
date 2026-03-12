@@ -61,7 +61,7 @@
                             </svg>
                         </div>
                         <input type="text" wire:model="client_id"
-                               placeholder="QA7M3gEqL5XeCchggRsoFGpApfLoa1bJ"
+                               placeholder="QA7M3gEqL*****************"
                                class="w-full pl-10 text-sm rounded-xl border-gray-200 dark:bg-white/5 dark:border-white/10 dark:text-white focus:ring-2 focus:ring-brand-500 focus:border-transparent transition">
                     </div>
                     @error('client_id') <p class="text-xs text-red-400">{{ $message }}</p> @enderror
@@ -242,9 +242,20 @@
 
             {{-- Regeneration warning --}}
             @if($signing_key_exists || $enc_key_exists)
-            <div class="px-6 py-3 border-t border-gray-100 dark:border-white/[0.06] bg-amber-50 dark:bg-amber-900/10 flex items-start gap-2">
-                <svg class="w-3.5 h-3.5 text-amber-500 flex-shrink-0 mt-0.5" fill="currentColor" viewBox="0 0 20 20"><path fill-rule="evenodd" d="M8.257 3.099c.765-1.36 2.722-1.36 3.486 0l5.58 9.92c.75 1.334-.213 2.98-1.742 2.98H4.42c-1.53 0-2.493-1.646-1.743-2.98l5.58-9.92zM11 13a1 1 0 11-2 0 1 1 0 012 0zm-1-8a1 1 0 00-1 1v3a1 1 0 002 0V6a1 1 0 00-1-1z" clip-rule="evenodd"/></svg>
-                <p class="text-xs text-amber-700 dark:text-amber-300">Saving again will regenerate both keys. You must re-register the JWKS URL in the Developer Portal after each save.</p>
+            <div class="px-6 py-4 border-t border-gray-100 dark:border-white/[0.06] bg-gray-50 dark:bg-white/[0.02] flex items-center justify-between">
+                <div>
+                    <p class="text-sm font-medium text-gray-800 dark:text-gray-200">Need to rotate keys?</p>
+                    <p class="text-xs text-gray-400 mt-0.5 max-w-sm">Use this if your private key is compromised. Warning: You must update the JWKS URL in the Developer Portal immediately.</p>
+                </div>
+                <button type="button" 
+                        wire:click="regenerateKeys" 
+                        wire:confirm="WARNING: This will break existing Singpass logins until you register the new keys in the Developer Portal. Are you sure you want to proceed?"
+                        class="inline-flex items-center gap-2 px-3 py-1.5 text-xs font-semibold text-red-600 bg-red-50 hover:bg-red-100 dark:bg-red-500/10 dark:text-red-400 dark:hover:bg-red-500/20 rounded-lg transition-colors border border-red-200 dark:border-red-500/20">
+                    <svg class="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
+                        <path stroke-linecap="round" stroke-linejoin="round" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
+                    </svg>
+                    Regenerate Keys
+                </button>
             </div>
             @endif
         </div>
@@ -268,19 +279,20 @@
         <div class="flex justify-end pt-1 pb-4">
             <button type="submit"
                     class="inline-flex items-center gap-2.5 px-6 py-3 text-sm font-semibold text-white rounded-xl bg-brand-500 hover:bg-brand-600 active:scale-95 transition-all shadow-lg shadow-brand-500/30 disabled:opacity-60 disabled:cursor-not-allowed disabled:shadow-none"
-                    wire:loading.attr="disabled">
+                    wire:loading.attr="disabled"
+                    wire:target="save">
                 <span wire:loading.remove wire:target="save" class="flex items-center gap-2">
                     <svg class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
-                        <path stroke-linecap="round" stroke-linejoin="round" d="M8 7H5a2 2 0 00-2 2v9a2 2 0 002 2h14a2 2 0 002-2V9a2 2 0 00-2-2h-3m-1 4l-3 3m0 0l-3-3m3 3V4"/>
+                        <path stroke-linecap="round" stroke-linejoin="round" d="M5 13l4 4L19 7" />
                     </svg>
-                    Save &amp; Generate Keys
+                    Save Settings
                 </span>
                 <span wire:loading wire:target="save" class="flex items-center gap-2">
                     <svg class="animate-spin h-4 w-4" fill="none" viewBox="0 0 24 24">
                         <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
                         <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z"></path>
                     </svg>
-                    Generating keys…
+                    Saving...
                 </span>
             </button>
         </div>
@@ -308,10 +320,22 @@ document.addEventListener('DOMContentLoaded', function () {
     Livewire.on('updated', () => {
         if (typeof Swal !== 'undefined') {
             Swal.fire({
-                title: 'Keys Generated!',
-                html: 'Settings saved successfully.<br><small class="text-gray-500">Don\'t forget to re-register the JWKS URL in Singpass Developer Portal.</small>',
+                title: 'Settings Saved',
+                text: 'Your Singpass configuration was updated.',
                 icon: 'success',
-                confirmButtonColor: '#14b8a6'
+                timer: 2000,
+                showConfirmButton: false
+            });
+        }
+    });
+
+    Livewire.on('keys-regenerated', () => {
+        if (typeof Swal !== 'undefined') {
+            Swal.fire({
+                title: 'Keys Regenerated!',
+                html: 'New keys created.<br><br><span class="text-red-500 font-medium">ACTION REQUIRED:</span><br><small class="text-gray-600">You must copy the new JWKS URL and replace the old one in your Singpass Developer Portal, otherwise users will not be able to log in.</small>',
+                icon: 'warning',
+                confirmButtonColor: '#ef4444' // red
             });
         }
     });

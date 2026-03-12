@@ -70,9 +70,15 @@ return [
     'password' => env('SALESFORCE_PASSWORD'),
 ],
 
- 'meeting' => [
+    'meeting' => [
         'base_url' => env('MEETING_BASE_URL'),
         'api_key' => env('MEETING_API_KEY'),
+    ],
+
+    'singpass' => [
+        'client_id' => env('SINGPASS_CLIENT_ID', ''),
+        'redirect_uri' => env('SINGPASS_REDIRECT_URI', ''),
+        'iat_offset_seconds' => env('SINGPASS_IAT_OFFSET_SECONDS', 0),
     ],
 
 ];

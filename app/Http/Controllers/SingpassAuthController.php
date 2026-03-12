@@ -346,29 +346,13 @@ class SingpassAuthController extends Controller
      */
     public function jwks(Request $request)
     {
-        $teamId = tenant('id');
-
-        if (!$teamId) {
-            return response()->json(['error' => 'Tenant not resolved'], 400);
-        }
-
-        $cacheKey = 'singpass_jwks_' . $teamId;
-
-        if (\Illuminate\Support\Facades\Cache::has($cacheKey)) {
-            $jwks = \Illuminate\Support\Facades\Cache::get($cacheKey);
-            return response()->json($jwks)
-                ->header('Content-Type', 'application/json')
-                ->header('Cache-Control', 'public, max-age=3600');
-        }
-
-        // Load all enabled settings for this tenant (one per location)
-        $settings = \App\Models\SingpassSetting::where('team_id', $teamId)
-            ->where('is_enabled', 1)
-            ->get();
+        // Load all enabled settings
+        $settings = \App\Models\SingpassSetting::where('is_enabled', 1)->get();
 
         if ($settings->isEmpty()) {
             return response()->json(['error' => 'Singpass not configured or not enabled'], 404);
         }
+
 
         $keys = [];
 
@@ -376,8 +360,8 @@ class SingpassAuthController extends Controller
             if (empty($setting->signing_public_key) || empty($setting->enc_public_key)) {
                 continue;
             }
-
-            $locationId = $setting->location_id;
+            $teamId = $setting->team_id ?? 'default';
+            $locationId = $setting->location_id ?? 'default';
 
             // ── Signing key ───────────────────────────────────────────────────
             $sigKey = openssl_pkey_get_public($setting->signing_public_key);
@@ -403,7 +387,7 @@ class SingpassAuthController extends Controller
                     'use' => 'enc',
                     'crv' => 'P-256',
                     'alg' => 'ECDH-ES+A128KW',
-                    'kid' => 'enc-' . $teamId . '-' . $locationId,
+                    'kid' => 'enc-' . ($setting->team_id ?? 'default') . '-' . $locationId,
                     'x'   => rtrim(strtr(base64_encode($encDetails['ec']['x']), '+/', '-_'), '='),
                     'y'   => rtrim(strtr(base64_encode($encDetails['ec']['y']), '+/', '-_'), '='),
                 ];
@@ -416,7 +400,7 @@ class SingpassAuthController extends Controller
 
         $jwks = ['keys' => $keys];
 
-        \Illuminate\Support\Facades\Cache::put($cacheKey, $jwks, 3600);
+        // Cache skipped — file driver does not support tenancy tagging
 
         return response()->json($jwks)
             ->header('Content-Type', 'application/json')

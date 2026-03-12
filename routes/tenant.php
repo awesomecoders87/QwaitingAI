@@ -577,9 +577,6 @@ Route::get('/graph-test', function () {
     dd($graph);
 });
 
-Route::get('/phpinfo', function () {
-    phpinfo();
-});
 Route::get('/bright-test', function () {
    return view('bright-sign');
 });
