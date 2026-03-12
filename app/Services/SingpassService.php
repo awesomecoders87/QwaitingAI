@@ -4,7 +4,9 @@ namespace App\Services;
 
 use Illuminate\Support\Facades\Http;
 use Illuminate\Support\Facades\Log;
+use Illuminate\Support\Facades\Session;
 use Illuminate\Support\Str;
+use App\Models\SingpassSetting;
 use phpseclib3\Crypt\EC;
 use phpseclib3\Crypt\EC\Curves\Prime256v1;
 
@@ -25,10 +27,42 @@ class SingpassService
 
     public function __construct()
     {
-        $this->clientId   = env('SINGPASS_CLIENT_ID', 'QA7M3gEqL5XeCchggRsoFGpApfLoa1bJ');
-        $this->redirectUri = env('SINGPASS_REDIRECT_URI', 'https://qwaiting-ai.thevistiq.com/sp/callback');
-        $this->keyPath    = env('SINGPASS_PRIVATE_KEY_PATH', 'storage/app/singpass_private.pem');
-        $this->iatOffset  = (int) env('SINGPASS_IAT_OFFSET_SECONDS', 0);
+        $teamId     = tenant('id');
+        $locationId = (int) Session::get('selectedLocation');
+
+        // Load settings from DB instead of .env
+        $setting = SingpassSetting::forTeamLocation($teamId, $locationId)->first();
+
+        if (!$setting || !$setting->is_enabled) {
+            Log::warning('[SingpassService] Singpass is not enabled or not configured for this location.', [
+                'team_id'     => $teamId,
+                'location_id' => $locationId,
+            ]);
+            // Fallbacks so code doesn't crash on init, but API calls will likely fail
+            $this->clientId    = '';
+            $this->redirectUri = url('/sp/callback');
+        } else {
+            $this->clientId    = $setting->client_id;
+            $this->redirectUri = url('/sp/callback');
+
+            // Switch endpoints based on environment
+            if ($setting->environment === 'production') {
+                $this->issuer        = 'https://id.singpass.gov.sg/fapi';
+                $this->parEndpoint   = 'https://id.singpass.gov.sg/fapi/par';
+                $this->authEndpoint  = 'https://id.singpass.gov.sg/fapi/auth';
+                $this->tokenEndpoint = 'https://id.singpass.gov.sg/fapi/token';
+                $this->jwksUri       = 'https://id.singpass.gov.sg/.well-known/keys';
+            } else {
+                // Staging (Testing) Endpoints
+                $this->issuer        = 'https://stg-id.singpass.gov.sg/fapi';
+                $this->parEndpoint   = 'https://stg-id.singpass.gov.sg/fapi/par';
+                $this->authEndpoint  = 'https://stg-id.singpass.gov.sg/fapi/auth';
+                $this->tokenEndpoint = 'https://stg-id.singpass.gov.sg/fapi/token';
+                $this->jwksUri       = 'https://stg-id.singpass.gov.sg/.well-known/keys';
+            }
+        }
+
+        $this->iatOffset = (int) env('SINGPASS_IAT_OFFSET_SECONDS', 0);
 
         Log::info('[Singpass] Loaded client_id: ' . $this->clientId);
     }
@@ -195,26 +229,24 @@ class SingpassService
             'y'   => $this->base64UrlEncode($sigDetails['ec']['y']),
         ]];
 
-        $encKeyPath = env('SINGPASS_ENC_PRIVATE_KEY_PATH', '');
-        if (!empty($encKeyPath)) {
-            $encFullPath = base_path($encKeyPath);
-            if (file_exists($encFullPath)) {
-                $encPem = file_get_contents($encFullPath);
-                if (!empty(trim($encPem))) {
-                    $encRes = openssl_pkey_get_private($encPem);
-                    if ($encRes) {
-                        $encDetails = openssl_pkey_get_details($encRes);
-                        $keys[] = [
-                            'kty' => 'EC',
-                            'use' => 'enc',
-                            'crv' => 'P-256',
-                            'alg' => 'ECDH-ES+A128KW',
-                            'kid' => 'singpass-enc-1',
-                            'x'   => $this->base64UrlEncode($encDetails['ec']['x']),
-                            'y'   => $this->base64UrlEncode($encDetails['ec']['y']),
-                        ];
-                    }
-                }
+        $teamId     = tenant('id');
+        $locationId = (int) \Illuminate\Support\Facades\Session::get('selectedLocation');
+        $setting    = \App\Models\SingpassSetting::forTeamLocation($teamId, $locationId)->first();
+
+        if ($setting && !empty($setting->enc_private_key)) {
+            $encPem = $setting->enc_private_key;
+            $encRes = openssl_pkey_get_private($encPem);
+            if ($encRes) {
+                $encDetails = openssl_pkey_get_details($encRes);
+                $keys[] = [
+                    'kty' => 'EC',
+                    'use' => 'enc',
+                    'crv' => 'P-256',
+                    'alg' => 'ECDH-ES+A128KW',
+                    'kid' => 'singpass-enc-1',
+                    'x'   => $this->base64UrlEncode($encDetails['ec']['x']),
+                    'y'   => $this->base64UrlEncode($encDetails['ec']['y']),
+                ];
             }
         }
 
@@ -242,16 +274,16 @@ class SingpassService
             'kid' => $header['kid'] ?? '?',
         ]);
 
-        // Load enc private key
-        $encKeyPath = env('SINGPASS_ENC_PRIVATE_KEY_PATH', '');
-        if (empty($encKeyPath)) {
-            throw new \RuntimeException('[Singpass] SINGPASS_ENC_PRIVATE_KEY_PATH not set');
+        // Load enc private key from DB
+        $teamId     = tenant('id');
+        $locationId = (int) Session::get('selectedLocation');
+        $setting    = SingpassSetting::forTeamLocation($teamId, $locationId)->first();
+
+        if (!$setting || empty($setting->enc_private_key)) {
+            throw new \RuntimeException('[Singpass] Encryption private key not configured in settings');
         }
 
-        $encPem = file_get_contents(base_path($encKeyPath));
-        if (empty(trim($encPem))) {
-            throw new \RuntimeException('[Singpass] Enc private key file is empty');
-        }
+        $encPem = $setting->enc_private_key;
 
         // Get ephemeral public key from JWE header
         $epk = $header['epk'] ?? null;
@@ -704,31 +736,15 @@ class SingpassService
 
     private function loadOrGeneratePrivateKey(): string
     {
-        $base64Key = env('SINGPASS_PRIVATE_KEY_BASE64', '');
-        if (!empty($base64Key)) {
-            $pem = base64_decode($base64Key);
-            if (!empty(trim($pem)) && openssl_pkey_get_private($pem)) {
-                return $pem;
-            }
-            Log::warning('[Singpass] SINGPASS_PRIVATE_KEY_BASE64 invalid — falling back to file');
+        $teamId     = tenant('id');
+        $locationId = (int) Session::get('selectedLocation');
+        $setting    = SingpassSetting::forTeamLocation($teamId, $locationId)->first();
+
+        if ($setting && !empty($setting->signing_private_key)) {
+            return $setting->signing_private_key;
         }
 
-        $fullPath = base_path($this->keyPath);
-        if (file_exists($fullPath)) {
-            $pem = file_get_contents($fullPath);
-            if (!empty(trim($pem))) return $pem;
-        }
-
-        Log::info('[Singpass] Generating new EC P-256 signing key');
-        $resource = openssl_pkey_new(['private_key_type' => OPENSSL_KEYTYPE_EC, 'curve_name' => 'prime256v1']);
-        if (!$resource) throw new \RuntimeException('[Singpass] Key generation failed: ' . openssl_error_string());
-        openssl_pkey_export($resource, $pem);
-        $dir = dirname($fullPath);
-        if (!is_dir($dir)) mkdir($dir, 0750, true);
-        file_put_contents($fullPath, $pem, LOCK_EX);
-        chmod($fullPath, 0600);
-        Log::warning('[Singpass] New key generated — re-register JWKS in Developer Portal!');
-        return $pem;
+        throw new \RuntimeException('[Singpass] Signing private key not found in database settings');
     }
 
     private function getKeyDetails(string $pem): array

@@ -340,11 +340,86 @@ class SingpassAuthController extends Controller
     }
 
     /**
-     * JWKS endpoint for Singpass to verify client assertions.
+     * JWKS endpoint — public keys for Singpass to verify client assertions.
+     * URL: /sp/jwks  (tenant identified by domain via InitializeTenancyByDomain middleware)
+     * No query params needed — team_id resolved from tenant context.
      */
-    public function jwks()
+    public function jwks(Request $request)
     {
-        return response()->json($this->singpassService->getJwks())
+        $teamId = tenant('id');
+
+        if (!$teamId) {
+            return response()->json(['error' => 'Tenant not resolved'], 400);
+        }
+
+        $cacheKey = 'singpass_jwks_' . $teamId;
+
+        if (\Illuminate\Support\Facades\Cache::has($cacheKey)) {
+            $jwks = \Illuminate\Support\Facades\Cache::get($cacheKey);
+            return response()->json($jwks)
+                ->header('Content-Type', 'application/json')
+                ->header('Cache-Control', 'public, max-age=3600');
+        }
+
+        // Load all enabled settings for this tenant (one per location)
+        $settings = \App\Models\SingpassSetting::where('team_id', $teamId)
+            ->where('is_enabled', 1)
+            ->get();
+
+        if ($settings->isEmpty()) {
+            return response()->json(['error' => 'Singpass not configured or not enabled'], 404);
+        }
+
+        $keys = [];
+
+        foreach ($settings as $setting) {
+            if (empty($setting->signing_public_key) || empty($setting->enc_public_key)) {
+                continue;
+            }
+
+            $locationId = $setting->location_id;
+
+            // ── Signing key ───────────────────────────────────────────────────
+            $sigKey = openssl_pkey_get_public($setting->signing_public_key);
+            if ($sigKey) {
+                $sigDetails = openssl_pkey_get_details($sigKey);
+                $keys[] = [
+                    'kty' => 'EC',
+                    'use' => 'sig',
+                    'crv' => 'P-256',
+                    'alg' => 'ES256',
+                    'kid' => 'sig-' . $teamId . '-' . $locationId,
+                    'x'   => rtrim(strtr(base64_encode($sigDetails['ec']['x']), '+/', '-_'), '='),
+                    'y'   => rtrim(strtr(base64_encode($sigDetails['ec']['y']), '+/', '-_'), '='),
+                ];
+            }
+
+            // ── Encryption key ────────────────────────────────────────────────
+            $encKey = openssl_pkey_get_public($setting->enc_public_key);
+            if ($encKey) {
+                $encDetails = openssl_pkey_get_details($encKey);
+                $keys[] = [
+                    'kty' => 'EC',
+                    'use' => 'enc',
+                    'crv' => 'P-256',
+                    'alg' => 'ECDH-ES+A128KW',
+                    'kid' => 'enc-' . $teamId . '-' . $locationId,
+                    'x'   => rtrim(strtr(base64_encode($encDetails['ec']['x']), '+/', '-_'), '='),
+                    'y'   => rtrim(strtr(base64_encode($encDetails['ec']['y']), '+/', '-_'), '='),
+                ];
+            }
+        }
+
+        if (empty($keys)) {
+            return response()->json(['error' => 'Keys not yet generated — save settings first'], 404);
+        }
+
+        $jwks = ['keys' => $keys];
+
+        \Illuminate\Support\Facades\Cache::put($cacheKey, $jwks, 3600);
+
+        return response()->json($jwks)
+            ->header('Content-Type', 'application/json')
             ->header('Cache-Control', 'public, max-age=3600');
     }
 }

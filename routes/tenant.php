@@ -139,6 +139,7 @@ use App\Livewire\SetupProgress;
 use App\Livewire\Auth\OtpVerification;
 use App\Livewire\VirtualMeeting;
 use App\Livewire\SalesForceSetting;
+use App\Livewire\SingpassSetting;
 use App\Http\Controllers\SalesforceController;
 use App\Livewire\DynamicReport;
 use App\Livewire\DynamicReportsList;
@@ -359,6 +360,7 @@ Route::middleware([
         Route::get('/analytics', Analytics::class)->name('analytics');
         Route::get('/ai-queue-analytics', AIQueueAnalytics::class)->name('ai-queue-analytics');
         Route::get('/sales-force-setting', SalesForceSetting::class)->name('sales-force-setting');
+        Route::get('/settings/singpass', SingpassSetting::class)->name('singpass-setting');
         Route::get('/dynamic-report/{id}', DynamicReport::class)->name('dynamic-report');
         Route::get('/dynamic-reports-list', DynamicReportsList::class)->name('dynamic-report-list');
         Route::get('/create-dynamic-report', CreateDynamicReports::class)->name('create-dynamic-report');

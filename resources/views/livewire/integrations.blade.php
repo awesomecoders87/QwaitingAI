@@ -74,5 +74,19 @@
         </div>
       </div>
 
+      {{-- Singpass Card --}}
+      <div class="bg-white shadow rounded-lg p-6 dark:bg-white/[0.03]">
+        <div class="flex items-center justify-between mb-4">
+          <div class="text-base font-semibold text-gray-500 dark:text-white">Singpass</div>
+          <span class="text-xs text-green-600 bg-green-100 px-2 py-1 rounded-full">{{ __('text.Connected') }}</span>
+        </div>
+        <p class="text-sm text-gray-500 mb-4 dark:text-gray-400">
+          Manage Singpass login integration.
+        </p>
+        <div class="flex justify-end">
+          <a href="{{ route('tenant.singpass-setting') }}" class="text-blue-600 hover:underline text-sm">{{ __('text.Manage') }}</a>
+        </div>
+      </div>
+
     </div>
   </div>
