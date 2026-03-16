@@ -1,9 +1,16 @@
+<Style>
+    .aibot{
+        position: absolute;
+        top: -105px;
+        left: -50px;
+    }
+</Style>
 <div class="min-h-screen bg-gray-50/50 p-6 sm:p-8 font-sans text-slate-800">
     <!-- Header -->
     <div class="mb-8 flex flex-col sm:flex-row sm:items-center justify-between gap-4">
         <div>
             <h1 class="text-2xl sm:text-3xl font-bold tracking-tight text-slate-900 flex items-center gap-2">
-                <span class="text-3xl">🤖</span> AI Queue Analytics
+                AI Queue Analytics
             </h1>
             <p class="mt-2 text-slate-500">Intelligent insights powered by machine learning and predictive analytics</p>
         </div>
@@ -121,7 +128,7 @@
         <!-- Toggle Button -->
         <button 
             wire:click="toggleChat" 
-            class="w-14 h-14 rounded-full shadow-xl shadow-rose-500/20 flex items-center justify-center transition-all duration-300 hover:scale-105 active:scale-95 focus:outline-none focus:ring-4 focus:ring-rose-200 {{ $isChatOpen ? 'bg-rose-500 rotate-180' : 'bg-rose-500' }}"
+            class="aibot w-14 h-14 rounded-full shadow-xl shadow-rose-500/20 flex items-center justify-center transition-all duration-300 hover:scale-105 active:scale-95 focus:outline-none focus:ring-4 focus:ring-rose-200 {{ $isChatOpen ? 'bg-rose-500 rotate-180' : 'bg-rose-500' }}"
         >
             @if($isChatOpen)
                 <svg class="w-7 h-7 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7"></path></svg>
