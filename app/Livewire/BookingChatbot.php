@@ -1,16 +1,14 @@
 <?php
 
-
 namespace App\Livewire;
-
 
 use Livewire\Component;
 use Livewire\Attributes\On;
+use App\Ai\Agents\AppointmentAssistant;
 use App\Models\AiActivityLog;
-use App\Ai\Agents\BookingAgent;
-use Carbon\Carbon;
 use Illuminate\Support\Facades\Log;
-
+use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Str;
 
 class BookingChatbot extends Component
 {
@@ -18,56 +16,51 @@ class BookingChatbot extends Component
     public $userInput = '';
     public $isOpen = false;
     public $isAiTyping = false;
-
+    public $sessionId;
 
     /**
-     * Selectable options rendered as clickable cards in the UI.
-     * Each item: ['label' => 'Display Text', 'value' => 'value to send']
+     * Selectable options rendered as clickable cards in the UI
      */
     public $workflowOptions = [];
 
-
     /**
-     * Current workflow step to give context for which cards are shown.
-     * Values: '' | 'select_service' | 'select_date' | 'select_time'
+     * Current workflow step context
      */
     public $workflowStep = '';
 
-
     /**
-     * Tracks booking context across chip selections so we don't need
-     * to re-parse it from the conversation history.
+     * Tracks booking context across interactions
      */
     public $bookingContext = [
         'service_name' => '',
-        'date'         => '',
-        'time'         => '',
-        'name'         => '',
-        'phone'        => '',
-        'email'        => '',
+        'date' => '',
+        'time' => '',
+        'name' => '',
+        'phone' => '',
+        'email' => '',
+        'booking_refID' => '',
     ];
 
-
-    // Quick Questions
+    // Quick Questions for new users
     public $quickQuestions = [
         'What services do you offer?',
         'I want to book an appointment',
         'Cancel my booking',
         'Reschedule my booking',
-        'Check availability for today'
     ];
-
 
     public function mount()
     {
-        // Initial AI message
+        // Generate unique session ID for conversation tracking
+        $this->sessionId = session()->getId() . '_' . Str::random(8);
+        
+        // Initial AI greeting
         $this->messages[] = [
-            'role'    => 'assistant',
-            'content' => "Hi! I'm your booking assistant. I can help you book, reschedule, or cancel your appointments. How can I assist you today?",
-            'time'    => now()->format('h:i A')
+            'role' => 'assistant',
+            'content' => "Hi! I'm your AI booking assistant. I can help you book, reschedule, or cancel appointments. How can I assist you today?",
+            'time' => now()->format('h:i A'),
         ];
     }
-
 
     public function toggleChat()
     {
@@ -77,919 +70,675 @@ class BookingChatbot extends Component
         }
     }
 
-
     public function sendQuickQuestion($question)
     {
         $this->userInput = $question;
         $this->sendMessage();
     }
 
-
     /**
-     * Called when user clicks a workflow option card.
-     * Routes DIRECTLY to the next API without calling OpenAI for service/date selections.
-     * Only time selection (and beyond) goes through OpenAI.
+     * Handle option card clicks - extract data and send to AI
      */
     public function selectOption($value)
     {
-        $step = $this->workflowStep; // capture before clearing
-
-
+        // Clear options
         $this->workflowOptions = [];
-        $this->workflowStep    = '';
+        $this->workflowStep = '';
 
-
-        // Always add the selection as a user message
+        // Add as user message
         $this->messages[] = [
-            'role'    => 'user',
+            'role' => 'user',
             'content' => $value,
-            'time'    => now()->format('h:i A')
+            'time' => now()->format('h:i A'),
         ];
+
         $this->isAiTyping = true;
-
-
-        switch ($step) {
-
-
-            case 'select_service':
-                // Service selected → directly fetch available dates (no OpenAI)
-                $this->bookingContext['service_name'] = $value;
-                $this->directAction('get_dates', ['service_name' => $value]);
-                break;
-
-
-            case 'select_date':
-                // Date selected → directly fetch available times (no OpenAI)
-                $this->bookingContext['date'] = $value;
-                $this->directAction('get_times', [
-                    'service_name' => $this->bookingContext['service_name'],
-                    'date'         => $value,
-                ]);
-                break;
-
-
-            case 'select_time':
-                // Time selection → directly check availability (no OpenAI)
-                $this->bookingContext['time'] = $value;
-                $this->directCheckAvailability($value);
-                break;
-
-
-            case 'confirm_booking':
-                // User clicked YES or NO on the confirmation chips
-                if (strtoupper(trim($value)) === 'YES') {
-                    $this->directCreateBooking();
-                } else {
-                    $this->messages[] = [
-                        'role'    => 'assistant',
-                        'content' => "No problem! Your booking has been cancelled. 😊 Is there anything else I can help you with?",
-                        'time'    => now()->format('h:i A')
-                    ];
-                    $this->isAiTyping = false;
-                    $this->bookingContext = ['service_name' => '', 'date' => '', 'time' => '', 'name' => '', 'phone' => '', 'email' => '', 'booking_refID' => ''];
-                }
-                break;
-
-
-            case 'confirm_cancel':
-                if (strtoupper(trim($value)) === 'YES' && !empty($this->bookingContext['booking_refID'])) {
-                    $this->directCancelBooking();
-                } else {
-                    $this->messages[] = [
-                        'role'    => 'assistant',
-                        'content' => "Cancellation aborted. Your booking is safe! 😊 Is there anything else I can help you with?",
-                        'time'    => now()->format('h:i A')
-                    ];
-                    $this->isAiTyping = false;
-                    $this->bookingContext['booking_refID'] = '';
-                }
-                break;
-
-
-                // Unknown step — fall back to AI
-                $this->dispatch('process-ai-turn');
-        }
-       
-        // Ensure scroll updates after any option click
         $this->dispatch('booking-chat-updated');
+
+        // Process through AI
+        $this->processAiTurn();
     }
-
-
-    /**
-     * Directly call check_availability after time chip selection.
-     * If available → ask for name/phone/email in one message.
-     * If not available → re-show time chips.
-     */
-    protected function directCheckAvailability(string $timeSlot): void
-    {
-        // Extract start time: "07:00 AM-08:00 AM" → "07:00 AM"
-        $startTime = str_contains($timeSlot, '-')
-            ? trim(explode('-', $timeSlot)[0])
-            : $timeSlot;
-
-
-        $params = [
-            'service_name' => $this->bookingContext['service_name'],
-            'date'         => $this->bookingContext['date'],
-            'time'         => $startTime,
-        ];
-
-
-        Log::info('Direct check_availability: ' . json_encode($params));
-        $apiResult = $this->executeAction('check_availability', $params);
-        Log::info('check_availability result: ' . json_encode($apiResult));
-
-
-        if ($apiResult === null) {
-            $this->messages[] = [
-                'role'    => 'assistant',
-                'content' => "I'm having trouble reaching the server. Please try again.",
-                'time'    => now()->format('h:i A')
-            ];
-            $this->isAiTyping = false;
-            return;
-        }
-
-
-        // Store hidden for AI context
-        $this->messages[] = [
-            'role'      => 'system',
-            'content'   => "System Event - API Response for 'check_availability': \n" . json_encode($apiResult),
-            'time'      => now()->format('h:i A'),
-            'is_hidden' => true
-        ];
-
-
-        // Detect availability from response
-        $message = strtolower(
-            $apiResult['message']
-            ?? $apiResult['result']['message']
-            ?? $apiResult['status']
-            ?? ''
-        );
-        $isAvailable = str_contains($message, 'available') && !str_contains($message, 'not available');
-
-
-        if ($isAvailable) {
-            $service = $this->bookingContext['service_name'];
-            $date    = $this->bookingContext['date'];
-            $this->bookingContext['time'] = $startTime;
-            $this->messages[] = [
-                'role'    => 'assistant',
-                'content' => "✅ Great news! **{$service}** on **{$date}** at **{$startTime}** is available!\n\nKindly share your details to complete the booking:\n\n📋 **Name, Phone Number, Email**\n*(e.g. John Smith, 9876543210, john@email.com)*",
-                'time'    => now()->format('h:i A')
-            ];
-            $this->isAiTyping = false;
-        } else {
-            // Not available — show other time slots
-            $this->messages[] = [
-                'role'    => 'assistant',
-                'content' => "😔 I'm sorry, that time slot is not available. Not to worry — please choose another time below:",
-                'time'    => now()->format('h:i A')
-            ];
-            // Re-fetch times to show chips again
-            $this->directAction('get_times', [
-                'service_name' => $this->bookingContext['service_name'],
-                'date'         => $this->bookingContext['date'],
-            ]);
-        }
-    }
-
-
-    /**
-     * Called after user types YES on the confirmation chips.
-     * Directly calls create_booking API and shows refID.
-     */
-    protected function directCreateBooking(): void
-    {
-        $ctx     = $this->bookingContext;
-        $params  = [
-            'service_name'     => $ctx['service_name'],
-            'appointment_date' => $ctx['date'],
-            'time'             => $ctx['time'],
-            'name'             => $ctx['name'],
-            'phone'            => $ctx['phone'],
-            'email'            => $ctx['email'],
-        ];
-
-
-        Log::info('Direct create_booking: ' . json_encode($params));
-        $apiResult = $this->executeAction('create_booking', $params);
-        Log::info('create_booking result: ' . json_encode($apiResult));
-
-
-        if ($apiResult === null) {
-            $this->messages[] = [
-                'role'    => 'assistant',
-                'content' => "I'm sorry, I couldn't complete the booking right now. Please try again in a moment.",
-                'time'    => now()->format('h:i A')
-            ];
-            $this->isAiTyping = false;
-            return;
-        }
-
-
-        $status  = $apiResult['status']       ?? $apiResult['result']['status']       ?? '';
-        $refID   = $apiResult['data']['refID'] ?? $apiResult['refID']                  ?? $apiResult['result']['refID'] ?? '';
-        $msgText = $apiResult['message']       ?? $apiResult['result']['message']      ?? '';
-
-
-        if ($status === 'success' && !empty($refID)) {
-            $this->messages[] = [
-                'role'    => 'assistant',
-                'content' => "🎉 **Booking Confirmed!** Hello **{$ctx['name']}**, your appointment has been successfully booked!\n\n"
-                    . "📋 **Booking Summary**\n"
-                    . "✅ **Service:** {$ctx['service_name']}\n"
-                    . "📅 **Date:** {$ctx['date']}\n"
-                    . "🕐 **Time:** {$ctx['time']}\n"
-                    . "👤 **Name:** {$ctx['name']}\n\n"
-                    . "🔖 **Reference ID:** `{$refID}`\n\n"
-                    . "*Please save this Reference ID — you can use it to reschedule or cancel your booking anytime.*\n\n"
-                    . "Is there anything else I can help you with? 😊",
-                'time'    => now()->format('h:i A')
-            ];
-        } else {
-            $this->messages[] = [
-                'role'    => 'assistant',
-                'content' => "❌ **Booking could not be completed.** {$msgText} Would you like to try again?",
-                'time'    => now()->format('h:i A')
-            ];
-        }
-
-
-        $this->isAiTyping   = false;
-        $this->bookingContext = ['service_name' => '', 'date' => '', 'time' => '', 'name' => '', 'phone' => '', 'email' => '', 'booking_refID' => ''];
-    }
-
-
-    /**
-     * Directly calls cancel_booking API when user clicks YES on cancel confirm chips.
-     */
-    protected function directCancelBooking(): void
-    {
-        $refID = $this->bookingContext['booking_refID'] ?? '';
-        if (empty($refID)) return;
-
-
-        $apiResult = $this->executeAction('cancel_booking', ['booking_refID' => $refID]);
-
-
-        if ($apiResult === null) {
-            $this->messages[] = [
-                'role'    => 'assistant',
-                'content' => "I'm sorry, I couldn't connect to the server right now. Please try again.",
-                'time'    => now()->format('h:i A')
-            ];
-            $this->isAiTyping = false;
-            return;
-        }
-
-
-        $status  = $apiResult['status']  ?? $apiResult['result']['status']  ?? '';
-        $msgText = $apiResult['message'] ?? $apiResult['result']['message'] ?? 'Cancellation failed.';
-
-
-        if ($status === 'success') {
-            $this->messages[] = [
-                'role'    => 'assistant',
-                'content' => "✅ **Booking Cancelled Successfully!**\n\nYour appointment (Ref ID: `{$refID}`) has been cancelled. If you need to book again in the future, just let me know! 😊",
-                'time'    => now()->format('h:i A')
-            ];
-        } else {
-            $this->messages[] = [
-                'role'    => 'assistant',
-                'content' => "❌ **Cancellation could not be completed.** {$msgText}",
-                'time'    => now()->format('h:i A')
-            ];
-        }
-
-
-        $this->isAiTyping = false;
-        $this->bookingContext['booking_refID'] = '';
-    }
-
-
-    /**
-     * Execute an action directly (bypassing OpenAI), then auto-reply or dispatch AI.
-     * Used for deterministic steps like service_selected → get_dates.
-     */
-    protected function directAction(string $action, array $params): void
-    {
-        Log::info("Direct action [{$action}] (no OpenAI): " . json_encode($params));
-
-
-        $apiResult = $this->executeAction($action, $params);
-        Log::info("Direct action result [{$action}]: " . json_encode(['result' => $apiResult]));
-
-
-        // Guard: API call may return null on network failure
-        if ($apiResult === null) {
-            $this->messages[] = [
-                'role'    => 'assistant',
-                'content' => "I'm having trouble reaching the server. Please try again in a moment.",
-                'time'    => now()->format('h:i A')
-            ];
-            $this->isAiTyping = false;
-            return;
-        }
-
-
-        $this->extractWorkflowOptions($action, $apiResult);
-
-
-        // Store hidden API result so AI has context in the next user turn
-        $this->messages[] = [
-            'role'      => 'system',
-            'content'   => "System Event - API Response for '{$action}': \n" . json_encode($apiResult),
-            'time'      => now()->format('h:i A'),
-            'is_hidden' => true
-        ];
-
-
-        $autoReply = $this->generateAutoReply($action, $apiResult);
-        if ($autoReply !== null) {
-            $this->messages[] = [
-                'role'    => 'assistant',
-                'content' => $autoReply,
-                'time'    => now()->format('h:i A')
-            ];
-            $this->isAiTyping = false;
-            $this->dispatch('booking-chat-updated');
-            return;
-        }
-
-
-        // Non-auto-reply actions → let OpenAI interpret the result
-        $this->dispatch('process-ai-turn');
-    }
-
 
     public function sendMessage()
     {
-        if (trim($this->userInput) === '') return;
+        if (trim($this->userInput) === '') {
+            return;
+        }
 
-
-        // Typing a message manually also clears any pending option cards
+        // Clear any pending options when user types manually
         $this->workflowOptions = [];
-        $this->workflowStep    = '';
+        $this->workflowStep = '';
 
-
-        $userText          = $this->userInput;
-        $this->messages[]  = [
-            'role'    => 'user',
+        $userText = $this->userInput;
+        $this->messages[] = [
+            'role' => 'user',
             'content' => $userText,
-            'time'    => now()->format('h:i A')
+            'time' => now()->format('h:i A'),
         ];
 
+        $this->userInput = '';
+        $this->isAiTyping = true;
 
-        $this->userInput    = '';
-        $this->isAiTyping   = true;
-
-
-        // Dispatch event to instantly render the user's message to the UI,
-        // then the browser will immediately trigger processAgentTurn in the background
-        $this->dispatch('process-ai-turn');
         $this->dispatch('booking-chat-updated');
+        $this->processAiTurn();
     }
 
-
-    #[On('process-ai-turn')]
-    public function processAgentTurn()
+    /**
+     * Main AI processing method - integrates with Laravel AI SDK
+     */
+    protected function processAiTurn(): void
     {
-        $teamId     = tenant('id') ?? 3;
-        $locationId = session('selectedLocation') ?? 80;
+        try {
+            $user = auth()->user();
+            $agent = new AppointmentAssistant($user);
 
+            // Get conversation history
+            $history = [];
+            if ($user) {
+                $history = $agent->messages();
+            }
 
-        $agent = new BookingAgent($teamId, $locationId);
+            // Get last user message
+            $lastUserMessage = '';
+            foreach (array_reverse($this->messages) as $msg) {
+                if ($msg['role'] === 'user') {
+                    $lastUserMessage = $msg['content'];
+                    break;
+                }
+            }
 
+            Log::info('AI Chat Processing', [
+                'session_id' => $this->sessionId,
+                'user_id' => $user?->id,
+                'message' => $lastUserMessage,
+            ]);
 
-        // ─────────────────────────────────────────────────────────────
-        // Build trimmed context for OpenAI.
-        // IMPORTANT: We do NOT re-send all hidden API result messages every turn.
-        // The AI already processed & responded to older API results.
-        // Only the MOST RECENT hidden message (latest API result) is kept.
-        // Visible messages are capped at 20 to prevent context bloat + timeouts.
-        // ─────────────────────────────────────────────────────────────
-        $visibleMessages = [];
-        $lastHiddenMsg   = null;
+            // Save user message to database
+            $this->saveMessageToDatabase('user', $lastUserMessage);
 
+            // Call the AI Agent with OpenAI Function Calling
+            $response = $this->callOpenAiWithTools($lastUserMessage, $history);
 
-        foreach ($this->messages as $msg) {
-            if (empty($msg['is_hidden'])) {
-                $visibleMessages[] = [
-                    'role'    => $msg['role'],
-                    'content' => $msg['content']
+            if ($response['success']) {
+                $aiMessage = $response['message'];
+                
+                // Store AI response
+                $this->messages[] = [
+                    'role' => 'assistant',
+                    'content' => $aiMessage,
+                    'time' => now()->format('h:i A'),
                 ];
+
+                // Save AI response to database
+                $this->saveMessageToDatabase('assistant', $aiMessage);
+
+                // Extract options from response for clickable cards
+                $this->extractOptionsFromResponse($aiMessage);
+
+                // Log activity
+                $this->logActivity($lastUserMessage, $aiMessage, $response['usage'] ?? null);
+
             } else {
-                // Keep overwriting — only the last hidden message survives
-                $lastHiddenMsg = [
-                    'role'    => 'system',
-                    'content' => $msg['content']
-                ];
-            }
-        }
-
-
-        // Cap visible messages to last 20 (keeps conversation coherent without bloat)
-        if (count($visibleMessages) > 20) {
-            $visibleMessages = array_slice($visibleMessages, -20);
-        }
-
-
-        // Merge: last hidden API result first (gives AI the data it needs), then visible conversation
-        $apiMessages = $lastHiddenMsg
-            ? array_merge([$lastHiddenMsg], $visibleMessages)
-            : $visibleMessages;
-
-
-        $response = $agent->run($apiMessages);
-
-
-        if ($response['type'] === 'gpt_response') {
-            $data = $response['message'];
-
-
-            Log::info('--- AI WORKFLOW STEP ---');
-            Log::info('AI JSON Response: ' . json_encode($data));
-
-
-            // ─────────────────────────────────────────────────────────────
-            // GUARD 1: Schema validation
-            // If AI returned raw API data instead of the chatbot schema,
-            // inject a correction and retry silently (max 1 auto-correction).
-            // ─────────────────────────────────────────────────────────────
-            $hasValidSchema = isset($data['intent']) && isset($data['reply']) && isset($data['action']);
-            if (!$hasValidSchema) {
-                Log::warning('AI returned invalid schema (likely echoed API data). Auto-correcting...');
-                Log::warning('Invalid payload: ' . json_encode($data));
-
-
-                // Check we haven't already injected a correction (prevent infinite loop)
-                $alreadyCorrected = collect($this->messages)
-                    ->filter(fn($m) => !empty($m['is_hidden']) && str_contains($m['content'] ?? '', 'SCHEMA_CORRECTION'))
-                    ->count() < 3; // allow up to 3 corrections before giving up
-
-
-                if ($alreadyCorrected) {
-                    $this->messages[] = [
-                        'role'      => 'system',
-                        'content'   => 'SCHEMA_CORRECTION: Your last response had an incorrect format. You MUST always respond with the exact JSON schema: {"intent":"...","reply":"...","action":"...","is_confirmation_required":false,"confirmation_type":"none","data":{...}}. Look at the conversation history and continue from where you left off.',
-                        'time'      => now()->format('h:i A'),
-                        'is_hidden' => true
-                    ];
-                    $this->dispatch('process-ai-turn');
-                    return;
-                }
-
-
-                // Gave up correcting — show a graceful error
-                $this->messages[]   = ['role' => 'assistant', 'content' => "I got confused for a moment. Could you please repeat your last selection?", 'time' => now()->format('h:i A')];
-                $this->isAiTyping   = false;
-                $this->dispatch('booking-chat-updated');
-                return;
-            }
-
-
-            $reply     = $data['reply'] ?? null;
-            $action    = $data['action'] ?? 'none';
-            $apiParams = $data['data'] ?? [];
-
-
-            // ─────────────────────────────────────────────────────────────
-            // GUARD 2: Action deduplication
-            // If the AI fires the same action we JUST received data for on the very last turn,
-            // force it to 'none' so it presents the data instead of looping.
-            // ─────────────────────────────────────────────────────────────
-            if ($action !== 'none') {
-                $lastMsg = end($this->messages);
-                if ($lastMsg && !empty($lastMsg['is_hidden']) && str_contains($lastMsg['content'] ?? '', "API Response for '{$action}'")) {
-                    Log::warning("AI repeated action '{$action}' immediately after receiving its data — forcing action to 'none'.");
-                    $action = 'none';
-                }
-            }
-
-
-            // ─────────────────────────────────────────────────────────────
-            // GUARD 3: Strip duplicate list from reply when chips are showing
-            // If workflow options are already populated (from a previous action),
-            // the chips panel shows the options as interactive cards — so remove
-            // any markdown bullet list from the AI reply to avoid duplication.
-            // ─────────────────────────────────────────────────────────────
-            if (!empty($this->workflowOptions) && !empty($reply)) {
-                // Remove lines that are markdown list items: "- item" or "* item"
-                $reply = preg_replace('/\n?\s*[-*]\s+.+/u', '', $reply);
-                $reply = trim($reply);
-                // If reply is now just a colon-ending phrase, clean it up
-                $reply = rtrim($reply, ':') . ':' !== $reply ? $reply : rtrim($reply, ':');
-            }
-
-
-            // Show the conversational reply first
-            if (!empty($reply)) {
+                $errorMessage = "I'm sorry, I'm having trouble processing your request. Please try again.";
                 $this->messages[] = [
-                    'role'    => 'assistant',
-                    'content' => $reply,
-                    'time'    => now()->format('h:i A')
+                    'role' => 'assistant',
+                    'content' => $errorMessage,
+                    'time' => now()->format('h:i A'),
                 ];
-                $this->storeAiActivityLog(
-                    $apiMessages[count($apiMessages) - 1]['content'],
-                    json_encode($data),
-                    $teamId,
-                    $locationId,
-                    $response['usage']
-                );
-
-
-                // ─────────────────────────────────────────────────────────────
-                // INTERCEPT: If AI signals confirmation required, save details
-                // from AI's data field and show YES / NO chips directly.
-                // This bypasses OpenAI for the confirm → create_booking step.
-                // ─────────────────────────────────────────────────────────────
-                if (!empty($data['is_confirmation_required'])) {
-                    $d = $data['data'] ?? [];
-                    if (!empty($d['name']))             $this->bookingContext['name']         = $d['name'];
-                    if (!empty($d['phone']))            $this->bookingContext['phone']        = $d['phone'];
-                    if (!empty($d['email']))            $this->bookingContext['email']        = $d['email'];
-                    if (!empty($d['service_name']))     $this->bookingContext['service_name'] = $d['service_name'];
-                    if (!empty($d['appointment_date'])) $this->bookingContext['date']         = $d['appointment_date'];
-                    if (!empty($d['date']))             $this->bookingContext['date']         = $d['date'];
-                    if (!empty($d['time']))             $this->bookingContext['time']         = $d['time'];
-
-
-                    // Show YES / NO chips so the next chip click calls directCreateBooking()
-                    $this->workflowStep    = 'confirm_booking';
-                    $this->workflowOptions = [
-                        ['label' => '✅ YES — Confirm Booking', 'value' => 'YES'],
-                        ['label' => '❌ NO — Cancel',           'value' => 'NO'],
-                    ];
-                    $this->isAiTyping = false;
-                    $this->dispatch('booking-chat-updated');
-                    return;
-                }
+                $this->saveMessageToDatabase('assistant', $errorMessage);
             }
 
-
-            // Handle Action
-            if ($action !== 'none') {
-                Log::info("Executing Action: {$action} " . json_encode(['params' => $apiParams]));
-                $apiResult = $this->executeAction($action, $apiParams);
-                Log::info("Action Result ({$action}): " . json_encode(['result' => $apiResult]));
-
-
-                // Extract selectable options (chips) from the API result
-                $this->extractWorkflowOptions($action, $apiResult);
-
-
-                // Store hidden API result for AI context in the NEXT user turn
-                $this->messages[] = [
-                    'role'      => 'system',
-                    'content'   => "System Event - API Response for '{$action}': \n" . json_encode($apiResult),
-                    'time'      => now()->format('h:i A'),
-                    'is_hidden' => true
-                ];
-
-
-                // For simple data-display actions, auto-generate the assistant reply
-                // WITHOUT calling OpenAI — the chips panel shows the options anyway.
-                // Only complex results (availability, booking creation) need AI reasoning.
-                $autoReply = $this->generateAutoReply($action, $apiResult);
-                if ($autoReply !== null) {
-                    Log::info("Auto-reply generated for '{$action}' (no OpenAI call needed).");
-                    $this->messages[] = [
-                        'role'    => 'assistant',
-                        'content' => $autoReply,
-                        'time'    => now()->format('h:i A')
-                    ];
-                    $this->isAiTyping = false;
-                    $this->dispatch('booking-chat-updated');
-                    return;
-                }
-
-
-                // For complex results → let OpenAI process and respond intelligently
-                $this->dispatch('process-ai-turn');
-                return;
-            }
-        } else {
+        } catch (\Exception $e) {
+            Log::error('AI Chat Error: ' . $e->getMessage(), [
+                'trace' => $e->getTraceAsString(),
+            ]);
+            
+            $errorMessage = "I apologize, but I encountered an error. Please try again in a moment.";
             $this->messages[] = [
-                'role'    => 'assistant',
-                'content' => "I'm sorry, I'm having trouble connecting right now.",
-                'time'    => now()->format('h:i A')
+                'role' => 'assistant',
+                'content' => $errorMessage,
+                'time' => now()->format('h:i A'),
             ];
+            $this->saveMessageToDatabase('assistant', $errorMessage);
         }
-
 
         $this->isAiTyping = false;
         $this->dispatch('booking-chat-updated');
     }
 
-
     /**
-     * Auto-generate a simple assistant reply for data-display actions.
-     * Returns null for actions that need OpenAI to interpret the result.
+     * Save message to database for conversation history
      */
-    protected function generateAutoReply(string $action, ?array $apiResult): ?string
+    protected function saveMessageToDatabase(string $role, string $content, ?string $toolName = null, ?array $toolArgs = null): void
     {
-        if ($apiResult === null) return null;
+        try {
+            if (!DB::getSchemaBuilder()->hasTable('ai_conversations')) {
+                return;
+            }
 
+            $user = auth()->user();
+            
+            // Find or create conversation
+            $conversation = DB::table('ai_conversations')
+                ->where(function ($q) use ($user) {
+                    if ($user) {
+                        $q->where('user_id', $user->id);
+                    } else {
+                        $q->where('session_id', session()->getId());
+                    }
+                })
+                ->orderBy('created_at', 'desc')
+                ->first();
 
-        switch ($action) {
-            case 'check_service':
-                return 'Here are the available services:';
+            if (!$conversation) {
+                $conversationId = DB::table('ai_conversations')->insertGetId([
+                    'user_id' => $user?->id,
+                    'session_id' => session()->getId(),
+                    'model' => 'gpt-4o-mini',
+                    'driver' => 'openai',
+                    'agent_name' => 'AppointmentAssistant',
+                    'created_at' => now(),
+                    'updated_at' => now(),
+                ]);
+            } else {
+                $conversationId = $conversation->id;
+                DB::table('ai_conversations')
+                    ->where('id', $conversationId)
+                    ->update(['updated_at' => now()]);
+            }
 
+            // Insert message
+            DB::table('ai_messages')->insert([
+                'conversation_id' => $conversationId,
+                'role' => $role,
+                'content' => $content,
+                'tool_name' => $toolName,
+                'tool_arguments' => $toolArgs ? json_encode($toolArgs) : null,
+                'created_at' => now(),
+                'updated_at' => now(),
+            ]);
 
-            case 'get_dates':
-                $service = $apiResult['result']['service']['name'] ?? '';
-                return $service
-                    ? "Here are the available dates for **{$service}**:"
-                    : 'Here are the available dates:';
-
-
-            case 'get_times':
-                $service = $apiResult['result']['service']['name'] ?? '';
-                $date    = $apiResult['result']['date'] ?? '';
-                $msg     = 'Here are the available times';
-                if ($service) $msg .= " for **{$service}**";
-                if ($date)    $msg .= " on **{$date}**";
-                return $msg . ':';
-
-
-            case 'get_booking':
-                $status = $apiResult['status'] ?? $apiResult['result']['status'] ?? '';
-                if ($status === 'success') {
-                    $d = $apiResult['data'] ?? $apiResult['result']['data'] ?? [];
-                    $service = $d['service_name'] ?? 'Service';
-                    $date    = $d['booking_date'] ?? 'Unknown Date';
-                    $time    = $d['booking_time'] ?? 'Unknown Time';
-                   
-                    return "Here are your booking details:\n"
-                        . "✅ **Service:** {$service}\n"
-                        . "📅 **Date:** {$date}\n"
-                        . "🕐 **Time:** {$time}\n\n"
-                        . "Are you sure you want to cancel this booking? Type **YES** to cancel or **NO** to keep it.";
-                }
-                return "I couldn't find a booking with that Reference ID. Please check and try again.";
-
-
-            default:
-                // check_availability, create_booking, reschedule_booking, cancel_booking
-                // → OpenAI must interpret and respond
-                return null;
+        } catch (\Exception $e) {
+            Log::error('Failed to save message to database: ' . $e->getMessage());
         }
     }
 
-
     /**
-     * Extract selectable workflow options from an API result and populate $workflowOptions.
-     * This is what drives the clickable cards in the blade view.
+     * Call OpenAI with tool definitions (Function Calling)
      */
-    protected function extractWorkflowOptions(string $action, ?array $apiResult): void
+    protected function callOpenAiWithTools(string $userMessage, array $history): array
     {
-        if ($apiResult === null) return; // API call returned nothing — skip safely
+        try {
+            $apiKey = config('services.openai.api_key');
+            if (empty($apiKey)) {
+                throw new \Exception('OpenAI API key not configured');
+            }
 
+            // Build messages array
+            $messages = [
+                [
+                    'role' => 'system',
+                    'content' => $this->buildSystemPrompt(),
+                ]
+            ];
 
-        $this->workflowOptions = [];
-        $this->workflowStep    = '';
-
-
-        switch ($action) {
-            case 'get_booking':
-                // For get_booking we want to auto-extract the refID into context
-                $status = $apiResult['status'] ?? $apiResult['result']['status'] ?? '';
-                if ($status === 'success') {
-                    $d = $apiResult['data'] ?? $apiResult['result']['data'] ?? [];
-                    if (!empty($d['refID'])) $this->bookingContext['booking_refID'] = $d['refID'];
-                   
-                    $this->workflowStep = 'confirm_cancel';
-                    $this->workflowOptions = [
-                        ['label' => '✅ YES — Cancel Booking', 'value' => 'YES'],
-                        ['label' => '❌ NO — Keep Booking',    'value' => 'NO'],
+            // Add conversation history
+            foreach ($history as $msg) {
+                if ($msg instanceof \Laravel\Ai\Messages\Message) {
+                    $messages[] = [
+                        'role' => $msg->role instanceof \Laravel\Ai\Messages\MessageRole ? $msg->role->value : $msg->role,
+                        'content' => $msg->content,
                     ];
                 }
-                break;
-
-
-            case 'check_service':
-                $services = $apiResult['services'] ?? $apiResult['data']['services'] ?? [];
-                if (empty($services) && isset($apiResult['status'])) {
-                    // Some API wrappers nest differently
-                    $services = $apiResult['services'] ?? [];
-                }
-                // Flatten nested result wrapper if present
-                if (isset($apiResult['result']['services'])) {
-                    $services = $apiResult['result']['services'];
-                }
-                if (!empty($services)) {
-                    $this->workflowStep    = 'select_service';
-                    $this->workflowOptions = array_map(fn($s) => [
-                        'label' => $s['name'],
-                        'value' => $s['name']
-                    ], array_values($services));
-                }
-                break;
-
-
-            case 'get_dates':
-                // Dates may come as array of strings or objects. API returns 'available_dates' key.
-                $dates = $apiResult['available_dates']
-                    ?? $apiResult['dates']
-                    ?? $apiResult['result']['available_dates']
-                    ?? $apiResult['result']['dates']
-                    ?? $apiResult['data']['dates']
-                    ?? [];
-                if (!empty($dates)) {
-                    $this->workflowStep    = 'select_date';
-                    $this->workflowOptions = array_map(function ($d) {
-                        $raw   = is_array($d) ? ($d['date'] ?? $d['value'] ?? '') : $d;
-                        $label = $raw;
-                        // Try to format nicely: "2026-03-10" → "Mon, Mar 10"
-                        try {
-                            $label = \Carbon\Carbon::parse($raw)->format('D, M d Y');
-                        } catch (\Throwable $e) {}
-                        return ['label' => $label, 'value' => $raw];
-                    }, array_values($dates));
-                }
-                break;
-
-
-            case 'get_times':
-                // API returns: {"result":{"available_times":[...]}}
-                $times = $apiResult['result']['available_times']
-                    ?? $apiResult['available_times']
-                    ?? $apiResult['result']['times']
-                    ?? $apiResult['times']
-                    ?? $apiResult['data']['times']
-                    ?? [];
-                if (!empty($times)) {
-                    $this->workflowStep    = 'select_time';
-                    $this->workflowOptions = array_map(function ($t) {
-                        $raw = is_array($t) ? ($t['time'] ?? $t['value'] ?? '') : $t;
-                        return ['label' => $raw, 'value' => $raw];
-                    }, array_values($times));
-                }
-                break;
-        }
-    }
-
-
-    protected function executeAction($action, $params)
-    {
-        // Strip all empty/null values from params first
-        $params = is_array($params)
-            ? array_filter($params, fn($v) => $v !== '' && $v !== null && $v !== [])
-            : [];
-
-
-        $uri    = '';
-        $method = 'POST';
-
-
-        switch ($action) {
-
-
-            case 'check_service':
-                $uri    = '/api/check-service';
-                $method = 'GET';
-                $params = []; // No params needed
-                break;
-
-
-            case 'get_dates':
-                $uri    = '/api/get-available-dates';
-                // Only send: service_name
-                $params = array_intersect_key($params, array_flip(['service_name']));
-                break;
-
-
-            case 'get_times':
-                $uri    = '/api/get-available-times';
-                // Only send: service_name, date
-                // Fallback: use appointment_date if date is missing
-                if (empty($params['date']) && !empty($params['appointment_date'])) {
-                    $params['date'] = $params['appointment_date'];
-                }
-                $params = array_intersect_key($params, array_flip(['service_name', 'date']));
-                break;
-
-
-            case 'check_availability':
-                $uri    = '/api/check-datetime-availability';
-                $method = 'POST_QUERY'; // POST with params in query string (matches Postman exactly)
-                // Extract start time only: "07:00 AM-08:00 AM" → "07:00 AM"
-                if (!empty($params['time']) && str_contains($params['time'], '-')) {
-                    $params['time'] = trim(explode('-', $params['time'])[0]);
-                }
-                $params = array_intersect_key($params, array_flip(['service_name', 'date', 'time']));
-                break;
-
-
-            case 'create_booking':
-                $uri    = '/api/check-and-book';
-                // Map 'date' → 'appointment_date' if needed
-                if (!empty($params['date']) && empty($params['appointment_date'])) {
-                    $params['appointment_date'] = $params['date'];
-                }
-                // Extract start time only: "07:00 AM-08:00 AM" → "07:00 AM"
-                if (!empty($params['time']) && str_contains($params['time'], '-')) {
-                    $params['time'] = trim(explode('-', $params['time'])[0]);
-                }
-                // Only send required booking fields
-                $params = array_intersect_key($params, array_flip([
-                    'service_name', 'appointment_date', 'time',
-                    'name', 'phone', 'email', 'phone_code'
-                ]));
-                break;
-
-
-            case 'get_booking':
-                $uri    = '/api/get-booking-details';
-                $params = array_intersect_key($params, array_flip(['booking_refID']));
-                break;
-
-
-            case 'reschedule_booking':
-                $uri    = '/api/edit-booking';
-                $params = array_intersect_key($params, array_flip([
-                    'booking_refID', 'service_name', 'date', 'time'
-                ]));
-                break;
-
-
-            case 'cancel_booking':
-                $uri    = '/api/cancel-booking';
-                $params = array_intersect_key($params, array_flip(['booking_refID']));
-                break;
-
-
-            default:
-                return null;
-        }
-
-
-        Log::info("Calling API [{$method}] {$uri} with params: " . json_encode($params));
-
-
-        try {
-            $baseUrl = 'https://qwaiting-ai.thevistiq.com';
-            $url     = $baseUrl . $uri;
-
-
-            if ($method === 'GET') {
-                $response = \Illuminate\Support\Facades\Http::timeout(30)->get($url, $params);
-            } elseif ($method === 'POST_QUERY') {
-                // POST but with params as URL query string (as shown in Postman collection)
-                $queryUrl = $url . '?' . http_build_query($params);
-                $response = \Illuminate\Support\Facades\Http::timeout(30)->post($queryUrl);
-            } else {
-                // Use asForm() to send as form-data matching the Postman collection
-                $response = \Illuminate\Support\Facades\Http::asForm()->timeout(30)->post($url, $params);
             }
-            return $response->json();
+
+            // Add current conversation from this session
+            foreach ($this->messages as $msg) {
+                if (empty($msg['is_hidden'])) {
+                    $messages[] = [
+                        'role' => $msg['role'],
+                        'content' => $msg['content'],
+                    ];
+                }
+            }
+
+            // Define tools for function calling
+            $tools = $this->getToolDefinitions();
+
+            $payload = [
+                'model' => 'gpt-4o-mini',
+                'messages' => $messages,
+                'tools' => $tools,
+                'tool_choice' => 'auto',
+                'temperature' => 0.3,
+                'max_tokens' => 1000,
+            ];
+
+            $response = \Illuminate\Support\Facades\Http::withToken($apiKey)
+                ->timeout(60)
+                ->post('https://api.openai.com/v1/chat/completions', $payload);
+
+            if (!$response->successful()) {
+                Log::error('OpenAI API Error: ' . $response->body());
+                return ['success' => false, 'message' => 'API error'];
+            }
+
+            $data = $response->json();
+            $choice = $data['choices'][0] ?? null;
+            $message = $choice['message'] ?? null;
+
+            // Handle tool calls
+            if (!empty($message['tool_calls'])) {
+                return $this->handleToolCalls($message['tool_calls'], $messages, $apiKey);
+            }
+
+            // Regular response
+            return [
+                'success' => true,
+                'message' => $message['content'] ?? 'I apologize, I could not process that.',
+                'usage' => $data['usage'] ?? null,
+            ];
+
         } catch (\Exception $e) {
-            Log::error("API call failed [{$action}]: " . $e->getMessage());
-            return ['error' => $e->getMessage()];
+            Log::error('OpenAI Call Error: ' . $e->getMessage());
+            return ['success' => false, 'message' => $e->getMessage()];
         }
     }
-
 
     /**
-     * Store Token usage into AiActivityLog
+     * Handle tool/function calls from OpenAI
      */
-    private function storeAiActivityLog($prompt, $response, $teamId, $locationId, $usage)
+    protected function handleToolCalls(array $toolCalls, array $messages, string $apiKey): array
+    {
+        // Add assistant message with tool calls
+        $messages[] = [
+            'role' => 'assistant',
+            'tool_calls' => $toolCalls,
+        ];
+
+        // Execute each tool
+        foreach ($toolCalls as $toolCall) {
+            $functionName = $toolCall['function']['name'] ?? '';
+            $arguments = json_decode($toolCall['function']['arguments'] ?? '{}', true);
+            $toolCallId = $toolCall['id'] ?? '';
+
+            Log::info('[Tool Call] Executing tool', [
+                'tool'      => $functionName,
+                'arguments' => $arguments,
+            ]);
+
+            // Execute the tool
+            $result = $this->executeTool($functionName, $arguments);
+
+            Log::info('[Tool Result] Raw response from ' . $functionName, [
+                'result' => $result,
+            ]);
+
+            // Save tool result to database only (NOT the internal "Calling tool" message)
+            $this->saveMessageToDatabase('tool', $result, $functionName);
+
+            // Add tool response
+            $messages[] = [
+                'role'         => 'tool',
+                'tool_call_id' => $toolCallId,
+                'content'      => $result,
+            ];
+        }
+
+        // Get final response from OpenAI
+        Log::info('[OpenAI] Sending tool results back to OpenAI for final response');
+
+        $response = \Illuminate\Support\Facades\Http::withToken($apiKey)
+            ->timeout(60)
+            ->post('https://api.openai.com/v1/chat/completions', [
+                'model'       => 'gpt-4o-mini',
+                'messages'    => $messages,
+                'temperature' => 0.3,
+                'max_tokens'  => 1000,
+            ]);
+
+        if (!$response->successful()) {
+            Log::error('[OpenAI] Final response failed', ['status' => $response->status(), 'body' => $response->body()]);
+            return ['success' => false, 'message' => 'Tool handling error'];
+        }
+
+        $data    = $response->json();
+        $content = $data['choices'][0]['message']['content'] ?? 'I apologize, I could not complete that action.';
+
+        Log::info('[OpenAI] Final AI response received', [
+            'message' => $content,
+            'usage'   => $data['usage'] ?? null,
+        ]);
+
+        return [
+            'success' => true,
+            'message' => $content,
+            'usage'   => $data['usage'] ?? null,
+        ];
+    }
+
+    /**
+     * Execute a tool by name
+     */
+    protected function executeTool(string $name, array $arguments): string
+    {
+        $toolMap = [
+            'check_services' => \App\Ai\Tools\CheckServicesTool::class,
+            'get_available_dates' => \App\Ai\Tools\GetAvailableDatesTool::class,
+            'get_available_times' => \App\Ai\Tools\GetAvailableTimesTool::class,
+            'check_datetime_availability' => \App\Ai\Tools\CheckDatetimeAvailabilityTool::class,
+            'book_appointment' => \App\Ai\Tools\BookAppointmentTool::class,
+            'get_booking_details' => \App\Ai\Tools\GetBookingDetailsTool::class,
+            'reschedule_appointment' => \App\Ai\Tools\RescheduleAppointmentTool::class,
+            'cancel_appointment' => \App\Ai\Tools\CancelAppointmentTool::class,
+        ];
+
+        if (!isset($toolMap[$name])) {
+            return json_encode(['error' => "Unknown tool: {$name}"]);
+        }
+
+        try {
+            $tool = new $toolMap[$name]();
+            $request = new \Laravel\Ai\Tools\Request($arguments);
+            $result = $tool->handle($request);
+            return (string) $result;
+        } catch (\Exception $e) {
+            Log::error("Tool execution error for {$name}: " . $e->getMessage());
+            return json_encode(['error' => $e->getMessage()]);
+        }
+    }
+
+    /**
+     * Build system prompt with instructions
+     */
+    protected function buildSystemPrompt(): string
+    {
+        return <<<'PROMPT'
+You are an AI Appointment Booking Assistant. Your ONLY job is to help users book, reschedule, cancel, or check appointments.
+
+## STRICT SCOPE RULE
+You ONLY respond to appointment-related requests. If the user asks ANYTHING unrelated (tech questions, general knowledge, jokes, weather, coding, etc.), politely let them know you can only assist with appointments and redirect them back to booking-related topics. Do NOT provide answers to off-topic questions.
+
+## YOUR CAPABILITIES (8 Tools Available)
+You can call these tools to perform actions:
+1. check_services - List all available services
+2. get_available_dates - Get dates for a service (needs: service_name)
+3. get_available_times - Get times for a date (needs: service_name, date)
+4. check_datetime_availability - Verify slot availability (needs: service_name, date, time)
+5. book_appointment - Create booking (needs: service_name, appointment_date, time, name, phone, email)
+6. get_booking_details - Lookup booking (needs: booking_refID)
+7. reschedule_appointment - Change booking (needs: booking_refID, service_name, date, time)
+8. cancel_appointment - Cancel booking (needs: booking_refID)
+
+## BOOKING FLOW (MUST FOLLOW)
+1. Call check_services → Show list → Ask user to pick
+2. Call get_available_dates with selected service → Show dates → Ask user to pick
+3. Call get_available_times with service+date → Show times → Ask user to pick
+4. Call check_datetime_availability → Confirm slot is available
+5. Collect details ONE BY ONE: name → phone → email
+6. Show summary, ask "Type YES to confirm or NO to cancel"
+7. If YES, call book_appointment
+
+## RESCHEDULE FLOW
+1. Ask for booking_refID
+2. Call get_booking_details → Show current details
+3. Ask what to change
+4. Get new service/date/time as needed
+5. Show summary, ask for confirmation
+6. If YES, call reschedule_appointment
+
+## CANCEL FLOW
+1. Ask for booking_refID
+2. Call get_booking_details → Show details
+3. Ask "Type YES to confirm cancellation or NO to keep"
+4. If YES, call cancel_appointment
+
+## CRITICAL RULES
+- NEVER skip steps in booking flow
+- ALWAYS use tools to fetch data - never make up services, dates, or times
+- ALWAYS confirm before booking, rescheduling, or canceling
+- Ask ONE question at a time
+- Format lists with "- " prefix for each item
+- Be friendly and professional
+PROMPT;
+    }
+
+    /**
+     * Get tool definitions for OpenAI function calling
+     */
+    protected function getToolDefinitions(): array
+    {
+        return [
+            [
+                'type' => 'function',
+                'function' => [
+                    'name' => 'check_services',
+                    'description' => 'List all available services for booking',
+                    'parameters' => [
+                        'type' => 'object',
+                        'properties' => (object)[],
+                    ],
+                ],
+            ],
+            [
+                'type' => 'function',
+                'function' => [
+                    'name' => 'get_available_dates',
+                    'description' => 'Get available dates for a specific service',
+                    'parameters' => [
+                        'type' => 'object',
+                        'properties' => [
+                            'service_name' => [
+                                'type' => 'string',
+                                'description' => 'The service name selected by user',
+                            ],
+                        ],
+                        'required' => ['service_name'],
+                    ],
+                ],
+            ],
+            [
+                'type' => 'function',
+                'function' => [
+                    'name' => 'get_available_times',
+                    'description' => 'Get available time slots for a service on a date',
+                    'parameters' => [
+                        'type' => 'object',
+                        'properties' => [
+                            'service_name' => [
+                                'type' => 'string',
+                                'description' => 'The service name',
+                            ],
+                            'date' => [
+                                'type' => 'string',
+                                'description' => 'Date in YYYY-MM-DD format',
+                            ],
+                        ],
+                        'required' => ['service_name', 'date'],
+                    ],
+                ],
+            ],
+            [
+                'type' => 'function',
+                'function' => [
+                    'name' => 'check_datetime_availability',
+                    'description' => 'Check if a specific date/time is available',
+                    'parameters' => [
+                        'type' => 'object',
+                        'properties' => [
+                            'service_name' => ['type' => 'string'],
+                            'date' => ['type' => 'string'],
+                            'time' => ['type' => 'string'],
+                        ],
+                        'required' => ['service_name', 'date', 'time'],
+                    ],
+                ],
+            ],
+            [
+                'type' => 'function',
+                'function' => [
+                    'name' => 'book_appointment',
+                    'description' => 'Create a new booking appointment',
+                    'parameters' => [
+                        'type' => 'object',
+                        'properties' => [
+                            'service_name' => ['type' => 'string'],
+                            'appointment_date' => ['type' => 'string'],
+                            'time' => ['type' => 'string'],
+                            'name' => ['type' => 'string'],
+                            'phone' => ['type' => 'string'],
+                            'email' => ['type' => 'string'],
+                            'phone_code' => ['type' => 'string'],
+                        ],
+                        'required' => ['service_name', 'appointment_date', 'time', 'name', 'phone', 'email'],
+                    ],
+                ],
+            ],
+            [
+                'type' => 'function',
+                'function' => [
+                    'name' => 'get_booking_details',
+                    'description' => 'Get details of an existing booking',
+                    'parameters' => [
+                        'type' => 'object',
+                        'properties' => [
+                            'booking_refID' => ['type' => 'string'],
+                        ],
+                        'required' => ['booking_refID'],
+                    ],
+                ],
+            ],
+            [
+                'type' => 'function',
+                'function' => [
+                    'name' => 'reschedule_appointment',
+                    'description' => 'Reschedule an existing appointment',
+                    'parameters' => [
+                        'type' => 'object',
+                        'properties' => [
+                            'booking_refID' => ['type' => 'string'],
+                            'service_name' => ['type' => 'string'],
+                            'date' => ['type' => 'string'],
+                            'time' => ['type' => 'string'],
+                        ],
+                        'required' => ['booking_refID', 'service_name', 'date', 'time'],
+                    ],
+                ],
+            ],
+            [
+                'type' => 'function',
+                'function' => [
+                    'name' => 'cancel_appointment',
+                    'description' => 'Cancel an existing appointment',
+                    'parameters' => [
+                        'type' => 'object',
+                        'properties' => [
+                            'booking_refID' => ['type' => 'string'],
+                        ],
+                        'required' => ['booking_refID'],
+                    ],
+                ],
+            ],
+        ];
+    }
+
+    /**
+     * Extract clickable options from AI response
+     */
+    protected function extractOptionsFromResponse(string $message): void
+    {
+        $this->workflowOptions = [];
+        $this->workflowStep = '';
+
+        // Check for service list pattern
+        if (preg_match('/available services?:(.+?)(?:\n\n|$)/is', $message, $matches)) {
+            $lines = explode("\n", $matches[1]);
+            $services = [];
+            foreach ($lines as $line) {
+                if (preg_match('/^[-*•]\s*(.+)$/', trim($line), $m)) {
+                    $services[] = ['label' => $m[1], 'value' => $m[1]];
+                }
+            }
+            if (!empty($services)) {
+                $this->workflowStep = 'select_service';
+                $this->workflowOptions = $services;
+                return;
+            }
+        }
+
+        // Check for date list pattern
+        if (preg_match('/available dates?[^:]*:(.+?)(?:\n\n|$)/is', $message, $matches)) {
+            $lines = explode("\n", $matches[1]);
+            $dates = [];
+            foreach ($lines as $line) {
+                if (preg_match('/^[-*•]\s*(.+)$/', trim($line), $m)) {
+                    $dates[] = ['label' => $m[1], 'value' => $m[1]];
+                }
+            }
+            if (!empty($dates)) {
+                $this->workflowStep = 'select_date';
+                $this->workflowOptions = $dates;
+                return;
+            }
+        }
+
+        // Check for time list pattern
+        if (preg_match('/available times?[^:]*:(.+?)(?:\n\n|$)/is', $message, $matches)) {
+            $lines = explode("\n", $matches[1]);
+            $times = [];
+            foreach ($lines as $line) {
+                if (preg_match('/^[-*•]\s*(.+)$/', trim($line), $m)) {
+                    $times[] = ['label' => $m[1], 'value' => $m[1]];
+                }
+            }
+            if (!empty($times)) {
+                $this->workflowStep = 'select_time';
+                $this->workflowOptions = $times;
+                return;
+            }
+        }
+
+        // Check for confirmation prompt
+        if (stripos($message, 'type yes to confirm') !== false || 
+            stripos($message, 'yes to confirm') !== false) {
+            $this->workflowStep = 'confirm';
+            $this->workflowOptions = [
+                ['label' => '✅ YES — Confirm', 'value' => 'YES'],
+                ['label' => '❌ NO — Cancel', 'value' => 'NO'],
+            ];
+        }
+    }
+
+    /**
+     * Log AI activity for analytics
+     */
+    protected function logActivity(string $prompt, string $response, ?array $usage): void
     {
         try {
-            $promptTokens     = $usage->promptTokens ?? 0;
-            $completionTokens = $usage->completionTokens ?? 0;
-            $totalTokens      = $usage->totalTokens ?? 0;
+            $teamId = tenant('id') ?? 3;
+            $locationId = session('selectedLocation') ?? 80;
 
-
+            $promptTokens = $usage['prompt_tokens'] ?? 0;
+            $completionTokens = $usage['completion_tokens'] ?? 0;
+            $totalTokens = $usage['total_tokens'] ?? 0;
             $creditsConsumed = ($totalTokens / 1000) * 0.001;
 
-
             AiActivityLog::create([
-                'team_id'           => $teamId,
-                'location_id'       => $locationId,
-                'chatbot_name'      => 'BookingAgent_Livewire',
-                'type'              => 'booking_assistant',
-                'prompt'            => $prompt,
-                'response'          => $response,
-                'prompt_tokens'     => $promptTokens,
+                'team_id' => $teamId,
+                'location_id' => $locationId,
+                'chatbot_name' => 'AiBookingChatbot_LaravelAI',
+                'type' => 'booking_assistant',
+                'prompt' => $prompt,
+                'response' => $response,
+                'prompt_tokens' => $promptTokens,
                 'completion_tokens' => $completionTokens,
-                'total_tokens'      => $totalTokens,
-                'credits_consumed'  => $creditsConsumed,
+                'total_tokens' => $totalTokens,
+                'credits_consumed' => $creditsConsumed,
             ]);
         } catch (\Exception $e) {
             Log::error('Failed to log AI Activity: ' . $e->getMessage());
         }
     }
-
-
-    public function handleVoiceInput($transcribedText)
-    {
-        $this->userInput = $transcribedText;
-        $this->sendMessage();
-    }
-
 
     public function render()
     {

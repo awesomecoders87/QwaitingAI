@@ -12,7 +12,7 @@
 >
     <!-- Chat Widget Toggle Button -->
     <button wire:click="toggleChat"
-            class="fixed bottom-6 right-6 bg-blue-600 hover:bg-blue-700 text-white rounded-full w-14 h-14 shadow-lg flex items-center justify-center transition-transform hover:scale-105 z-50">
+            class="fixed bottom-6 right-6 bg-gradient-to-r from-indigo-600 to-purple-600 hover:from-indigo-700 hover:to-purple-700 text-white rounded-full w-14 h-14 shadow-lg flex items-center justify-center transition-all hover:scale-110 hover:shadow-xl z-50">
         @if($isOpen)
             <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor" class="w-6 h-6">
                 <path stroke-linecap="round" stroke-linejoin="round" d="M6 18L18 6M6 6l12 12" />
@@ -24,81 +24,97 @@
         @endif
     </button>
 
-
     <!-- Chat Window -->
     @if($isOpen)
-    <div class="fixed bottom-24 right-4 sm:right-6 w-[90vw] sm:w-[400px] bg-white rounded-2xl shadow-2xl flex flex-col overflow-hidden z-50 h-[580px] max-h-[85vh]">
-       
+    <div class="fixed bottom-24 right-4 sm:right-6 w-[90vw] sm:w-[420px] bg-white rounded-2xl shadow-2xl flex flex-col overflow-hidden z-50 h-[600px] max-h-[85vh] border border-gray-100">
+        
         <!-- Header -->
-        <div class="bg-indigo-500 text-white p-4 flex items-center justify-between flex-shrink-0">
+        <div class="bg-gradient-to-r from-indigo-600 to-purple-600 text-white p-4 flex items-center justify-between flex-shrink-0">
             <div class="flex items-center space-x-3">
-                <div class="bg-indigo-400 p-2 rounded-full border border-indigo-300">
+                <div class="bg-white/20 p-2 rounded-full border border-white/30 backdrop-blur-sm">
                     <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor" class="w-6 h-6">
-                        <path stroke-linecap="round" stroke-linejoin="round" d="M9 12h3.75M9 15h3.75M9 18h3.75m3 .75H18a2.25 2.25 0 002.25-2.25V6.108c0-1.135-.845-2.098-1.976-2.192a48.424 48.424 0 00-1.123-.08m-5.801 0c-.065.21-.1.433-.1.664 0 .414.336.75.75.75h4.5a.75.75 0 00.75-.75 2.25 2.25 0 00-.1-.664m-5.8 0A2.251 2.251 0 0113.5 2.25H15c1.012 0 1.867.668 2.15 1.586m-5.8 0c-.376.023-.75.05-1.124.08C9.095 4.01 8.25 4.973 8.25 6.108V8.25m0 0H4.875c-.621 0-1.125.504-1.125 1.125v11.25c0 .621.504 1.125 1.125 1.125h9.75c.621 0 1.125-.504 1.125-1.125V9.375c0-.621-.504-1.125-1.125-1.125H8.25zM6.75 12h.008v.008H6.75V12zm0 3h.008v.008H6.75V15zm0 3h.008v.008H6.75V18z" />
+                        <path stroke-linecap="round" stroke-linejoin="round" d="M9.813 15.904L9 18.75l-.813-2.846a4.5 4.5 0 00-3.09-3.09L2.25 12l2.846-.813a4.5 4.5 0 003.09-3.09L9 5.25l.813 2.846a4.5 4.5 0 003.09 3.09L15.75 12l-2.846.813a4.5 4.5 0 00-3.09 3.09zM18.259 8.715L18 9.75l-.259-1.035a3.375 3.375 0 00-2.455-2.456L14.25 6l1.036-.259a3.375 3.375 0 002.455-2.456L18 2.25l.259 1.035a3.375 3.375 0 002.456 2.456L21.75 6l-1.035.259a3.375 3.375 0 00-2.456 2.456zM16.894 20.567L16.5 21.75l-.394-1.183a2.25 2.25 0 00-1.423-1.423L13.5 18.75l1.183-.394a2.25 2.25 0 001.423-1.423l.394-1.183.394 1.183a2.25 2.25 0 001.423 1.423l1.183.394-1.183.394a2.25 2.25 0 00-1.423 1.423z" />
                     </svg>
                 </div>
                 <div>
-                    <h3 class="font-bold text-lg leading-tight">Booking Assistant</h3>
-                    <p class="text-xs text-indigo-100">AI-powered · Booking Insights</p>
+                    <h3 class="font-bold text-lg leading-tight">AI Booking Assistant</h3>
+                    <p class="text-xs text-indigo-100">Powered by Laravel AI SDK</p>
                 </div>
             </div>
-            <div class="flex items-center text-xs font-semibold">
-                <div class="w-2 h-2 rounded-full bg-green-400 mr-1 animate-pulse"></div>
+            <div class="flex items-center text-xs font-semibold bg-white/10 px-2 py-1 rounded-full">
+                <div class="w-2 h-2 rounded-full bg-green-400 mr-1.5 animate-pulse"></div>
                 Online
             </div>
         </div>
 
-
         <!-- Chat Area -->
-        <div class="flex-1 bg-gray-50/50 p-4 pb-8 overflow-x-hidden overflow-y-auto scroll-smooth relative" id="chat-messages-container">
+        <div class="flex-1 bg-gray-50 p-4 overflow-x-hidden overflow-y-auto scroll-smooth relative" id="chat-messages-container">
             @foreach($messages as $msg)
                 @if($msg['role'] === 'assistant')
                     <!-- AI Message -->
-                    <div class="mb-4">
-                        <div class="chatbot-response-content bg-white border text-gray-800 p-3 rounded-2xl rounded-tl-sm shadow-sm inline-block max-w-[85%] text-sm leading-relaxed">
-                            {!! \Illuminate\Support\Str::markdown($msg['content']) !!}
+                    <div class="mb-4 flex items-start space-x-2">
+                        <div class="w-8 h-8 rounded-full bg-gradient-to-br from-indigo-500 to-purple-500 flex items-center justify-center flex-shrink-0">
+                            <svg xmlns="http://www.w3.org/2000/svg" class="w-4 h-4 text-white" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9.813 15.904L9 18.75l-.813-2.846a4.5 4.5 0 00-3.09-3.09L2.25 12l2.846-.813a4.5 4.5 0 003.09-3.09L9 5.25l.813 2.846a4.5 4.5 0 003.09 3.09L15.75 12l-2.846.813a4.5 4.5 0 00-3.09 3.09zM18.259 8.715L18 9.75l-.259-1.035a3.375 3.375 0 00-2.455-2.456L14.25 6l1.036-.259a3.375 3.375 0 002.455-2.456L18 2.25l.259 1.035a3.375 3.375 0 002.456 2.456L21.75 6l-1.035.259a3.375 3.375 0 00-2.456 2.456zM16.894 20.567L16.5 21.75l-.394-1.183a2.25 2.25 0 00-1.423-1.423L13.5 18.75l1.183-.394a2.25 2.25 0 001.423-1.423l.394-1.183.394 1.183a2.25 2.25 0 001.423 1.423l1.183.394-1.183.394a2.25 2.25 0 00-1.423 1.423z" />
+                            </svg>
                         </div>
-                        <p class="text-[10px] text-gray-400 mt-1 ml-1">{{ $msg['time'] ?? '' }}</p>
+                        <div class="flex-1">
+                            <div class="chatbot-response-content bg-white border border-gray-100 text-gray-800 p-3 rounded-2xl rounded-tl-sm shadow-sm text-sm leading-relaxed">
+                                {!! \Illuminate\Support\Str::markdown($msg['content']) !!}
+                            </div>
+                            <p class="text-[10px] text-gray-400 mt-1 ml-1">{{ $msg['time'] ?? '' }}</p>
+                        </div>
                     </div>
                 @elseif($msg['role'] === 'user')
                     <!-- User Message -->
                     <div class="mb-4 flex flex-col items-end">
-                        <div class="bg-indigo-100 text-indigo-900 p-3 rounded-2xl rounded-tr-sm shadow-sm inline-block max-w-[85%] text-right">
+                        <div class="bg-gradient-to-r from-indigo-500 to-purple-500 text-white p-3 rounded-2xl rounded-tr-sm shadow-sm inline-block max-w-[85%] text-right">
                             {{ $msg['content'] }}
                         </div>
                         <p class="text-[10px] text-gray-400 mt-1 mr-1">{{ $msg['time'] ?? '' }}</p>
                     </div>
                 @endif
             @endforeach
-           
+            
+            <!-- Typing Indicator -->
             @if($isAiTyping)
-            <div class="mb-4 flex flex-col items-start">
-                <div class="bg-white border text-gray-800 p-3 rounded-2xl rounded-tl-sm shadow-sm inline-flex items-center max-w-[85%] space-x-1">
+            <div class="mb-4 flex items-start space-x-2">
+                <div class="w-8 h-8 rounded-full bg-gradient-to-br from-indigo-500 to-purple-500 flex items-center justify-center flex-shrink-0">
+                    <svg xmlns="http://www.w3.org/2000/svg" class="w-4 h-4 text-white" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9.813 15.904L9 18.75l-.813-2.846a4.5 4.5 0 00-3.09-3.09L2.25 12l2.846-.813a4.5 4.5 0 003.09-3.09L9 5.25l.813 2.846a4.5 4.5 0 003.09 3.09L15.75 12l-2.846.813a4.5 4.5 0 00-3.09 3.09zM18.259 8.715L18 9.75l-.259-1.035a3.375 3.375 0 00-2.455-2.456L14.25 6l1.036-.259a3.375 3.375 0 002.455-2.456L18 2.25l.259 1.035a3.375 3.375 0 002.456 2.456L21.75 6l-1.035.259a3.375 3.375 0 00-2.456 2.456zM16.894 20.567L16.5 21.75l-.394-1.183a2.25 2.25 0 00-1.423-1.423L13.5 18.75l1.183-.394a2.25 2.25 0 001.423-1.423l.394-1.183.394 1.183a2.25 2.25 0 001.423 1.423l1.183.394-1.183.394a2.25 2.25 0 00-1.423 1.423z" />
+                    </svg>
+                </div>
+                <div class="bg-white border border-gray-100 text-gray-800 p-3 rounded-2xl rounded-tl-sm shadow-sm inline-flex items-center space-x-1">
                     <div class="w-2 h-2 bg-indigo-400 rounded-full animate-bounce"></div>
-                    <div class="w-2 h-2 bg-violet-400 rounded-full animate-bounce" style="animation-delay: 150ms;"></div>
+                    <div class="w-2 h-2 bg-purple-400 rounded-full animate-bounce" style="animation-delay: 150ms;"></div>
                     <div class="w-2 h-2 bg-indigo-400 rounded-full animate-bounce" style="animation-delay: 300ms;"></div>
                 </div>
             </div>
             @endif
 
-
-            <!-- Workflow Option Cards (Services / Dates / Times) -->
+            <!-- Workflow Option Cards -->
             @if(!empty($workflowOptions) && !$isAiTyping)
-            <div class="mt-4 mb-2 animate-fade-in-up" id="workflow-options-panel">
-                <p class="text-[10px] font-bold text-gray-400 uppercase tracking-wider mb-3 ml-1">
-                    @if($workflowStep === 'select_service') 🏥 Select a Service
-                    @elseif($workflowStep === 'select_date')  📅 Select a Date
-                    @elseif($workflowStep === 'select_time')  🕐 Select a Time
-                    @else 👆 Choose an Option
+            <div class="mt-4 mb-2 animate-fade-in-up" id="workflow-options">
+                <p class="text-[10px] font-bold text-gray-500 uppercase tracking-wider mb-3 ml-1 flex items-center">
+                    @if($workflowStep === 'select_service')
+                        <span class="mr-1">🏥</span> Select a Service
+                    @elseif($workflowStep === 'select_date')
+                        <span class="mr-1">📅</span> Select a Date
+                    @elseif($workflowStep === 'select_time')
+                        <span class="mr-1">🕐</span> Select a Time
+                    @elseif($workflowStep === 'confirm')
+                        <span class="mr-1">⚡</span> Confirm Action
+                    @else
+                        <span class="mr-1">👆</span> Choose an Option
                     @endif
-                    <span class="normal-case font-medium text-gray-300 ml-1 tracking-normal">· or type below</span>
+                    <span class="normal-case font-medium text-gray-400 ml-1 tracking-normal">· or type below</span>
                 </p>
-                <div class="flex flex-wrap gap-2.5">
+                <div class="flex flex-wrap gap-2">
                     @foreach($workflowOptions as $opt)
                         <button
                             wire:click="selectOption('{{ addslashes($opt['value']) }}')"
                             wire:loading.attr="disabled"
-                            class="workflow-option-btn text-sm border border-indigo-100 text-indigo-700 bg-white hover:bg-indigo-600 hover:text-white hover:border-indigo-600 px-4 py-2 rounded-2xl transition-all duration-300 font-medium shadow-sm hover:shadow-md hover:-translate-y-0.5"
+                            class="workflow-option-btn text-sm border border-indigo-200 text-indigo-700 bg-white hover:bg-gradient-to-r hover:from-indigo-500 hover:to-purple-500 hover:text-white hover:border-transparent px-4 py-2.5 rounded-xl transition-all duration-300 font-medium shadow-sm hover:shadow-md hover:-translate-y-0.5"
                         >
                             {{ $opt['label'] }}
                         </button>
@@ -107,14 +123,14 @@
             </div>
             @endif
 
-
-            <!-- Quick Questions (Hide as soon as user types or sends a message causing the loading state) -->
+            <!-- Quick Questions -->
             @if(count($messages) <= 1 && empty($userInput) && !$isAiTyping)
             <div class="mt-4 mb-2 animate-fade-in-up" wire:loading.remove wire:target="sendMessage">
-                <p class="text-[10px] font-bold text-gray-400 mb-2 uppercase tracking-wide ml-1">Quick Questions</p>
-                <div class="flex flex-wrap gap-2.5">
+                <p class="text-[10px] font-bold text-gray-500 mb-2 uppercase tracking-wide ml-1">Quick Questions</p>
+                <div class="flex flex-wrap gap-2">
                     @foreach($quickQuestions as $q)
-                        <button wire:click="sendQuickQuestion('{{ addslashes($q) }}')" class="text-sm border border-indigo-100 text-indigo-600 bg-white hover:bg-indigo-50 px-4 py-2 rounded-2xl transition-all duration-300 shadow-sm hover:shadow-md hover:-translate-y-0.5 text-left">
+                        <button wire:click="sendQuickQuestion('{{ addslashes($q) }}')" 
+                                class="text-sm border border-gray-200 text-gray-600 bg-white hover:border-indigo-300 hover:text-indigo-600 px-3 py-2 rounded-xl transition-all duration-300 shadow-sm hover:shadow text-left">
                             {{ $q }}
                         </button>
                     @endforeach
@@ -123,156 +139,61 @@
             @endif
         </div>
 
-
         <!-- Input Area -->
-        <div class="p-3 bg-white border-t flex-shrink-0 flex flex-col">
+        <div class="p-4 bg-white border-t border-gray-100 flex-shrink-0">
             <div class="relative flex items-center w-full">
-                <!-- Silence Detection JS handles Voice recording without holding -->
-                <!-- <button type="button" id="voice-btn" class="p-2 text-indigo-500 hover:bg-indigo-50 rounded-full transition">
-                    <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor" class="w-5 h-5">
-                        <path stroke-linecap="round" stroke-linejoin="round" d="M12 18.75a6 6 0 006-6v-1.5m-6 7.5a6 6 0 01-6-6v-1.5m6 7.5v3.75m-3.75 0h7.5M12 15.75a3 3 0 01-3-3V4.5a3 3 0 116 0v8.25a3 3 0 01-3 3z" />
-                    </svg>
-                </button> -->
-               
                 <input wire:model.defer="userInput"
                        wire:keydown.enter="sendMessage"
                        type="text"
-                       class="w-full flex-1 border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-300 ml-2"
-                       placeholder="Ask about bookings or select above…">
+                       class="w-full flex-1 bg-gray-50 border border-gray-200 rounded-xl px-4 py-3 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-300 focus:bg-white transition-all"
+                       placeholder="Type your message...">
                        
                 <button wire:click="sendMessage"
-                        class="ml-2 bg-indigo-200 text-indigo-600 hover:bg-indigo-300 p-2 rounded-lg transition-colors shadow-sm disabled:opacity-50"
+                        class="ml-2 bg-gradient-to-r from-indigo-500 to-purple-500 text-white hover:from-indigo-600 hover:to-purple-600 p-3 rounded-xl transition-all shadow-md hover:shadow-lg disabled:opacity-50 disabled:cursor-not-allowed"
                         @if($isAiTyping) disabled @endif>
-                    <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor" class="w-5 h-5 mt-[-1px] ml-[-1px]">
+                    <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor" class="w-5 h-5">
                         <path stroke-linecap="round" stroke-linejoin="round" d="M6 12L3.269 3.126A59.768 59.768 0 0121.485 12 59.77 59.77 0 013.27 20.876L5.999 12zm0 0h7.5" />
                     </svg>
                 </button>
             </div>
-            <div id="recording-status" class="hidden text-xs text-red-500 font-semibold mt-1 items-center ml-2">
-                <span class="w-2 h-2 rounded-full bg-red-500 animate-pulse mr-1"></span> Recording... Listening for silence...
-            </div>
+            <p class="text-[10px] text-gray-400 mt-2 text-center">
+                Powered by OpenAI GPT-4o-mini with Function Calling
+            </p>
         </div>
     </div>
     @endif
 
-
     <script>
-        // Clickable options inside markdown lists — use document delegation
+        // Make markdown list items clickable
         document.addEventListener('click', (e) => {
-            const li = e.target.closest('#chat-messages-container li');
-            if(!li) return;
+            const li = e.target.closest('#chat-messages-container .chatbot-response-content li');
+            if (!li) return;
+            
             let text = li.innerText.replace(/^[-*•]\s*/, '').trim();
-            if(text) {
-                // Walk UP from the li to find the BookingChatbot wire:id
+            if (text) {
                 const wireEl = li.closest('[wire\\:id]');
                 const wireId = wireEl?.getAttribute('wire:id');
                 const component = wireId ? window.Livewire.find(wireId) : null;
-                if(component) {
+                if (component) {
                     component.set('userInput', text);
                     component.call('sendMessage');
                 }
             }
         });
 
-
+        // Auto-scroll hooks
         document.addEventListener('livewire:initialized', () => {
-            // Tell Alpine to scroll explicitly after every livewire update completes
             Livewire.hook('message.processed', () => {
                 window.dispatchEvent(new CustomEvent('booking-chat-updated'));
             });
-            Livewire.on('process-ai-turn', () => {
-                window.dispatchEvent(new CustomEvent('booking-chat-updated'));
-            });
-
-
-            // Voice Logic Fallback (No WebSockets)
-            let mediaRecorder;
-            let audioContext;
-            let analyser;
-            let silenceTimer;
-            const SILENCE_THRESHOLD = 2500;
-           
-            const btn = document.getElementById('voice-btn');
-            const statusBox = document.getElementById('recording-status');
-           
-            if(btn) {
-                btn.addEventListener('click', async () => {
-                    if(mediaRecorder && mediaRecorder.state === 'recording') {
-                        mediaRecorder.stop();
-                        return;
-                    }
-
-
-                    btn.classList.add('text-red-500', 'bg-red-50');
-                    btn.classList.remove('text-indigo-500', 'hover:bg-indigo-50');
-                    statusBox.classList.remove('hidden');
-                    statusBox.classList.add('flex');
-                   
-                    try {
-                        const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
-                        audioContext = new (window.AudioContext || window.webkitAudioContext)();
-                        const source = audioContext.createMediaStreamSource(stream);
-                        analyser = audioContext.createAnalyser();
-                       
-                        source.connect(analyser);
-                        mediaRecorder = new MediaRecorder(stream);
-                       
-                        let audioChunks = [];
-                        mediaRecorder.ondataavailable = e => audioChunks.push(e.data);
-                       
-                        mediaRecorder.onstop = async () => {
-                            btn.classList.remove('text-red-500', 'bg-red-50');
-                            btn.classList.add('text-indigo-500', 'hover:bg-indigo-50');
-                            statusBox.classList.add('hidden');
-                            statusBox.classList.remove('flex');
-                           
-                            $wire.set('userInput', 'This is a mock transcribed text since STT API endpoint is not provided.');
-                            $wire.sendMessage();
-                        };
-                       
-                        mediaRecorder.start();
-                        checkForSilence();
-                       
-                    } catch(err) {
-                        console.error('Mic access denied.', err);
-                        btn.classList.remove('text-red-500', 'bg-red-50');
-                        btn.classList.add('text-indigo-500', 'hover:bg-indigo-50');
-                        statusBox.classList.add('hidden');
-                        statusBox.classList.remove('flex');
-                    }
-                });
-            }
-
-
-            function checkForSilence() {
-                if(!analyser || mediaRecorder.state !== 'recording') return;
-
-
-                const dataArray = new Uint8Array(analyser.frequencyBinCount);
-                analyser.getByteFrequencyData(dataArray);
-               
-                let volume = dataArray.reduce((sum, value) => sum + value, 0) / dataArray.length;
-               
-                if (volume < 10) {
-                    if (!silenceTimer) {
-                         silenceTimer = setTimeout(() => {
-                             if(mediaRecorder.state === 'recording') mediaRecorder.stop();
-                         }, SILENCE_THRESHOLD);
-                    }
-                } else {
-                    clearTimeout(silenceTimer);
-                    silenceTimer = null;
-                }
-               
-                requestAnimationFrame(checkForSilence);
-            }
         });
     </script>
+
     <style>
-        /* Markdown rendering styles for the Chatbot */
+        /* Markdown content styling */
         .chatbot-response-content p { margin-bottom: 0.5em; }
         .chatbot-response-content p:last-child { margin-bottom: 0; }
-        .chatbot-response-content strong { font-weight: 600; color: #3730A3; }
+        .chatbot-response-content strong { font-weight: 600; color: #4F46E5; }
         .chatbot-response-content ul {
             list-style-type: none;
             padding-left: 0;
@@ -281,70 +202,60 @@
         }
         .chatbot-response-content li {
             position: relative;
-            padding-left: 1.5em;
-            margin-bottom: 0.3em;
-            background-color: #F8FAFC;
+            padding: 0.5em 0.75em;
+            margin-bottom: 0.4em;
+            background: linear-gradient(135deg, #F8FAFC 0%, #F1F5F9 100%);
             border: 1px solid #E2E8F0;
             border-radius: 0.5rem;
-            padding: 0.4em 0.8em;
             cursor: pointer;
-            transition: all 0.2s;
+            transition: all 0.2s ease;
         }
         .chatbot-response-content li:hover {
-            background-color: #EEF2FF;
+            background: linear-gradient(135deg, #EEF2FF 0%, #E0E7FF 100%);
             border-color: #C7D2FE;
             color: #4F46E5;
+            transform: translateX(4px);
         }
         .chatbot-response-content li::before {
-            content: '•';
-            position: absolute;
-            left: 0.5em;
+            content: '→';
+            margin-right: 0.5em;
             color: #818CF8;
             font-weight: bold;
         }
+        .chatbot-response-content code {
+            background: #F1F5F9;
+            padding: 0.2em 0.4em;
+            border-radius: 0.25rem;
+            font-family: monospace;
+            font-size: 0.9em;
+            color: #4F46E5;
+        }
 
+        /* Workflow option buttons */
+        .workflow-option-btn:active {
+            transform: translateY(0) scale(0.97);
+        }
 
-        /* Workflow option chips */
-        .workflow-option-btn:active { transform: translateY(0) scale(0.97); }
-
-
-        /* Designer-Grade Custom Scrollbar */
-        .custom-scrollbar, #chat-messages-container {
+        /* Custom scrollbar */
+        #chat-messages-container {
             scrollbar-width: thin;
-            scrollbar-color: rgba(148, 163, 184, 0.4) transparent;
+            scrollbar-color: rgba(99, 102, 241, 0.3) transparent;
         }
-        .custom-scrollbar::-webkit-scrollbar,
         #chat-messages-container::-webkit-scrollbar {
-            width: 4px;
-            height: 4px;
+            width: 6px;
         }
-        .custom-scrollbar::-webkit-scrollbar-track,
         #chat-messages-container::-webkit-scrollbar-track {
-            background: rgba(0,0,0,0.01);
-            border-radius: 4px;
+            background: transparent;
         }
-        .custom-scrollbar::-webkit-scrollbar-thumb,
         #chat-messages-container::-webkit-scrollbar-thumb {
-            background: rgba(148, 163, 184, 0.4);
-            border-radius: 4px;
-            transition: background 0.3s ease;
+            background: rgba(99, 102, 241, 0.3);
+            border-radius: 3px;
         }
-        .custom-scrollbar::-webkit-scrollbar-thumb:hover,
         #chat-messages-container::-webkit-scrollbar-thumb:hover {
-            background: rgba(100, 116, 139, 0.7);
+            background: rgba(99, 102, 241, 0.5);
         }
 
-
-        #recording-status {
-            animation: fadeInOut 1.5s infinite;
-        }
-        @keyframes fadeInOut {
-            0%, 100% { opacity: 1; }
-            50% { opacity: 0.5; }
-        }
-
-
-        /* Entry animation for dynamic options */
+        /* Entry animation */
         .animate-fade-in-up {
             animation: fadeInUp 0.4s cubic-bezier(0.16, 1, 0.3, 1) forwards;
             opacity: 0;
