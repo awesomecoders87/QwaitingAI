@@ -18,29 +18,41 @@ class CheckServicesTool implements Tool
 
     public function handle(Request $request): Stringable|string
     {
-        Log::info('CheckServicesTool called');
+        Log::info('[CheckServicesTool] Tool called');
         
         try {
+            Log::info('[CheckServicesTool] Making HTTP request to fetch services');
             $response = \Illuminate\Support\Facades\Http::timeout(300)
                 ->get('https://qwaiting-ai.thevistiq.com/api/check-service');
 
             if ($response->successful()) {
+                Log::info('[CheckServicesTool] API response successful');
                 $data = $response->json();
+                Log::info('[CheckServicesTool] Raw API response', ['data' => $data]);
+                
                 $services = $data['services'] ?? $data['data']['services'] ?? [];
+                Log::info('[CheckServicesTool] Extracted services', ['count' => count($services)]);
                 
                 if (empty($services)) {
+                    Log::warning('[CheckServicesTool] No services found in response');
                     return 'No services are currently available. Please try again later.';
                 }
                 
                 $serviceNames = array_map(fn($s) => $s['name'] ?? 'Unknown', $services);
+                Log::info('[CheckServicesTool] Service names extracted', ['services' => $serviceNames]);
+                
                 return "Available services:\n" . implode("\n", array_map(fn($n) => "- {$n}", $serviceNames));
             }
             
-            Log::error('CheckServices failed: ' . $response->body());
+            Log::error('[CheckServicesTool] API request failed', [
+                'status' => $response->status(),
+                'body' => $response->body()
+            ]);
             return 'Sorry, unable to fetch services right now. Please try again.';
             
         } catch (\Exception $e) {
-            Log::error('CheckServices exception: ' . $e->getMessage());
+            Log::error('[CheckServicesTool] Exception occurred: ' . $e->getMessage());
+            Log::error('[CheckServicesTool] Stack trace: ' . $e->getTraceAsString());
             return 'Service temporarily unavailable. Please try again later.';
         }
     }

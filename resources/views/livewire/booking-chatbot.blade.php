@@ -157,7 +157,7 @@
                 </button>
             </div>
             <p class="text-[10px] text-gray-400 mt-2 text-center">
-                Powered by OpenAI GPT-4o-mini with Function Calling
+                Powered by Qwaiting AI
             </p>
         </div>
     </div>
