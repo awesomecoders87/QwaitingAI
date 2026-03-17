@@ -96,16 +96,8 @@
             @if(!empty($workflowOptions) && !$isAiTyping)
             <div class="mt-4 mb-2 animate-fade-in-up" id="workflow-options">
                 <p class="text-[10px] font-bold text-gray-500 uppercase tracking-wider mb-3 ml-1 flex items-center">
-                    @if($workflowStep === 'select_service')
-                        <span class="mr-1">🏥</span> Select a Service
-                    @elseif($workflowStep === 'select_date')
-                        <span class="mr-1">📅</span> Select a Date
-                    @elseif($workflowStep === 'select_time')
-                        <span class="mr-1">🕐</span> Select a Time
-                    @elseif($workflowStep === 'confirm')
+                    @if($workflowStep === 'confirm')
                         <span class="mr-1">⚡</span> Confirm Action
-                    @else
-                        <span class="mr-1">👆</span> Choose an Option
                     @endif
                     <span class="normal-case font-medium text-gray-400 ml-1 tracking-normal">· or type below</span>
                 </p>

@@ -694,57 +694,10 @@ PROMPT;
         $this->workflowOptions = [];
         $this->workflowStep = '';
 
-        // Check for service list pattern
-        if (preg_match('/available services?:(.+?)(?:\n\n|$)/is', $message, $matches)) {
-            $lines = explode("\n", $matches[1]);
-            $services = [];
-            foreach ($lines as $line) {
-                if (preg_match('/^[-*•]\s*(.+)$/', trim($line), $m)) {
-                    $services[] = ['label' => $m[1], 'value' => $m[1]];
-                }
-            }
-            if (!empty($services)) {
-                $this->workflowStep = 'select_service';
-                $this->workflowOptions = $services;
-                return;
-            }
-        }
-
-        // Check for date list pattern
-        if (preg_match('/available dates?[^:]*:(.+?)(?:\n\n|$)/is', $message, $matches)) {
-            $lines = explode("\n", $matches[1]);
-            $dates = [];
-            foreach ($lines as $line) {
-                if (preg_match('/^[-*•]\s*(.+)$/', trim($line), $m)) {
-                    $dates[] = ['label' => $m[1], 'value' => $m[1]];
-                }
-            }
-            if (!empty($dates)) {
-                $this->workflowStep = 'select_date';
-                $this->workflowOptions = $dates;
-                return;
-            }
-        }
-
-        // Check for time list pattern
-        if (preg_match('/available times?[^:]*:(.+?)(?:\n\n|$)/is', $message, $matches)) {
-            $lines = explode("\n", $matches[1]);
-            $times = [];
-            foreach ($lines as $line) {
-                if (preg_match('/^[-*•]\s*(.+)$/', trim($line), $m)) {
-                    $times[] = ['label' => $m[1], 'value' => $m[1]];
-                }
-            }
-            if (!empty($times)) {
-                $this->workflowStep = 'select_time';
-                $this->workflowOptions = $times;
-                return;
-            }
-        }
-
-        // Check for confirmation prompt
+        // Only show buttons for confirmation (YES/NO)
         if (stripos($message, 'type yes to confirm') !== false || 
-            stripos($message, 'yes to confirm') !== false) {
+            stripos($message, 'yes to confirm') !== false ||
+            stripos($message, 'type YES to confirm') !== false) {
             $this->workflowStep = 'confirm';
             $this->workflowOptions = [
                 ['label' => '✅ YES — Confirm', 'value' => 'YES'],
