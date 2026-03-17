@@ -72,8 +72,7 @@ class BookingChatbot extends Component
 
     public function sendQuickQuestion($question)
     {
-        $this->userInput = $question;
-        $this->sendMessage();
+        $this->sendMessage($question);
     }
 
     /**
@@ -95,15 +94,17 @@ class BookingChatbot extends Component
         $this->isAiTyping = true;
         $this->dispatch('booking-chat-updated');
 
-        // Process through AI
-        $this->processAiTurn();
+        // Defer AI processing to next tick for real-time UI update
+        $this->dispatch('processAiTurn');
     }
 
-    public function sendMessage()
+    public function sendMessage($message = null)
     {
-        Log::info('[Chatbot] sendMessage called', ['input' => $this->userInput]);
+        // Log::info('[Chatbot] sendMessage called', ['input' => $this->userInput]);
         
-        if (trim($this->userInput) === '') {
+        $userText = (is_string($message) && trim($message) !== '') ? $message : $this->userInput;
+
+        if (trim($userText) === '') {
             Log::warning('[Chatbot] Empty input detected');
             return;
         }
@@ -112,8 +113,7 @@ class BookingChatbot extends Component
         $this->workflowOptions = [];
         $this->workflowStep = '';
 
-        $userText = $this->userInput;
-        Log::info('[Chatbot] Adding user message to history', ['message' => $userText]);
+        // Log::info('[Chatbot] Adding user message to history', ['message' => $userText]);
         
         $this->messages[] = [
             'role' => 'user',
@@ -124,10 +124,18 @@ class BookingChatbot extends Component
         $this->userInput = '';
         $this->isAiTyping = true;
 
-        Log::info('[Chatbot] Dispatching booking-chat-updated event');
+        // Log::info('[Chatbot] Dispatching booking-chat-updated event');
         $this->dispatch('booking-chat-updated');
-        
-        Log::info('[Chatbot] Calling processAiTurn');
+
+        // Defer AI processing to next tick for real-time UI update
+        $this->dispatch('processAiTurn');
+    }
+    /**
+     * Livewire listener for deferred AI processing
+     */
+    #[On('processAiTurn')]
+    public function processAiTurnListener()
+    {
         $this->processAiTurn();
     }
 
@@ -136,11 +144,11 @@ class BookingChatbot extends Component
      */
     protected function processAiTurn(): void
     {
-        Log::info('[Chatbot] processAiTurn started');
+        // Log::info('[Chatbot] processAiTurn started');
         
         try {
             $user = auth()->user();
-            Log::info('[Chatbot] User context', ['user_id' => $user?->id, 'has_user' => !!$user]);
+            // Log::info('[Chatbot] User context', ['user_id' => $user?->id, 'has_user' => !!$user]);
             
             $agent = new AppointmentAssistant($user);
 
@@ -148,7 +156,7 @@ class BookingChatbot extends Component
             $history = [];
             if ($user) {
                 $history = $agent->messages();
-                Log::info('[Chatbot] Loaded conversation history', ['count' => count($history)]);
+                // Log::info('[Chatbot] Loaded conversation history', ['count' => count($history)]);
             }
 
             // Get last user message
@@ -167,17 +175,17 @@ class BookingChatbot extends Component
             ]);
 
             // Save user message to database
-            Log::info('[Chatbot] Saving user message to DB');
+            // Log::info('[Chatbot] Saving user message to DB');
             $this->saveMessageToDatabase('user', $lastUserMessage);
 
             // Call the AI Agent with OpenAI Function Calling
-            Log::info('[Chatbot] Calling OpenAI with tools');
+            // Log::info('[Chatbot] Calling OpenAI with tools');
             $response = $this->callOpenAiWithTools($lastUserMessage, $history);
-            Log::info('[Chatbot] OpenAI response received', ['success' => $response['success']]);
+            // Log::info('[Chatbot] OpenAI response received', ['success' => $response['success']]);
 
             if ($response['success']) {
                 $aiMessage = $response['message'];
-                Log::info('[Chatbot] Processing successful AI response', ['message_length' => strlen($aiMessage)]);
+                // Log::info('[Chatbot] Processing successful AI response', ['message_length' => strlen($aiMessage)]);
                 
                 // Store AI response
                 $this->messages[] = [
@@ -187,19 +195,19 @@ class BookingChatbot extends Component
                 ];
 
                 // Save AI response to database
-                Log::info('[Chatbot] Saving AI response to DB');
+                // Log::info('[Chatbot] Saving AI response to DB');
                 $this->saveMessageToDatabase('assistant', $aiMessage);
 
                 // Extract options from response for clickable cards
-                Log::info('[Chatbot] Extracting options from response');
+                // Log::info('[Chatbot] Extracting options from response');
                 $this->extractOptionsFromResponse($aiMessage);
 
                 // Log activity
-                Log::info('[Chatbot] Logging activity');
+                // Log::info('[Chatbot] Logging activity');
                 $this->logActivity($lastUserMessage, $aiMessage, $response['usage'] ?? null);
 
             } else {
-                Log::error('[Chatbot] AI response failed', ['response' => $response]);
+                // Log::error('[Chatbot] AI response failed', ['response' => $response]);
                 $errorMessage = "I'm sorry, I'm having trouble processing your request. Please try again.";
                 $this->messages[] = [
                     'role' => 'assistant',
@@ -224,7 +232,7 @@ class BookingChatbot extends Component
         }
 
         $this->isAiTyping = false;
-        Log::info('[Chatbot] Process completed, dispatching update');
+        // Log::info('[Chatbot] Process completed, dispatching update');
         $this->dispatch('booking-chat-updated');
     }
 
@@ -290,15 +298,15 @@ class BookingChatbot extends Component
      */
     protected function callOpenAiWithTools(string $userMessage, array $history): array
     {
-        Log::info('[OpenAI] Starting OpenAI call', ['userMessage' => substr($userMessage, 0, 50)]);
+        // Log::info('[OpenAI] Starting OpenAI call', ['userMessage' => substr($userMessage, 0, 50)]);
         
         try {
             $apiKey = config('services.openai.api_key');
             if (empty($apiKey)) {
-                Log::error('[OpenAI] API key not configured');
+                // Log::error('[OpenAI] API key not configured');
                 throw new \Exception('OpenAI API key not configured');
             }
-            Log::info('[OpenAI] API key found, building messages');
+            // Log::info('[OpenAI] API key found, building messages');
 
             // Build messages array
             $messages = [
@@ -317,7 +325,7 @@ class BookingChatbot extends Component
                     ];
                 }
             }
-            Log::info('[OpenAI] Added history messages', ['count' => count($messages)]);
+            // Log::info('[OpenAI] Added history messages', ['count' => count($messages)]);
 
             // Add current conversation from this session
             foreach ($this->messages as $msg) {
@@ -328,11 +336,11 @@ class BookingChatbot extends Component
                     ];
                 }
             }
-            Log::info('[OpenAI] Total messages to send', ['count' => count($messages)]);
+            // Log::info('[OpenAI] Total messages to send', ['count' => count($messages)]);
 
             // Define tools for function calling
             $tools = $this->getToolDefinitions();
-            Log::info('[OpenAI] Tool definitions prepared', ['tool_count' => count($tools)]);
+            // Log::info('[OpenAI] Tool definitions prepared', ['tool_count' => count($tools)]);
 
             $payload = [
                 'model' => 'gpt-4o-mini',
@@ -343,7 +351,7 @@ class BookingChatbot extends Component
                 'max_tokens' => 1000,
             ];
 
-            Log::info('[OpenAI] Sending request to OpenAI API');
+            // Log::info('[OpenAI] Sending request to OpenAI API');
             $response = \Illuminate\Support\Facades\Http::withToken($apiKey)
                 ->timeout(60)
                 ->post('https://api.openai.com/v1/chat/completions', $payload);
@@ -354,19 +362,19 @@ class BookingChatbot extends Component
             }
 
             $data = $response->json();
-            Log::info('[OpenAI] Raw API response received', ['usage' => $data['usage'] ?? null]);
+            // Log::info('[OpenAI] Raw API response received', ['usage' => $data['usage'] ?? null]);
             
             $choice = $data['choices'][0] ?? null;
             $message = $choice['message'] ?? null;
 
             // Handle tool calls
             if (!empty($message['tool_calls'])) {
-                Log::info('[OpenAI] Tool calls detected', ['count' => count($message['tool_calls'])]);
+                // Log::info('[OpenAI] Tool calls detected', ['count' => count($message['tool_calls'])]);
                 return $this->handleToolCalls($message['tool_calls'], $messages, $apiKey);
             }
 
             // Regular response
-            Log::info('[OpenAI] Returning regular response');
+            // Log::info('[OpenAI] Returning regular response');
             return [
                 'success' => true,
                 'message' => $message['content'] ?? 'I apologize, I could not process that.',
@@ -374,7 +382,7 @@ class BookingChatbot extends Component
             ];
 
         } catch (\Exception $e) {
-            Log::error('[OpenAI] Call Error: ' . $e->getMessage());
+            // Log::error('[OpenAI] Call Error: ' . $e->getMessage());
             return ['success' => false, 'message' => $e->getMessage()];
         }
     }
@@ -384,7 +392,7 @@ class BookingChatbot extends Component
      */
     protected function handleToolCalls(array $toolCalls, array $messages, string $apiKey): array
     {
-        Log::info('[ToolHandler] Starting tool call handling', ['tool_count' => count($toolCalls)]);
+        // Log::info('[ToolHandler] Starting tool call handling', ['tool_count' => count($toolCalls)]);
         
         // Add assistant message with tool calls
         $messages[] = [
@@ -398,22 +406,22 @@ class BookingChatbot extends Component
             $arguments = json_decode($toolCall['function']['arguments'] ?? '{}', true);
             $toolCallId = $toolCall['id'] ?? '';
 
-            Log::info('[Tool Call] Executing tool', [
-                'tool'      => $functionName,
-                'arguments' => $arguments,
-            ]);
+            // Log::info('[Tool Call] Executing tool', [
+            //     'tool'      => $functionName,
+            //     'arguments' => $arguments,
+            // ]);
 
             // Execute the tool
-            Log::info('[ToolExecutor] About to execute ' . $functionName);
+            // Log::info('[ToolExecutor] About to execute ' . $functionName);
             $result = $this->executeTool($functionName, $arguments);
 
-            Log::info('[Tool Result] Raw response from ' . $functionName, [
-                'result' => $result,
-                'result_length' => strlen($result),
-            ]);
+            // Log::info('[Tool Result] Raw response from ' . $functionName, [
+            //     'result' => $result,
+            //     'result_length' => strlen($result),
+            // ]);
 
             // Save tool result to database only (NOT the internal "Calling tool" message)
-            Log::info('[ToolHandler] Saving tool result to DB');
+            // Log::info('[ToolHandler] Saving tool result to DB');
             $this->saveMessageToDatabase('tool', $result, $functionName);
 
             // Add tool response
@@ -425,7 +433,7 @@ class BookingChatbot extends Component
         }
 
         // Get final response from OpenAI
-        Log::info('[OpenAI] Sending tool results back to OpenAI for final response');
+        // Log::info('[OpenAI] Sending tool results back to OpenAI for final response');
 
         $response = \Illuminate\Support\Facades\Http::withToken($apiKey)
             ->timeout(60)
@@ -437,17 +445,17 @@ class BookingChatbot extends Component
             ]);
 
         if (!$response->successful()) {
-            Log::error('[OpenAI] Final response failed', ['status' => $response->status(), 'body' => $response->body()]);
+            // Log::error('[OpenAI] Final response failed', ['status' => $response->status(), 'body' => $response->body()]);
             return ['success' => false, 'message' => 'Tool handling error'];
         }
 
         $data    = $response->json();
         $content = $data['choices'][0]['message']['content'] ?? 'I apologize, I could not complete that action.';
 
-        Log::info('[OpenAI] Final AI response received', [
-            'message' => $content,
-            'usage'   => $data['usage'] ?? null,
-        ]);
+        // Log::info('[OpenAI] Final AI response received', [
+        //     'message' => $content,
+        //     'usage'   => $data['usage'] ?? null,
+        // ]);
 
         return [
             'success' => true,
@@ -461,7 +469,7 @@ class BookingChatbot extends Component
      */
     protected function executeTool(string $name, array $arguments): string
     {
-        Log::info('[ExecuteTool] Executing tool: ' . $name, ['arguments' => $arguments]);
+        // Log::info('[ExecuteTool] Executing tool: ' . $name, ['arguments' => $arguments]);
         
         $toolMap = [
             'check_services' => \App\Ai\Tools\CheckServicesTool::class,
@@ -482,9 +490,9 @@ class BookingChatbot extends Component
         try {
             $tool = new $toolMap[$name]();
             $request = new \Laravel\Ai\Tools\Request($arguments);
-            Log::info('[ExecuteTool] Calling tool handle method');
+            // Log::info('[ExecuteTool] Calling tool handle method');
             $result = $tool->handle($request);
-            Log::info('[ExecuteTool] Tool executed successfully', ['result_type' => gettype($result)]);
+            // Log::info('[ExecuteTool] Tool executed successfully', ['result_type' => gettype($result)]);
             return (string) $result;
         } catch (\Exception $e) {
             Log::error("[ExecuteTool] Tool execution error for {$name}: " . $e->getMessage());

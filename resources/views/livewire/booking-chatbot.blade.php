@@ -38,7 +38,7 @@
                 </div>
                 <div>
                     <h3 class="font-bold text-lg leading-tight">AI Booking Assistant</h3>
-                    <p class="text-xs text-indigo-100">Powered by Laravel AI SDK</p>
+                    <p class="text-xs text-indigo-100">Powered by Qwaiting AI</p>
                 </div>
             </div>
             <div class="flex items-center text-xs font-semibold bg-white/10 px-2 py-1 rounded-full">
@@ -167,8 +167,7 @@
                 const wireId = wireEl?.getAttribute('wire:id');
                 const component = wireId ? window.Livewire.find(wireId) : null;
                 if (component) {
-                    component.set('userInput', text);
-                    component.call('sendMessage');
+                    component.call('sendMessage', text);
                 }
             }
         });
