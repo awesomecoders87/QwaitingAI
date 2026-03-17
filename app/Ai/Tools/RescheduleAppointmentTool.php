@@ -53,7 +53,8 @@ class RescheduleAppointmentTool implements Tool
 
         try {
             $response = \Illuminate\Support\Facades\Http::asForm()
-                ->timeout(30)
+                ->timeout(300)
+                ->withOptions(['curl' => [CURLOPT_IPRESOLVE => CURL_IPRESOLVE_V4]])
                 ->post('https://qwaiting-ai.thevistiq.com/api/edit-booking', $data);
 
             if ($response->successful()) {

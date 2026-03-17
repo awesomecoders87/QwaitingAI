@@ -41,7 +41,9 @@ class CheckDatetimeAvailabilityTool implements Tool
                 'time'         => $time,
             ]);
 
-            $response = \Illuminate\Support\Facades\Http::timeout(30)->post($queryUrl);
+            $response = \Illuminate\Support\Facades\Http::timeout(300)
+                ->withOptions(['curl' => [CURLOPT_IPRESOLVE => CURL_IPRESOLVE_V4]])
+                ->post($queryUrl);
 
             if ($response->successful()) {
                 $data = $response->json();

@@ -159,9 +159,10 @@
         // Make markdown list items clickable
         document.addEventListener('click', (e) => {
             const li = e.target.closest('#chat-messages-container .chatbot-response-content li');
-            if (!li) return;
+            if (!li || li.classList.contains('no-click')) return;
             
-            let text = li.innerText.replace(/^[-*•]\s*/, '').trim();
+            // Re-verify and clean string including arrows
+            let text = li.innerText.replace(/^[→\-*•]\s*/, '').trim();
             if (text) {
                 const wireEl = li.closest('[wire\\:id]');
                 const wireId = wireEl?.getAttribute('wire:id');
@@ -172,11 +173,38 @@
             }
         });
 
-        // Auto-scroll hooks
+        // Apply non-clickable styling to inputs and summaries
+        function applyNoClickStyles() {
+            const lis = document.querySelectorAll('#chat-messages-container .chatbot-response-content li:not(.no-click)');
+            lis.forEach(li => {
+                const text = li.innerText.trim();
+                const lowerText = text.toLowerCase();
+                
+                // Identify questions, inputs and summary attributes
+                const isNonClickable = 
+                    text.includes('?') || 
+                    lowerText.includes('your name') || 
+                    lowerText.includes('your phone') ||
+                    lowerText.includes('your email') ||
+                    /^[^a-zA-Z]*(Service|Date|Time|Name|Phone|Email|Booking Ref|Reference ID|Status)\s*:/i.test(text);
+                
+                if (isNonClickable) {
+                    li.classList.add('no-click');
+                }
+            });
+        }
+
+        // Auto-scroll and style hooks
         document.addEventListener('livewire:initialized', () => {
+            applyNoClickStyles();
             Livewire.hook('message.processed', () => {
                 window.dispatchEvent(new CustomEvent('booking-chat-updated'));
+                applyNoClickStyles();
             });
+        });
+
+        window.addEventListener('booking-chat-updated', () => {
+            applyNoClickStyles();
         });
     </script>
 
@@ -201,11 +229,14 @@
             cursor: pointer;
             transition: all 0.2s ease;
         }
-        .chatbot-response-content li:hover {
+        .chatbot-response-content li:not(.no-click):hover {
             background: linear-gradient(135deg, #EEF2FF 0%, #E0E7FF 100%);
             border-color: #C7D2FE;
             color: #4F46E5;
             transform: translateX(4px);
+        }
+        .chatbot-response-content li.no-click {
+            cursor: default;
         }
         .chatbot-response-content li::before {
             content: '→';

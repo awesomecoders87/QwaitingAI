@@ -23,6 +23,7 @@ class CheckServicesTool implements Tool
         try {
             Log::info('[CheckServicesTool] Making HTTP request to fetch services');
             $response = \Illuminate\Support\Facades\Http::timeout(300)
+                ->withOptions(['curl' => [CURLOPT_IPRESOLVE => CURL_IPRESOLVE_V4]])
                 ->get('https://qwaiting-ai.thevistiq.com/api/check-service');
 
             if ($response->successful()) {
