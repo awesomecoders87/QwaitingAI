@@ -370,6 +370,7 @@ $settingsidebar = App\Models\SiteDetail::viewImage('business_logo', tenant('id')
                         </li>
                     @endcan
 
+                    @if(config('services.ai_queue_analysis.enabled'))
                         <li>
                             <a data-tooltip="AI Queue Analysis" href="{{ route('tenant.ai-queue-analytics') }}" class="menu-item group"
                                 :class=" (selected === 'ai-queue-analytics') || (page === 'ai-queue-analytics') ? 'menu-item-active' : 'menu-item-inactive dark:text-gray-300'">
@@ -384,6 +385,8 @@ $settingsidebar = App\Models\SiteDetail::viewImage('business_logo', tenant('id')
                             </a>
 
                         </li>
+
+                    @endif
                     @can('Reports')
                                     <li>
                                         <!-- <p data-tooltip="Reports" @click.prevent="selected = (selected === 'Reports' ? '':'Reports')" class="menu-item group"

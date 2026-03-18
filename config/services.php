@@ -80,5 +80,8 @@ return [
         'redirect_uri' => env('SINGPASS_REDIRECT_URI', ''),
         'iat_offset_seconds' => env('SINGPASS_IAT_OFFSET_SECONDS', 0),
     ],
+    'ai_queue_analysis' => [
+        'enabled' => env('AI_QUEUE_ANALYSIS_ENABLED', false),
+    ],
 
 ];
