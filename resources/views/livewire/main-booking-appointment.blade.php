@@ -1241,7 +1241,11 @@ document.addEventListener("livewire:init", function () {
     });
 </script>
 <!-- @include('n8n.chatbot') -->
-@livewire('booking-chatbot')
+
+@if(config('services.booking.enabled'))
+    @livewire('booking-chatbot')
+@endif
+
     </div>
 
 </div>

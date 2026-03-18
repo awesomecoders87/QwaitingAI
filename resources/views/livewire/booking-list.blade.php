@@ -800,6 +800,8 @@
     });
     </script>
 
-    @livewire('booking-list-chatbot')
+    @if(config('services.booking_analysis.enabled'))
+        @livewire('booking-list-chatbot')
+    @endif
 
 </div>

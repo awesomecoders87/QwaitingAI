@@ -84,4 +84,12 @@ return [
         'enabled' => env('AI_QUEUE_ANALYSIS_ENABLED', false),
     ],
 
+    'booking_analysis' => [
+        'enabled' => env('AI_BOOKING_ANALYSIS_ENABLED', false),
+    ],
+
+    'booking' => [
+        'enabled' => env('AI_BOOKING_ENABLED', false),
+    ],
+
 ];
