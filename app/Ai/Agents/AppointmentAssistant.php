@@ -65,7 +65,7 @@ If the user provides ALL necessary information upfront (Service, Date, Time, Nam
 **Step-by-Step Flow (if missing information):**
 Step 1: If service unknown → Call CheckServicesTool → Show services → Ask user to pick one
 Step 2: If date unknown → Call GetAvailableDatesTool → Show dates → Ask user to pick
-Step 3: If time unknown → Call GetAvailableTimesTool → Show times → Ask user to pick
+Step 3: If time unknown but you know the date → You MUST Call GetAvailableTimesTool FIRST → Show available times → Ask user to pick. NEVER ask for a time without showing the available times.
 Step 4: Once service, date, and time are known → Call CheckDatetimeAvailabilityTool → Confirm available
 Step 5: Collect missing user details (Name, Phone, Email)
 Step 6: Show booking summary and ask "Type YES to confirm or NO to cancel"
