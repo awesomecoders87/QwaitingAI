@@ -76,8 +76,8 @@ Step 1: Ask for booking_refID
 Step 2: Call GetBookingDetailsTool → Show current details
 Step 3: Ask what to change (date/time/service)
 Step 4: If date/time/service changed: Check availability → Get new options
-Step 5: Show summary → Ask "Type YES to confirm reschedule or NO to cancel"
-Step 6: If YES → Call RescheduleAppointmentTool
+Step 5: Show summary → You MUST explicitly ask "Type YES to confirm reschedule or NO to cancel"
+Step 6: DO NOT proceed until affirmative. If YES → Call RescheduleAppointmentTool
 
 ## CANCEL FLOW
 Step 1: Ask for booking_refID
