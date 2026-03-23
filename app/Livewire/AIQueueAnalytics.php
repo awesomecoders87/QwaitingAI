@@ -158,13 +158,13 @@ class AIQueueAnalytics extends Component
 
     public function updated($propertyName)
     {
-        Log::info('[AIQueueAnalytics] updated hook called', [
-            'property' => $propertyName,
-            'value' => $this->$propertyName
-        ]);
+        // Log::info('[AIQueueAnalytics] updated hook called', [
+        //     'property' => $propertyName,
+        //     'value' => $this->$propertyName
+        // ]);
 
         if (in_array($propertyName, ['startDate', 'endDate', 'location', 'selectedQueue'])) {
-            Log::info('[AIQueueAnalytics] Filter changed, reloading analytics', ['property' => $propertyName]);
+            // Log::info('[AIQueueAnalytics] Filter changed, reloading analytics', ['property' => $propertyName]);
             $this->loadAnalytics();
         }
     }
@@ -179,12 +179,12 @@ class AIQueueAnalytics extends Component
 
     public function loadAnalytics()
     {
-        Log::info('[AIQueueAnalytics] loadAnalytics started', [
-            'startDate' => $this->startDate,
-            'endDate' => $this->endDate,
-            'selectedQueue' => $this->selectedQueue,
-            'location' => $this->location
-        ]);
+        // Log::info('[AIQueueAnalytics] loadAnalytics started', [
+        //     'startDate' => $this->startDate,
+        //     'endDate' => $this->endDate,
+        //     'selectedQueue' => $this->selectedQueue,
+        //     'location' => $this->location
+        // ]);
         try {
             $this->isShowingPrediction = false;
             $this->calculateMetrics();
@@ -207,12 +207,12 @@ class AIQueueAnalytics extends Component
                 'peakHoursForecast' => $this->peakHoursForecast
             ]);
 
-            Log::info('[AIQueueAnalytics] loadAnalytics completed successfully', [
-                'incomingSessions' => $this->incomingSessions,
-                'engagedSessions' => $this->engagedSessions,
-                'avgWaitTime' => $this->avgWaitTime,
-                'lastUpdate' => $this->lastUpdate
-            ]);
+            // Log::info('[AIQueueAnalytics] loadAnalytics completed successfully', [
+            //     'incomingSessions' => $this->incomingSessions,
+            //     'engagedSessions' => $this->engagedSessions,
+            //     'avgWaitTime' => $this->avgWaitTime,
+            //     'lastUpdate' => $this->lastUpdate
+            // ]);
         } catch (\Exception $e) {
             Log::error('[AIQueueAnalytics] Error during loadAnalytics', ['error' => $e->getMessage()]);
         }
@@ -220,7 +220,7 @@ class AIQueueAnalytics extends Component
 
     private function calculateMetrics()
     {
-        Log::info('[AIQueueAnalytics] calculateMetrics starting', ['selectedQueue' => $this->selectedQueue]);
+        // Log::info('[AIQueueAnalytics] calculateMetrics starting', ['selectedQueue' => $this->selectedQueue]);
         $startDate = Carbon::parse($this->startDate, $this->timezone)->startOfDay();
         $endDate = Carbon::parse($this->endDate, $this->timezone)->endOfDay();
 
@@ -233,24 +233,24 @@ class AIQueueAnalytics extends Component
         if ($this->selectedQueue !== 'all' && !empty($this->selectedQueue)) {
             $queueId = (int) $this->selectedQueue;
             $query->where('category_id', $queueId);
-            Log::info('[AIQueueAnalytics] Applying category_id filter', ['category_id' => $queueId]);
+            // Log::info('[AIQueueAnalytics] Applying category_id filter', ['category_id' => $queueId]);
         } else {
             Log::info('[AIQueueAnalytics] No category filter applied (selectedQueue is all)');
         }
 
         // Incoming Sessions (Total created tickets)
         $this->incomingSessions = (clone $query)->count();
-        Log::info('[AIQueueAnalytics] calculateMetrics: incomingSessions', [
-            'count' => $this->incomingSessions,
-            'sql' => $query->toSql(),
-            'bindings' => $query->getBindings()
-        ]);
+        // Log::info('[AIQueueAnalytics] calculateMetrics: incomingSessions', [
+        //     'count' => $this->incomingSessions,
+        //     'sql' => $query->toSql(),
+        //     'bindings' => $query->getBindings()
+        // ]);
 
         // Engaged Sessions (Served tickets)
         $this->engagedSessions = (clone $query)
             ->where('status', 'Close')
             ->count();
-        Log::info('[AIQueueAnalytics] calculateMetrics: engagedSessions', ['count' => $this->engagedSessions]);
+        // Log::info('[AIQueueAnalytics] calculateMetrics: engagedSessions', ['count' => $this->engagedSessions]);
 
         // Average Wait Time (in seconds)
         $avgWaitSeconds = (clone $query)
@@ -260,7 +260,7 @@ class AIQueueAnalytics extends Component
             ->value('avg_wait');
         
         $this->avgWaitTime = round($avgWaitSeconds ?: 0, 1);
-        Log::info('[AIQueueAnalytics] calculateMetrics: avgWaitTime', ['seconds' => $this->avgWaitTime]);
+        // Log::info('[AIQueueAnalytics] calculateMetrics: avgWaitTime', ['seconds' => $this->avgWaitTime]);
 
         // Average Session Handle Time (in minutes)
         $avgHandleSeconds = (clone $query)
@@ -270,7 +270,7 @@ class AIQueueAnalytics extends Component
             ->value('avg_handle');
         
         $this->avgSessionHandleTime = round(($avgHandleSeconds ?: 0) / 60, 1);
-        Log::info('[AIQueueAnalytics] calculateMetrics: avgSessionHandleTime', ['minutes' => $this->avgSessionHandleTime]);
+        // Log::info('[AIQueueAnalytics] calculateMetrics: avgSessionHandleTime', ['minutes' => $this->avgSessionHandleTime]);
 
         // Transfer Rate (percentage of transferred tickets)
         $transferredCount = (clone $query)
@@ -286,13 +286,13 @@ class AIQueueAnalytics extends Component
             ->whereBetween('created_at', [$startDate, $endDate])
             ->avg('rating') ?: 0;
         
-        Log::info('[AIQueueAnalytics] calculateMetrics: avgSessionSentiment raw', ['rating' => $this->avgSessionSentiment]);
+        // Log::info('[AIQueueAnalytics] calculateMetrics: avgSessionSentiment raw', ['rating' => $this->avgSessionSentiment]);
 
         // Convert rating to percentage (assuming 1-5 scale)
         if ($this->avgSessionSentiment > 0) {
             $this->avgSessionSentiment = round(($this->avgSessionSentiment / 5) * 100, 1);
         }
-        Log::info('[AIQueueAnalytics] calculateMetrics: avgSessionSentiment percent', ['percent' => $this->avgSessionSentiment]);
+        // Log::info('[AIQueueAnalytics] calculateMetrics: avgSessionSentiment percent', ['percent' => $this->avgSessionSentiment]);
 
         // Calculate trends (compare with previous period)
         $this->calculateTrends($startDate, $endDate);
@@ -343,7 +343,7 @@ class AIQueueAnalytics extends Component
 
     private function generateAIInsights()
     {
-        Log::info('[AIQueueAnalytics] generateAIInsights starting');
+        // Log::info('[AIQueueAnalytics] generateAIInsights starting');
         // 1. Wait Time Predictions
         $this->predictWaitTimes();
 
@@ -364,12 +364,12 @@ class AIQueueAnalytics extends Component
 
         // 7. Throughput Optimization
         $this->optimizeThroughput();
-        Log::info('[AIQueueAnalytics] generateAIInsights completed');
+        // Log::info('[AIQueueAnalytics] generateAIInsights completed');
     }
 
     private function predictWaitTimes()
     {
-        Log::info('[AIQueueAnalytics] predictWaitTimes starting', ['selectedQueue' => $this->selectedQueue]);
+        // Log::info('[AIQueueAnalytics] predictWaitTimes starting', ['selectedQueue' => $this->selectedQueue]);
         // AI-powered wait time prediction - ALIGNED WITH DASHBOARD (arrives_time filter, datetime grouping)
         $hourlyData = QueueStorage::where('team_id', $this->teamId)
             ->where('locations_id', $this->location)
@@ -396,12 +396,12 @@ class AIQueueAnalytics extends Component
                 'confidence' => rand(75, 95) // Simulated confidence score
             ];
         })->toArray();
-        Log::info('[AIQueueAnalytics] predictWaitTimes count', ['count' => count($this->waitTimePredictions), 'data' => $this->waitTimePredictions]);
+        // Log::info('[AIQueueAnalytics] predictWaitTimes count', ['count' => count($this->waitTimePredictions), 'data' => $this->waitTimePredictions]);
     }
 
     private function generateStaffingRecommendations()
     {
-        Log::info('[AIQueueAnalytics] generateStaffingRecommendations starting', ['selectedQueue' => $this->selectedQueue]);
+        // Log::info('[AIQueueAnalytics] generateStaffingRecommendations starting', ['selectedQueue' => $this->selectedQueue]);
         // AI recommendation for staffing - ALIGNED WITH DASHBOARD
         $query = QueueStorage::where('team_id', $this->teamId)
             ->where('locations_id', $this->location)
@@ -435,12 +435,12 @@ class AIQueueAnalytics extends Component
                 'priority' => $recommendedStaff > 3 ? 'high' : ($recommendedStaff > 1 ? 'medium' : 'low')
             ];
         })->toArray();
-        Log::info('[AIQueueAnalytics] generateStaffingRecommendations count', ['count' => count($this->staffingRecommendations)]);
+        // Log::info('[AIQueueAnalytics] generateStaffingRecommendations count', ['count' => count($this->staffingRecommendations)]);
     }
 
     private function calculateNoShowProbability()
     {
-        Log::info('[AIQueueAnalytics] calculateNoShowProbability starting', ['selectedQueue' => $this->selectedQueue]);
+        // Log::info('[AIQueueAnalytics] calculateNoShowProbability starting', ['selectedQueue' => $this->selectedQueue]);
         
         $baseQuery = QueueStorage::where('team_id', $this->teamId)
             ->where('locations_id', $this->location)
@@ -459,12 +459,12 @@ class AIQueueAnalytics extends Component
         $this->noShowProbability = $totalBooked > 0 
             ? round(($noShows / $totalBooked) * 100, 1) 
             : 0;
-        Log::info('[AIQueueAnalytics] calculateNoShowProbability', ['probability' => $this->noShowProbability]);
+        // Log::info('[AIQueueAnalytics] calculateNoShowProbability', ['probability' => $this->noShowProbability]);
     }
 
     private function forecastPeakHours()
     {
-        Log::info('[AIQueueAnalytics] forecastPeakHours starting', ['selectedQueue' => $this->selectedQueue]);
+        // Log::info('[AIQueueAnalytics] forecastPeakHours starting', ['selectedQueue' => $this->selectedQueue]);
         
         $query = QueueStorage::where('team_id', $this->teamId)
             ->where('locations_id', $this->location)
@@ -490,12 +490,12 @@ class AIQueueAnalytics extends Component
                 'severity' => $item->count > 20 ? 'high' : ($item->count > 10 ? 'medium' : 'low')
             ];
         })->toArray();
-        Log::info('[AIQueueAnalytics] forecastPeakHours count', ['count' => count($this->peakHoursForecast)]);
+        // Log::info('[AIQueueAnalytics] forecastPeakHours count', ['count' => count($this->peakHoursForecast)]);
     }
 
     private function detectSLABreaches()
     {
-        Log::info('[AIQueueAnalytics] detectSLABreaches starting', ['selectedQueue' => $this->selectedQueue]);
+        // Log::info('[AIQueueAnalytics] detectSLABreaches starting', ['selectedQueue' => $this->selectedQueue]);
         // Detect potential SLA breaches (e.g., wait time > 15 minutes)
         $slaThreshold = 15 * 60; // 15 minutes in seconds
 
@@ -526,12 +526,12 @@ class AIQueueAnalytics extends Component
                 'severity' => $item->breach_count > 10 ? 'critical' : ($item->breach_count > 5 ? 'warning' : 'info')
             ];
         })->toArray();
-        Log::info('[AIQueueAnalytics] detectSLABreaches count', ['count' => count($this->slaBreachAlerts)]);
+        // Log::info('[AIQueueAnalytics] detectSLABreaches count', ['count' => count($this->slaBreachAlerts)]);
     }
 
     private function detectBottlenecks()
     {
-        Log::info('[AIQueueAnalytics] detectBottlenecks starting', ['selectedQueue' => $this->selectedQueue]);
+        // Log::info('[AIQueueAnalytics] detectBottlenecks starting', ['selectedQueue' => $this->selectedQueue]);
         
         $query = QueueStorage::where('team_id', $this->teamId)
             ->where('locations_id', $this->location)
@@ -562,12 +562,12 @@ class AIQueueAnalytics extends Component
                 'impact' => $item->avg_wait > 900 ? 'high' : ($item->avg_wait > 600 ? 'medium' : 'low')
             ];
         })->toArray();
-        Log::info('[AIQueueAnalytics] detectBottlenecks count', ['count' => count($this->bottleneckDetection)]);
+        // Log::info('[AIQueueAnalytics] detectBottlenecks count', ['count' => count($this->bottleneckDetection)]);
     }
 
     private function optimizeThroughput()
     {
-        Log::info('[AIQueueAnalytics] optimizeThroughput starting', ['selectedQueue' => $this->selectedQueue]);
+        // Log::info('[AIQueueAnalytics] optimizeThroughput starting', ['selectedQueue' => $this->selectedQueue]);
         
         $query = QueueStorage::where('team_id', $this->teamId)
             ->where('locations_id', $this->location)
@@ -603,12 +603,12 @@ class AIQueueAnalytics extends Component
                 'efficiency' => $throughputPerHour > 10 ? 'excellent' : ($throughputPerHour > 6 ? 'good' : 'needs improvement')
             ];
         })->toArray();
-        Log::info('[AIQueueAnalytics] optimizeThroughput count', ['count' => count($this->throughputOptimization)]);
+        // Log::info('[AIQueueAnalytics] optimizeThroughput count', ['count' => count($this->throughputOptimization)]);
     }
 
     private function prepareChartData()
     {
-        Log::info('[AIQueueAnalytics] prepareChartData starting', ['selectedQueue' => $this->selectedQueue]);
+        // Log::info('[AIQueueAnalytics] prepareChartData starting', ['selectedQueue' => $this->selectedQueue]);
         $startDate = Carbon::parse($this->startDate, $this->timezone)->startOfDay();
         $endDate = Carbon::parse($this->endDate, $this->timezone)->endOfDay();
 
@@ -627,7 +627,7 @@ class AIQueueAnalytics extends Component
             ->orderBy('date')
             ->get()
             ->keyBy('date');
-        Log::info('[AIQueueAnalytics] prepareChartData sessionsData count', ['count' => count($sessionsData)]);
+        // Log::info('[AIQueueAnalytics] prepareChartData sessionsData count', ['count' => count($sessionsData)]);
 
         $timeData = (clone $baseQuery)
             ->whereNotNull('called_datetime')
@@ -637,7 +637,7 @@ class AIQueueAnalytics extends Component
             ->orderBy('date')
             ->get()
             ->keyBy('date');
-        Log::info('[AIQueueAnalytics] prepareChartData timeData count', ['count' => count($timeData)]);
+        // Log::info('[AIQueueAnalytics] prepareChartData timeData count', ['count' => count($timeData)]);
 
         // 2. Generate continuous date range loop
         $this->sessionsChartData = [];
@@ -684,10 +684,10 @@ class AIQueueAnalytics extends Component
 
     public function sendMessage(string $message)
     {
-        \Illuminate\Support\Facades\Log::info('[AIQueueAnalytics] sendMessage called', ['raw_message' => $message]);
+        // \Illuminate\Support\Facades\Log::info('[AIQueueAnalytics] sendMessage called', ['raw_message' => $message]);
         
         $message = trim($message);
-        \Illuminate\Support\Facades\Log::info('[AIQueueAnalytics] Message trimmed', ['trimmed_message' => $message]);
+        // \Illuminate\Support\Facades\Log::info('[AIQueueAnalytics] Message trimmed', ['trimmed_message' => $message]);
         
         if (empty($message)) {
             \Illuminate\Support\Facades\Log::warning('[AIQueueAnalytics] Empty message after trim');
@@ -695,7 +695,7 @@ class AIQueueAnalytics extends Component
         }
 
         $this->lastUserQuery = $message;
-        \Illuminate\Support\Facades\Log::info('[AIQueueAnalytics] Set lastUserQuery', ['lastUserQuery' => $this->lastUserQuery]);
+        // \Illuminate\Support\Facades\Log::info('[AIQueueAnalytics] Set lastUserQuery', ['lastUserQuery' => $this->lastUserQuery]);
 
         // Store in server-side history
         $this->chatMessages[] = [
@@ -703,12 +703,12 @@ class AIQueueAnalytics extends Component
             'content' => $message,
             'time'    => Carbon::now()->format('H:i')
         ];
-        \Illuminate\Support\Facades\Log::info('[AIQueueAnalytics] Added message to chat history', ['message_count' => count($this->chatMessages)]);
+        // \Illuminate\Support\Facades\Log::info('[AIQueueAnalytics] Added message to chat history', ['message_count' => count($this->chatMessages)]);
 
         // Process and reply — dispatches aiResponse event, no page re-render
-        \Illuminate\Support\Facades\Log::info('[AIQueueAnalytics] Calling processChat');
+        // \Illuminate\Support\Facades\Log::info('[AIQueueAnalytics] Calling processChat');
         $this->processChat();
-        \Illuminate\Support\Facades\Log::info('[AIQueueAnalytics] processChat completed');
+        // \Illuminate\Support\Facades\Log::info('[AIQueueAnalytics] processChat completed');
     }
 
     public function processChat()
@@ -718,67 +718,105 @@ class AIQueueAnalytics extends Component
             return;
         }
 
-        Log::info('[processChat] Started', ['lastUserQuery' => $this->lastUserQuery]);
+        // Log::info('[processChat] Started', ['lastUserQuery' => $this->lastUserQuery]);
         $this->isChatProcessing = true;
 
         try {
-            Log::info('[processChat] Creating QueueAnalyticsAssistant agent');
+            // Log::info('[processChat] Creating QueueAnalyticsAssistant agent');
             $agent = new \App\Ai\Agents\QueueAnalyticsAssistant($this->teamId, $this->location);
-            Log::info('[processChat] Agent created successfully');
+            // Log::info('[processChat] Agent created successfully');
 
             // Build history from chat messages
             $history = collect($this->chatMessages)->map(fn ($msg) => [
                 'role'    => $msg['role'] === 'user' ? 'user' : 'assistant',
                 'content' => $msg['content']
             ])->all();
-            Log::info('[processChat] Built chat history', ['message_count' => count($history)]);
+            // Log::info('[processChat] Built chat history', ['message_count' => count($history)]);
 
-            Log::info('[processChat] Calling callOpenAiWithTools');
+            // Log::info('[processChat] Calling callOpenAiWithTools');
             $response = $this->callOpenAiWithTools($agent, $history);
-            Log::info('[processChat] OpenAI response received', ['success' => $response['success']]);
+            // Log::info('[processChat] OpenAI response received', ['success' => $response['success']]);
             
             $reply = $response['success'] ? $response['message'] : 'Sorry, I encountered an error. Please try again.';
-            Log::info('[processChat] Reply prepared', ['reply_length' => strlen($reply)]);
+            // Log::info('[processChat] Reply prepared', ['reply_length' => strlen($reply)]);
 
-            // Check if the AI wants to update the dashboard dates or filters based on tool calls
-            Log::info('[processChat] Checking for tool calls in response', [
-                'has_tool_calls' => isset($response['tool_calls']),
-                'count' => isset($response['tool_calls']) ? count($response['tool_calls']) : 0
-            ]);
+            // // Check if the AI wants to update the dashboard dates or filters based on tool calls
+            // Log::info('[processChat] Checking for tool calls in response', [
+            //     'has_tool_calls' => isset($response['tool_calls']),
+            //     'count' => isset($response['tool_calls']) ? count($response['tool_calls']) : 0
+            // ]);
 
             if ($response['success'] && isset($response['tool_calls'])) {
                 foreach ($response['tool_calls'] as $toolCall) {
-                    Log::info('[processChat] Inspecting tool call', ['function' => $toolCall['function']['name']]);
-                    
-                    if ($toolCall['function']['name'] === 'FetchHistoricalMetricsTool' && isset($toolCall['function']['arguments'])) {
-                        $args = json_decode($toolCall['function']['arguments'], true) ?: [];
-                        Log::info('[processChat] FetchHistoricalMetricsTool arguments', ['args' => $args]);
+                    $toolCallId = $toolCall['id'];
+                    $toolName = $toolCall['function']['name'];
+                    $args = json_decode($toolCall['function']['arguments'], true) ?: [];
+                    $toolResult = isset($response['tool_results'][$toolCallId]) 
+                        ? json_decode($response['tool_results'][$toolCallId], true) 
+                        : null;
+
+                    if ($toolName === 'FetchHistoricalMetricsTool') {
+                        $this->isShowingPrediction = false;
                         
                         // Handle Date Updates
                         if (isset($args['start_date']) && isset($args['end_date'])) {
-                            Log::info('[processChat] Syncing dates to dashboard', ['start' => $args['start_date'], 'end' => $args['end_date']]);
                             $this->startDate = $args['start_date'];
                             $this->endDate = $args['end_date'];
                             $this->selectedDuration = 'custom';
-                            
-                            // Update the browser-side date picker
-                            $this->dispatch('update-date-picker', [
-                                'start' => $this->startDate,
-                                'end' => $this->endDate
-                            ]);
+                            $this->dispatch('update-date-picker', ['start' => $this->startDate, 'end' => $this->endDate]);
                         }
 
                         // Handle Queue Filter Updates
                         if (isset($args['queue_id'])) {
-                            Log::info('[processChat] Syncing queue to dashboard', ['queue_id' => $args['queue_id']]);
                             $this->selectedQueue = $args['queue_id'];
+                        }
+                    }
+
+                    if ($toolName === 'PredictQueuePerformanceTool' && $toolResult) {
+                        $this->isShowingPrediction = true;
+                        
+                        // Handle Date Updates to target period
+                        if (isset($args['target_start_date']) && isset($args['target_end_date'])) {
+                            $this->startDate = $args['target_start_date'];
+                            $this->endDate = $args['target_end_date'];
+                            $this->selectedDuration = 'custom';
+                            $this->dispatch('update-date-picker', ['start' => $this->startDate, 'end' => $this->endDate]);
+                        }
+
+                        // Sync predicted values from tool result to dashboard state
+                        if (isset($toolResult['prediction_summary'])) {
+                            $summary = $toolResult['prediction_summary'];
+                            $this->incomingSessions = $summary['predicted_incoming_tickets'] ?? 0;
+                            $this->avgWaitTime = $summary['predicted_avg_wait_minutes'] ?? 0;
+                            $this->engagedSessions = $this->incomingSessions > 0 ? 1 : 0; // Just for visual consistency
+                            $this->avgSessionHandleTime = $toolResult['historical_baseline']['metrics']['avg_handle_minutes'] ?? 5;
+                            $this->noShowProbability = 0; // Prediction doesn't return this yet
+                            
+                            // Re-dispatch analytics event to bypass the loadAnalytics() calc if we want to show PREDICTED data
+                            $this->dispatch('analytics-data-updated', [
+                                'incoming' => $this->incomingSessions,
+                                'engaged' => $this->engagedSessions,
+                                'waitTime' => $this->avgWaitTime,
+                                'handleTime' => $this->avgSessionHandleTime,
+                                'sentiment' => 0,
+                                'waitTimePredictions' => [],
+                                'staffingRecommendations' => [],
+                                'noShowProbability' => 0,
+                                'peakHoursForecast' => []
+                            ]);
                         }
                     }
                 }
             }
 
             // Always refresh dashboard analytics when AI response is ready
-            $this->loadAnalytics();
+            // (If we just updated with prediction data, this might overwrite it unless we add a check)
+            if (!$this->isShowingPrediction) {
+                $this->loadAnalytics();
+            } else {
+                // Just update the timestamp to trigger a render update
+                $this->lastUpdate = (string) microtime(true);
+            }
 
         } catch (\Throwable $e) {
             Log::error('[processChat] Chat Error: ' . $e->getMessage(), [
@@ -787,7 +825,7 @@ class AIQueueAnalytics extends Component
             $reply = 'Sorry, I encountered an error while processing your data. Please try again.';
         }
 
-        Log::info('[processChat] Adding AI response to chat messages');
+        // Log::info('[processChat] Adding AI response to chat messages');
         $this->chatMessages[] = [
             'role'    => 'assistant',
             'content' => $reply,
@@ -795,22 +833,22 @@ class AIQueueAnalytics extends Component
         ];
 
         // Tell Alpine to append the AI bubble — no Livewire re-render
-        Log::info('[processChat] Dispatching chat-ai-response event', ['content' => $reply, 'time' => Carbon::now()->format('H:i')]);
+        // Log::info('[processChat] Dispatching chat-ai-response event', ['content' => $reply, 'time' => Carbon::now()->format('H:i')]);
         $this->dispatch('chat-ai-response', [
             'content' => $reply,
             'time'    => Carbon::now()->format('H:i')
         ]);
         
-        Log::info('[processChat] Completed successfully');
+        // Log::info('[processChat] Completed successfully');
         $this->isChatProcessing = false;
     }
 
     protected function callOpenAiWithTools(QueueAnalyticsAssistant $agent, array $messages): array
     {
-        \Illuminate\Support\Facades\Log::info('[callOpenAiWithTools] Starting OpenAI API call');
+        // \Illuminate\Support\Facades\Log::info('[callOpenAiWithTools] Starting OpenAI API call');
         
         $apiKey = config('services.openai.api_key');
-        \Illuminate\Support\Facades\Log::info('[callOpenAiWithTools] API key exists', ['has_key' => !empty($apiKey)]);
+        // \Illuminate\Support\Facades\Log::info('[callOpenAiWithTools] API key exists', ['has_key' => !empty($apiKey)]);
         
         if (empty($apiKey)) {
             \Illuminate\Support\Facades\Log::error('[callOpenAiWithTools] OpenAI API key not configured');
@@ -824,10 +862,10 @@ class AIQueueAnalytics extends Component
         foreach ($messages as $msg) {
             $apiMessages[] = $msg;
         }
-        \Illuminate\Support\Facades\Log::info('[callOpenAiWithTools] Built API messages', ['message_count' => count($apiMessages)]);
+        // \Illuminate\Support\Facades\Log::info('[callOpenAiWithTools] Built API messages', ['message_count' => count($apiMessages)]);
 
         $toolsDefinition = $this->getToolDefinitions($agent);
-        \Illuminate\Support\Facades\Log::info('[callOpenAiWithTools] Got tool definitions', ['tool_count' => count($toolsDefinition)]);
+        // \Illuminate\Support\Facades\Log::info('[callOpenAiWithTools] Got tool definitions', ['tool_count' => count($toolsDefinition)]);
 
         $payload = [
             'model' => 'gpt-4o',
@@ -836,10 +874,10 @@ class AIQueueAnalytics extends Component
             'tool_choice' => 'auto',
             'temperature' => 0.1,
         ];
-        \Illuminate\Support\Facades\Log::info('[callOpenAiWithTools] Sending request to OpenAI API');
+        // \Illuminate\Support\Facades\Log::info('[callOpenAiWithTools] Sending request to OpenAI API');
 
         $response = Http::withToken($apiKey)->timeout(60)->post('https://api.openai.com/v1/chat/completions', $payload);
-        \Illuminate\Support\Facades\Log::info('[callOpenAiWithTools] API response status', ['successful' => $response->successful()]);
+        // \Illuminate\Support\Facades\Log::info('[callOpenAiWithTools] API response status', ['successful' => $response->successful()]);
 
         if (!$response->successful()) {
             \Illuminate\Support\Facades\Log::error('[callOpenAiWithTools] API error', ['status' => $response->status(), 'body' => $response->body()]);
@@ -847,7 +885,7 @@ class AIQueueAnalytics extends Component
         }
 
         $data = $response->json();
-        \Illuminate\Support\Facades\Log::info('[callOpenAiWithTools] Parsed JSON response');
+        // \Illuminate\Support\Facades\Log::info('[callOpenAiWithTools] Parsed JSON response');
         
         $message = $data['choices'][0]['message'] ?? null;
 
@@ -856,14 +894,15 @@ class AIQueueAnalytics extends Component
             $toolCalls = $message['tool_calls'];
             $result = $this->handleToolCalls($agent, $toolCalls, $apiMessages, $apiKey);
             
-            // Pass the original tool calls back so processChat can act on them (e.g., sync dashboard dates)
+            // Pass the original tool calls and results back so processChat can act on them (e.g., sync dashboard dates)
             if ($result['success']) {
                 $result['tool_calls'] = $toolCalls;
+                // tool_results is already in $result
             }
             return $result;
         }
 
-        \Illuminate\Support\Facades\Log::info('[callOpenAiWithTools] No tool calls, returning direct message');
+        // \Illuminate\Support\Facades\Log::info('[callOpenAiWithTools] No tool calls, returning direct message');
         return [
             'success' => true,
             'message' => $message['content'] ?? 'I cannot answer that right now.',
@@ -878,6 +917,8 @@ class AIQueueAnalytics extends Component
             'tool_calls' => $toolCalls,
         ];
 
+        $results = [];
+
         foreach ($toolCalls as $toolCall) {
             $functionName = $toolCall['function']['name'];
             $arguments = json_decode($toolCall['function']['arguments'], true) ?: [];
@@ -888,6 +929,7 @@ class AIQueueAnalytics extends Component
                 if (class_basename($tool) === $functionName) {
                     try {
                         $result = $tool->handle(new \Laravel\Ai\Tools\Request($arguments));
+                        $results[$toolCall['id']] = $result; // Store raw result for processChat
                     } catch (\Exception $e) {
                         $result = "Error executing tool: " . $e->getMessage();
                     }
@@ -919,6 +961,7 @@ class AIQueueAnalytics extends Component
         return [
             'success' => true,
             'message' => $data['choices'][0]['message']['content'] ?? 'Done.',
+            'tool_results' => $results // Return the raw tool results
         ];
     }
 
@@ -1002,16 +1045,16 @@ class AIQueueAnalytics extends Component
         // One final force-update of the key before rendering
         $this->lastUpdate = (string) microtime(true);
 
-        Log::info('[AIQueueAnalytics] render() called', [
-            'incomingSessions' => $this->incomingSessions,
-            'engagedSessions' => $this->engagedSessions,
-            'avgWaitTime' => $this->avgWaitTime,
-            'avgSessionHandleTime' => $this->avgSessionHandleTime,
-            'avgSessionSentiment' => $this->avgSessionSentiment,
-            'startDate' => $this->startDate,
-            'endDate' => $this->endDate,
-            'lastUpdate' => $this->lastUpdate
-        ]);
+        // Log::info('[AIQueueAnalytics] render() called', [
+        //     'incomingSessions' => $this->incomingSessions,
+        //     'engagedSessions' => $this->engagedSessions,
+        //     'avgWaitTime' => $this->avgWaitTime,
+        //     'avgSessionHandleTime' => $this->avgSessionHandleTime,
+        //     'avgSessionSentiment' => $this->avgSessionSentiment,
+        //     'startDate' => $this->startDate,
+        //     'endDate' => $this->endDate,
+        //     'lastUpdate' => $this->lastUpdate
+        // ]);
 
         return view('livewire.ai-queue-analytics');
     }

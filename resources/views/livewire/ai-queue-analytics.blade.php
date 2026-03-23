@@ -237,8 +237,8 @@
 
     <!-- Key Metrics Grid -->
     <div class="relative">
-        <!-- Global Loading Overlay -->
-        <div wire:loading wire:target="loadAnalytics, setDateRange, selectedQueue, startDate, endDate, sendMessage, processChat" class="absolute inset-0 z-10 bg-white/50 backdrop-blur-[1px] flex items-center justify-center rounded-xl transition-all duration-300">
+        <!-- Global Loading Overlay (Filters only) -->
+        <div wire:loading wire:target="loadAnalytics, setDateRange, selectedQueue, startDate, endDate" class="absolute inset-0 z-10 bg-white/50 backdrop-blur-[1px] flex items-center justify-center rounded-xl transition-all duration-300">
             <div class="flex flex-col items-center gap-2">
                 <div class="w-10 h-10 border-4 border-indigo-500 border-t-transparent rounded-full animate-spin"></div>
                 <span class="text-xs font-bold text-indigo-600 uppercase tracking-widest">Updating Data...</span>
