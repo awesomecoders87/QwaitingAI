@@ -682,7 +682,6 @@ class AIQueueAnalytics extends Component
             ->get();
     }
 
-    #[Renderless]
     public function sendMessage(string $message)
     {
         \Illuminate\Support\Facades\Log::info('[AIQueueAnalytics] sendMessage called', ['raw_message' => $message]);
@@ -712,7 +711,6 @@ class AIQueueAnalytics extends Component
         \Illuminate\Support\Facades\Log::info('[AIQueueAnalytics] processChat completed');
     }
 
-    #[Renderless]
     public function processChat()
     {
         if (!$this->lastUserQuery) {
@@ -742,18 +740,45 @@ class AIQueueAnalytics extends Component
             $reply = $response['success'] ? $response['message'] : 'Sorry, I encountered an error. Please try again.';
             Log::info('[processChat] Reply prepared', ['reply_length' => strlen($reply)]);
 
-            // Check if the AI wants to update the dashboard dates based on tool calls
+            // Check if the AI wants to update the dashboard dates or filters based on tool calls
+            Log::info('[processChat] Checking for tool calls in response', [
+                'has_tool_calls' => isset($response['tool_calls']),
+                'count' => isset($response['tool_calls']) ? count($response['tool_calls']) : 0
+            ]);
+
             if ($response['success'] && isset($response['tool_calls'])) {
                 foreach ($response['tool_calls'] as $toolCall) {
+                    Log::info('[processChat] Inspecting tool call', ['function' => $toolCall['function']['name']]);
+                    
                     if ($toolCall['function']['name'] === 'FetchHistoricalMetricsTool' && isset($toolCall['function']['arguments'])) {
                         $args = json_decode($toolCall['function']['arguments'], true) ?: [];
+                        Log::info('[processChat] FetchHistoricalMetricsTool arguments', ['args' => $args]);
+                        
+                        // Handle Date Updates
                         if (isset($args['start_date']) && isset($args['end_date'])) {
-                            Log::info('[processChat] AI requested date change', ['start' => $args['start_date'], 'end' => $args['end_date']]);
-                            $this->dispatch('ai-set-date-range', start: $args['start_date'], end: $args['end_date']);
+                            Log::info('[processChat] Syncing dates to dashboard', ['start' => $args['start_date'], 'end' => $args['end_date']]);
+                            $this->startDate = $args['start_date'];
+                            $this->endDate = $args['end_date'];
+                            $this->selectedDuration = 'custom';
+                            
+                            // Update the browser-side date picker
+                            $this->dispatch('update-date-picker', [
+                                'start' => $this->startDate,
+                                'end' => $this->endDate
+                            ]);
+                        }
+
+                        // Handle Queue Filter Updates
+                        if (isset($args['queue_id'])) {
+                            Log::info('[processChat] Syncing queue to dashboard', ['queue_id' => $args['queue_id']]);
+                            $this->selectedQueue = $args['queue_id'];
                         }
                     }
                 }
             }
+
+            // Always refresh dashboard analytics when AI response is ready
+            $this->loadAnalytics();
 
         } catch (\Throwable $e) {
             Log::error('[processChat] Chat Error: ' . $e->getMessage(), [
@@ -828,7 +853,14 @@ class AIQueueAnalytics extends Component
 
         if (!empty($message['tool_calls'])) {
             \Illuminate\Support\Facades\Log::info('[callOpenAiWithTools] Tool calls detected', ['count' => count($message['tool_calls'])]);
-            return $this->handleToolCalls($agent, $message['tool_calls'], $apiMessages, $apiKey);
+            $toolCalls = $message['tool_calls'];
+            $result = $this->handleToolCalls($agent, $toolCalls, $apiMessages, $apiKey);
+            
+            // Pass the original tool calls back so processChat can act on them (e.g., sync dashboard dates)
+            if ($result['success']) {
+                $result['tool_calls'] = $toolCalls;
+            }
+            return $result;
         }
 
         \Illuminate\Support\Facades\Log::info('[callOpenAiWithTools] No tool calls, returning direct message');

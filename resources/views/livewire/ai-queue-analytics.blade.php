@@ -27,7 +27,7 @@
     </div>
 
     <!-- Floating Chat Widget -->
-    <div class="fixed bottom-6 right-6 flex flex-col items-end gap-4 font-sans text-slate-800"
+    <div wire:ignore class="fixed bottom-6 right-6 flex flex-col items-end gap-4 font-sans text-slate-800"
         style="z-index: 2147483647 !important;"
         x-data="{
              open: false,
@@ -165,7 +165,7 @@
     </div>
 
     <!-- Filters -->
-    <div class="mb-8 rounded-xl bg-white border border-slate-200 shadow-sm p-5">
+    <div class="mb-8 rounded-xl bg-white border border-slate-200 shadow-sm p-5" wire:key="filters-{{ $lastUpdate }}">
         <div class="flex flex-wrap gap-5">
             <!-- Date Range Picker -->
             <div class="w-full sm:w-[48%] lg:w-auto lg:flex-1 lg:min-w-[240px]">
@@ -221,7 +221,7 @@
                         class="block w-full rounded-lg border-slate-200 bg-slate-50 p-2.5 text-sm font-medium text-slate-700 focus:border-indigo-500 focus:ring-indigo-500">
                         <option value="all" {{ $selectedQueue == 'all' ? 'selected' : '' }}>All Queues</option>
                         @foreach($this->queues as $queue)
-                        <option value="{{ $queue->id }}" {{ $selectedQueue == $queue->id ? 'selected' : '' }}>{{ $queue->name }}</option>
+                        <option value="{{ $queue->id }}" {{ (string)$selectedQueue === (string)$queue->id ? 'selected' : '' }}>{{ $queue->name }}</option>
                         @endforeach
                     </select>
                     <button wire:click="loadAnalytics" class="p-2.5 bg-slate-100 hover:bg-slate-200 text-slate-600 rounded-lg transition-colors border border-slate-200" title="Refresh Dashboard">
@@ -238,7 +238,7 @@
     <!-- Key Metrics Grid -->
     <div class="relative">
         <!-- Global Loading Overlay -->
-        <div wire:loading wire:target="loadAnalytics, setDateRange, selectedQueue, startDate, endDate" class="absolute inset-0 z-10 bg-white/50 backdrop-blur-[1px] flex items-center justify-center rounded-xl transition-all duration-300">
+        <div wire:loading wire:target="loadAnalytics, setDateRange, selectedQueue, startDate, endDate, sendMessage, processChat" class="absolute inset-0 z-10 bg-white/50 backdrop-blur-[1px] flex items-center justify-center rounded-xl transition-all duration-300">
             <div class="flex flex-col items-center gap-2">
                 <div class="w-10 h-10 border-4 border-indigo-500 border-t-transparent rounded-full animate-spin"></div>
                 <span class="text-xs font-bold text-indigo-600 uppercase tracking-widest">Updating Data...</span>
