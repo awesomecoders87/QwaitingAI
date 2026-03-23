@@ -13,7 +13,9 @@ use App\Models\SiteDetail;
 use Carbon\Carbon;
 use Illuminate\Support\Facades\DB;
 use Livewire\Attributes\Computed;
-use App\Services\OpenAIQueueAnalyst;
+use Livewire\Attributes\Renderless;
+use App\Ai\Agents\QueueAnalyticsAssistant;
+use Illuminate\Support\Facades\Http;
 use Illuminate\Support\Facades\Log;
 
 class AIQueueAnalytics extends Component
@@ -29,7 +31,6 @@ class AIQueueAnalytics extends Component
     public $endDate;
     public $selectedChannel = 'all';
     public $selectedQueue = 'all';
-    public $selectedAgent = 'all';
     public $selectedDuration = 'last_30';
     public $timezone = 'UTC';
     
@@ -59,12 +60,7 @@ class AIQueueAnalytics extends Component
     public $throughputOptimization = [];
     
     // OpenAI Insights
-    public $openaiInsight = '';
-    public $isGeneratingInsight = false;
     public $isShowingPrediction = false;
-    public $openaiError = '';
-    public $aiAnalysisTime = null; // Track when AI analysis occurred
-    public $aiPredictionGenerated = false; // Guard against infinite loop
 
     // Chat Interface
     public $chatInput = '';
@@ -72,20 +68,22 @@ class AIQueueAnalytics extends Component
     public $isChatProcessing = false;
     public $isChatOpen = false;
 
-    public function toggleChat()
-    {
-        $this->isChatOpen = !$this->isChatOpen;
-    }
-    
     // Chart data
     public $sessionsChartData = [];
     public $waitTimeChartData = [];
     public $handleTimeChartData = [];
     public $sessionsByQueueData = [];
+    public $lastUpdate;
+
+    public function toggleChat()
+    {
+        $this->isChatOpen = !$this->isChatOpen;
+    }
 
     public function mount($location_id = null)
     {
         $this->teamId = tenant('id');
+        $this->lastUpdate = (string) microtime(true);
         
         if (empty($this->teamId)) {
             abort(404);
@@ -131,33 +129,6 @@ class AIQueueAnalytics extends Component
         $this->loadAnalytics();
     }
 
-    public function updatedStartDate()
-    {
-        $this->logDebug('MANUAL_DATE_CHANGE', 'updatedStartDate triggered');
-        $this->loadAnalytics();
-    }
-
-    public function updatedEndDate()
-    {
-        $this->logDebug('MANUAL_DATE_CHANGE', 'updatedEndDate triggered');
-        $this->loadAnalytics();
-    }
-
-    public function updatedSelectedChannel()
-    {
-        $this->loadAnalytics();
-    }
-
-    public function updatedSelectedQueue()
-    {
-        $this->loadAnalytics();
-    }
-
-    public function updatedSelectedAgent()
-    {
-        $this->loadAnalytics();
-    }
-
     public function updatedSelectedDuration($value)
     {
         $timezone = $this->timezone ?? 'UTC';
@@ -185,6 +156,19 @@ class AIQueueAnalytics extends Component
         $this->loadAnalytics();
     }
 
+    public function updated($propertyName)
+    {
+        Log::info('[AIQueueAnalytics] updated hook called', [
+            'property' => $propertyName,
+            'value' => $this->$propertyName
+        ]);
+
+        if (in_array($propertyName, ['startDate', 'endDate', 'location', 'selectedQueue'])) {
+            Log::info('[AIQueueAnalytics] Filter changed, reloading analytics', ['property' => $propertyName]);
+            $this->loadAnalytics();
+        }
+    }
+
     public function setDateRange($start, $end)
     {
         $this->startDate = $start;
@@ -195,21 +179,50 @@ class AIQueueAnalytics extends Component
 
     public function loadAnalytics()
     {
-        $this->isShowingPrediction = false;
-        $this->calculateMetrics();
-        $this->generateAIInsights();
-        $this->prepareChartData();
-        
-        // Log final results before displaying on dashboard
-        $this->logFinalResults('AFTER_LOADANALYTICS');
+        Log::info('[AIQueueAnalytics] loadAnalytics started', [
+            'startDate' => $this->startDate,
+            'endDate' => $this->endDate,
+            'selectedQueue' => $this->selectedQueue,
+            'location' => $this->location
+        ]);
+        try {
+            $this->isShowingPrediction = false;
+            $this->calculateMetrics();
+            $this->generateAIInsights();
+            $this->prepareChartData();
+            
+            // Force a refresh by updating the timestamp
+            $this->lastUpdate = (string) microtime(true);
+
+            // Dispatch a direct browser event for Alpine.js to catch (Fallback bridge)
+            $this->dispatch('analytics-data-updated', [
+                'incoming' => $this->incomingSessions,
+                'engaged' => $this->engagedSessions,
+                'waitTime' => $this->avgWaitTime,
+                'handleTime' => $this->avgSessionHandleTime,
+                'sentiment' => $this->avgSessionSentiment,
+                'waitTimePredictions' => array_slice($this->waitTimePredictions, 0, 5),
+                'staffingRecommendations' => array_slice($this->staffingRecommendations, 0, 5),
+                'noShowProbability' => $this->noShowProbability,
+                'peakHoursForecast' => $this->peakHoursForecast
+            ]);
+
+            Log::info('[AIQueueAnalytics] loadAnalytics completed successfully', [
+                'incomingSessions' => $this->incomingSessions,
+                'engagedSessions' => $this->engagedSessions,
+                'avgWaitTime' => $this->avgWaitTime,
+                'lastUpdate' => $this->lastUpdate
+            ]);
+        } catch (\Exception $e) {
+            Log::error('[AIQueueAnalytics] Error during loadAnalytics', ['error' => $e->getMessage()]);
+        }
     }
 
     private function calculateMetrics()
     {
+        Log::info('[AIQueueAnalytics] calculateMetrics starting', ['selectedQueue' => $this->selectedQueue]);
         $startDate = Carbon::parse($this->startDate, $this->timezone)->startOfDay();
         $endDate = Carbon::parse($this->endDate, $this->timezone)->endOfDay();
-
-        // Log::info('calculateMetrics: Start', ['startDate' => $startDate, 'endDate' => $endDate, 'teamId' => $this->teamId, 'location' => $this->location]);
 
         // Build base query
         $query = QueueStorage::where('team_id', $this->teamId)
@@ -217,25 +230,27 @@ class AIQueueAnalytics extends Component
             ->whereBetween('arrives_time', [$startDate, $endDate]);
 
         // Apply filters
-        if ($this->selectedQueue !== 'all') {
-            $query->where('category_id', $this->selectedQueue);
+        if ($this->selectedQueue !== 'all' && !empty($this->selectedQueue)) {
+            $queueId = (int) $this->selectedQueue;
+            $query->where('category_id', $queueId);
+            Log::info('[AIQueueAnalytics] Applying category_id filter', ['category_id' => $queueId]);
+        } else {
+            Log::info('[AIQueueAnalytics] No category filter applied (selectedQueue is all)');
         }
-
-        if ($this->selectedAgent !== 'all') {
-            $query->where('assign_staff_id', $this->selectedAgent);
-        }
-        
-        // Log::info('calculateMetrics: Query built', ['filters' => ['queue' => $this->selectedQueue, 'agent' => $this->selectedAgent]]);
 
         // Incoming Sessions (Total created tickets)
-        $this->incomingSessions = $query->count();
-        // Log::info('calculateMetrics: Incoming Sessions', ['count' => $this->incomingSessions]);
+        $this->incomingSessions = (clone $query)->count();
+        Log::info('[AIQueueAnalytics] calculateMetrics: incomingSessions', [
+            'count' => $this->incomingSessions,
+            'sql' => $query->toSql(),
+            'bindings' => $query->getBindings()
+        ]);
 
         // Engaged Sessions (Served tickets)
         $this->engagedSessions = (clone $query)
-            ->whereIn('status', ['Close'])
+            ->where('status', 'Close')
             ->count();
-        // Log::info('calculateMetrics: Engaged Sessions', ['count' => $this->engagedSessions]);
+        Log::info('[AIQueueAnalytics] calculateMetrics: engagedSessions', ['count' => $this->engagedSessions]);
 
         // Average Wait Time (in seconds)
         $avgWaitSeconds = (clone $query)
@@ -245,7 +260,7 @@ class AIQueueAnalytics extends Component
             ->value('avg_wait');
         
         $this->avgWaitTime = round($avgWaitSeconds ?: 0, 1);
-        // Log::info('calculateMetrics: Avg Wait Time', ['seconds' => $this->avgWaitTime]);
+        Log::info('[AIQueueAnalytics] calculateMetrics: avgWaitTime', ['seconds' => $this->avgWaitTime]);
 
         // Average Session Handle Time (in minutes)
         $avgHandleSeconds = (clone $query)
@@ -255,6 +270,7 @@ class AIQueueAnalytics extends Component
             ->value('avg_handle');
         
         $this->avgSessionHandleTime = round(($avgHandleSeconds ?: 0) / 60, 1);
+        Log::info('[AIQueueAnalytics] calculateMetrics: avgSessionHandleTime', ['minutes' => $this->avgSessionHandleTime]);
 
         // Transfer Rate (percentage of transferred tickets)
         $transferredCount = (clone $query)
@@ -265,24 +281,21 @@ class AIQueueAnalytics extends Component
             ? round(($transferredCount / $this->incomingSessions) * 100, 1) 
             : 0;
 
-        // Average Session Sentiment (based on ratings)
-        $avgRating = (clone $query)
-            ->whereNotNull('rating')
-            ->avg('rating');
+        // Average Session Sentiment (based on Rating model like Dashboard.php)
+        $this->avgSessionSentiment = \App\Models\Rating::where('location_id', $this->location)
+            ->whereBetween('created_at', [$startDate, $endDate])
+            ->avg('rating') ?: 0;
         
+        Log::info('[AIQueueAnalytics] calculateMetrics: avgSessionSentiment raw', ['rating' => $this->avgSessionSentiment]);
+
         // Convert rating to percentage (assuming 1-5 scale)
-        $this->avgSessionSentiment = $avgRating 
-            ? round(($avgRating / 5) * 100, 1) 
-            : 0;
+        if ($this->avgSessionSentiment > 0) {
+            $this->avgSessionSentiment = round(($this->avgSessionSentiment / 5) * 100, 1);
+        }
+        Log::info('[AIQueueAnalytics] calculateMetrics: avgSessionSentiment percent', ['percent' => $this->avgSessionSentiment]);
 
         // Calculate trends (compare with previous period)
         $this->calculateTrends($startDate, $endDate);
-        
-        // Log::info('calculateMetrics: Finished', [
-        //     'handleTime' => $this->avgSessionHandleTime,
-        //     'transferRate' => $this->transferRate,
-        //     'sentiment' => $this->avgSessionSentiment
-        // ]);
     }
 
     private function calculateTrends($startDate, $endDate)
@@ -293,7 +306,10 @@ class AIQueueAnalytics extends Component
 
         $query = QueueStorage::where('team_id', $this->teamId)
             ->where('locations_id', $this->location)
-            ->whereBetween('arrives_time', [$prevStartDate, $prevEndDate]);
+            ->whereBetween('arrives_time', [$prevStartDate, $prevEndDate])
+            ->when($this->selectedQueue !== 'all', function($q) {
+                $q->where('category_id', $this->selectedQueue);
+            });
 
         $prevIncoming = $query->count();
         $this->incomingSessionsTrend = $this->calculatePercentageChange($prevIncoming, $this->incomingSessions);
@@ -327,6 +343,7 @@ class AIQueueAnalytics extends Component
 
     private function generateAIInsights()
     {
+        Log::info('[AIQueueAnalytics] generateAIInsights starting');
         // 1. Wait Time Predictions
         $this->predictWaitTimes();
 
@@ -347,24 +364,25 @@ class AIQueueAnalytics extends Component
 
         // 7. Throughput Optimization
         $this->optimizeThroughput();
+        Log::info('[AIQueueAnalytics] generateAIInsights completed');
     }
 
     private function predictWaitTimes()
     {
+        Log::info('[AIQueueAnalytics] predictWaitTimes starting', ['selectedQueue' => $this->selectedQueue]);
         // AI-powered wait time prediction - ALIGNED WITH DASHBOARD (arrives_time filter, datetime grouping)
         $hourlyData = QueueStorage::where('team_id', $this->teamId)
             ->where('locations_id', $this->location)
             ->whereBetween('arrives_time', [
                 Carbon::parse($this->startDate, $this->timezone)->startOfDay(), 
                 Carbon::parse($this->endDate, $this->timezone)->endOfDay()
-            ])
-            ->when($this->selectedQueue !== 'all', function($q) {
-                $q->where('category_id', $this->selectedQueue);
-            })
-            ->when($this->selectedAgent !== 'all', function($q) {
-                $q->where('assign_staff_id', $this->selectedAgent);
-            })
-            ->selectRaw('HOUR(datetime) as hour, AVG(TIMESTAMPDIFF(SECOND, arrives_time, called_datetime)) as avg_wait')
+            ]);
+
+        if ($this->selectedQueue !== 'all' && !empty($this->selectedQueue)) {
+            $hourlyData->where('category_id', (int) $this->selectedQueue);
+        }
+
+        $hourlyData = $hourlyData->selectRaw('HOUR(arrives_time) as hour, AVG(TIMESTAMPDIFF(SECOND, arrives_time, called_datetime)) as avg_wait')
             ->whereNotNull('called_datetime')
             ->whereNotNull('arrives_time')
             ->groupBy('hour')
@@ -378,24 +396,25 @@ class AIQueueAnalytics extends Component
                 'confidence' => rand(75, 95) // Simulated confidence score
             ];
         })->toArray();
+        Log::info('[AIQueueAnalytics] predictWaitTimes count', ['count' => count($this->waitTimePredictions), 'data' => $this->waitTimePredictions]);
     }
 
     private function generateStaffingRecommendations()
     {
+        Log::info('[AIQueueAnalytics] generateStaffingRecommendations starting', ['selectedQueue' => $this->selectedQueue]);
         // AI recommendation for staffing - ALIGNED WITH DASHBOARD
-        $hourlyLoad = QueueStorage::where('team_id', $this->teamId)
+        $query = QueueStorage::where('team_id', $this->teamId)
             ->where('locations_id', $this->location)
             ->whereBetween('arrives_time', [
                 Carbon::parse($this->startDate, $this->timezone)->startOfDay(), 
                 Carbon::parse($this->endDate, $this->timezone)->endOfDay()
-            ])
-            ->when($this->selectedQueue !== 'all', function($q) {
-                $q->where('category_id', $this->selectedQueue);
-            })
-            ->when($this->selectedAgent !== 'all', function($q) {
-                $q->where('assign_staff_id', $this->selectedAgent);
-            })
-            ->selectRaw('HOUR(datetime) as hour, COUNT(*) as ticket_count')
+            ]);
+
+        if ($this->selectedQueue !== 'all' && !empty($this->selectedQueue)) {
+            $query->where('category_id', (int) $this->selectedQueue);
+        }
+
+        $hourlyLoad = $query->selectRaw('HOUR(arrives_time) as hour, COUNT(*) as ticket_count')
             ->groupBy('hour')
             ->orderByDesc('ticket_count') // Show busiest hours first
             ->get();
@@ -416,61 +435,49 @@ class AIQueueAnalytics extends Component
                 'priority' => $recommendedStaff > 3 ? 'high' : ($recommendedStaff > 1 ? 'medium' : 'low')
             ];
         })->toArray();
+        Log::info('[AIQueueAnalytics] generateStaffingRecommendations count', ['count' => count($this->staffingRecommendations)]);
     }
 
     private function calculateNoShowProbability()
     {
-        // Calculate no-show rate for selected range
-        $totalBooked = QueueStorage::where('team_id', $this->teamId)
+        Log::info('[AIQueueAnalytics] calculateNoShowProbability starting', ['selectedQueue' => $this->selectedQueue]);
+        
+        $baseQuery = QueueStorage::where('team_id', $this->teamId)
             ->where('locations_id', $this->location)
             ->whereBetween('arrives_time', [
                 Carbon::parse($this->startDate, $this->timezone)->startOfDay(), 
                 Carbon::parse($this->endDate, $this->timezone)->endOfDay()
-            ])
-            ->when($this->selectedQueue !== 'all', function($q) {
-                $q->where('category_id', $this->selectedQueue);
-            })
-            ->when($this->selectedAgent !== 'all', function($q) {
-                $q->where('assign_staff_id', $this->selectedAgent);
-            })
-            ->count();
-            
-        $noShows = QueueStorage::where('team_id', $this->teamId)
-            ->where('locations_id', $this->location)
-            ->whereBetween('arrives_time', [
-                Carbon::parse($this->startDate, $this->timezone)->startOfDay(), 
-                Carbon::parse($this->endDate, $this->timezone)->endOfDay()
-            ])
-            ->when($this->selectedQueue !== 'all', function($q) {
-                $q->where('category_id', $this->selectedQueue);
-            })
-            ->when($this->selectedAgent !== 'all', function($q) {
-                $q->where('assign_staff_id', $this->selectedAgent);
-            })
-            ->where('status', 'no-show')
-            ->count();
+            ]);
+
+        if ($this->selectedQueue !== 'all' && !empty($this->selectedQueue)) {
+            $baseQuery->where('category_id', (int) $this->selectedQueue);
+        }
+
+        $totalBooked = (clone $baseQuery)->count();
+        $noShows = (clone $baseQuery)->where('status', 'no-show')->count();
 
         $this->noShowProbability = $totalBooked > 0 
             ? round(($noShows / $totalBooked) * 100, 1) 
             : 0;
+        Log::info('[AIQueueAnalytics] calculateNoShowProbability', ['probability' => $this->noShowProbability]);
     }
 
     private function forecastPeakHours()
     {
-        // Forecast peak hours based on selected data - ALIGNED WITH DASHBOARD
-        $peakHours = QueueStorage::where('team_id', $this->teamId)
+        Log::info('[AIQueueAnalytics] forecastPeakHours starting', ['selectedQueue' => $this->selectedQueue]);
+        
+        $query = QueueStorage::where('team_id', $this->teamId)
             ->where('locations_id', $this->location)
             ->whereBetween('arrives_time', [
                 Carbon::parse($this->startDate, $this->timezone)->startOfDay(), 
                 Carbon::parse($this->endDate, $this->timezone)->endOfDay()
-            ])
-            ->when($this->selectedQueue !== 'all', function($q) {
-                $q->where('category_id', $this->selectedQueue);
-            })
-            ->when($this->selectedAgent !== 'all', function($q) {
-                $q->where('assign_staff_id', $this->selectedAgent);
-            })
-            ->selectRaw('HOUR(datetime) as hour, COUNT(*) as count')
+            ]);
+
+        if ($this->selectedQueue !== 'all' && !empty($this->selectedQueue)) {
+            $query->where('category_id', (int) $this->selectedQueue);
+        }
+
+        $peakHours = $query->selectRaw('HOUR(arrives_time) as hour, COUNT(*) as count')
             ->groupBy('hour')
             ->orderByDesc('count')
             ->limit(3)
@@ -483,29 +490,30 @@ class AIQueueAnalytics extends Component
                 'severity' => $item->count > 20 ? 'high' : ($item->count > 10 ? 'medium' : 'low')
             ];
         })->toArray();
+        Log::info('[AIQueueAnalytics] forecastPeakHours count', ['count' => count($this->peakHoursForecast)]);
     }
 
     private function detectSLABreaches()
     {
+        Log::info('[AIQueueAnalytics] detectSLABreaches starting', ['selectedQueue' => $this->selectedQueue]);
         // Detect potential SLA breaches (e.g., wait time > 15 minutes)
         $slaThreshold = 15 * 60; // 15 minutes in seconds
 
-        $breaches = QueueStorage::where('team_id', $this->teamId)
+        $query = QueueStorage::where('team_id', $this->teamId)
             ->where('locations_id', $this->location)
             ->whereBetween('arrives_time', [
                 Carbon::parse($this->startDate, $this->timezone)->startOfDay(), 
                 Carbon::parse($this->endDate, $this->timezone)->endOfDay()
-            ])
-            ->when($this->selectedQueue !== 'all', function($q) {
-                $q->where('category_id', $this->selectedQueue);
-            })
-            ->when($this->selectedAgent !== 'all', function($q) {
-                $q->where('assign_staff_id', $this->selectedAgent);
-            })
-            ->whereNotNull('called_datetime')
+            ]);
+
+        if ($this->selectedQueue !== 'all' && !empty($this->selectedQueue)) {
+            $query->where('category_id', (int) $this->selectedQueue);
+        }
+
+        $breaches = $query->whereNotNull('called_datetime')
             ->whereNotNull('arrives_time')
             ->whereRaw('TIMESTAMPDIFF(SECOND, arrives_time, called_datetime) > ?', [$slaThreshold])
-            ->selectRaw('DATE(datetime) as date, COUNT(*) as breach_count')
+            ->selectRaw('DATE(arrives_time) as date, COUNT(*) as breach_count')
             ->groupBy('date')
             ->orderByDesc('date')
             ->limit(7)
@@ -518,24 +526,25 @@ class AIQueueAnalytics extends Component
                 'severity' => $item->breach_count > 10 ? 'critical' : ($item->breach_count > 5 ? 'warning' : 'info')
             ];
         })->toArray();
+        Log::info('[AIQueueAnalytics] detectSLABreaches count', ['count' => count($this->slaBreachAlerts)]);
     }
 
     private function detectBottlenecks()
     {
-        // Detect bottlenecks by analyzing categories with longest wait times in selected period
-        $bottlenecks = QueueStorage::where('team_id', $this->teamId)
+        Log::info('[AIQueueAnalytics] detectBottlenecks starting', ['selectedQueue' => $this->selectedQueue]);
+        
+        $query = QueueStorage::where('team_id', $this->teamId)
             ->where('locations_id', $this->location)
             ->whereBetween('arrives_time', [
                 Carbon::parse($this->startDate, $this->timezone)->startOfDay(), 
                 Carbon::parse($this->endDate, $this->timezone)->endOfDay()
-            ])
-            ->when($this->selectedQueue !== 'all', function($q) {
-                $q->where('category_id', $this->selectedQueue);
-            })
-            ->when($this->selectedAgent !== 'all', function($q) {
-                $q->where('assign_staff_id', $this->selectedAgent);
-            })
-            ->whereNotNull('category_id')
+            ]);
+
+        if ($this->selectedQueue !== 'all' && !empty($this->selectedQueue)) {
+            $query->where('category_id', (int) $this->selectedQueue);
+        }
+
+        $bottlenecks = $query->whereNotNull('category_id')
             ->whereNotNull('called_datetime')
             ->whereNotNull('arrives_time')
             ->selectRaw('category_id, AVG(TIMESTAMPDIFF(SECOND, arrives_time, called_datetime)) as avg_wait, COUNT(*) as volume')
@@ -553,24 +562,25 @@ class AIQueueAnalytics extends Component
                 'impact' => $item->avg_wait > 900 ? 'high' : ($item->avg_wait > 600 ? 'medium' : 'low')
             ];
         })->toArray();
+        Log::info('[AIQueueAnalytics] detectBottlenecks count', ['count' => count($this->bottleneckDetection)]);
     }
 
     private function optimizeThroughput()
     {
-        // Analyze throughput per counter/staff in selected period
-        $throughput = QueueStorage::where('team_id', $this->teamId)
+        Log::info('[AIQueueAnalytics] optimizeThroughput starting', ['selectedQueue' => $this->selectedQueue]);
+        
+        $query = QueueStorage::where('team_id', $this->teamId)
             ->where('locations_id', $this->location)
             ->whereBetween('arrives_time', [
                 Carbon::parse($this->startDate, $this->timezone)->startOfDay(), 
                 Carbon::parse($this->endDate, $this->timezone)->endOfDay()
-            ])
-            ->when($this->selectedQueue !== 'all', function($q) {
-                $q->where('category_id', $this->selectedQueue);
-            })
-            ->when($this->selectedAgent !== 'all', function($q) {
-                $q->where('assign_staff_id', $this->selectedAgent);
-            })
-            ->whereNotNull('assign_staff_id')
+            ]);
+
+        if ($this->selectedQueue !== 'all' && !empty($this->selectedQueue)) {
+            $query->where('category_id', (int) $this->selectedQueue);
+        }
+
+        $throughput = $query->whereNotNull('assign_staff_id')
             ->whereIn('status', ['Close', 'completed'])
             ->selectRaw('assign_staff_id, COUNT(*) as served_count, AVG(TIMESTAMPDIFF(SECOND, called_datetime, closed_datetime)) as avg_service_time')
             ->whereNotNull('closed_datetime')
@@ -593,229 +603,33 @@ class AIQueueAnalytics extends Component
                 'efficiency' => $throughputPerHour > 10 ? 'excellent' : ($throughputPerHour > 6 ? 'good' : 'needs improvement')
             ];
         })->toArray();
-    }
-
-    /**
-     * Generate OpenAI-powered insight
-     */
-    public function generateOpenAIInsight()
-    {
-        if (empty(config('services.openai.api_key'))) {
-            Log::error('generateOpenAIInsight: API key missing');
-            $this->openaiError = 'OpenAI API key not configured. Please add OPENAI_API_KEY to your .env file.';
-            return;
-        }
-
-        try {
-            // Log::info('generateOpenAIInsight: Button Clicked. Starting AI analysis...');
-            $this->isGeneratingInsight = true;
-            $this->openaiError = '';
-            
-            $analyst = new OpenAIQueueAnalyst();
-
-            $result = $analyst->analyzePerformance(
-                $this->teamId,
-                $this->location,
-                $this->startDate,
-                $this->endDate,
-                $this->selectedQueue,
-                $this->selectedAgent,
-                $this->timezone
-            );
-            
-            // Check if there's no data available
-            if (isset($result['no_data']) && $result['no_data']) {
-                // Log::info('generateOpenAIInsight: No data available for this selection');
-                // Add message to chat instead of showing error banner
-                $this->chatMessages[] = [
-                    'role' => 'assistant',
-                    'content' => $result['user_message'] ?? 'No historical data available for this selection.',
-                    'time' => Carbon::now()->format('H:i')
-                ];
-                $this->isGeneratingInsight = false;
-                return;
-            }
-            
-            // Log::info('generateOpenAIInsight: Analysis result received', [
-            //     'is_prediction' => $result['is_prediction'] ?? false,
-            //     'start_date' => $this->startDate,
-            //     'end_date' => $this->endDate,
-            //     'trigger' => 'Manual Button or Chatbot'
-            // ]);
-            
-            
-            // Try to parse JSON response
-            $aiData = json_decode($result['ai_analysis'], true);
-            
-
-            if (json_last_error() === JSON_ERROR_NONE && is_array($aiData)) {
-
-                // Determine if this is a prediction or analysis of actual data
-                $isPrediction = isset($result['is_prediction']) && $result['is_prediction'];
-                $this->isShowingPrediction = $isPrediction;
-
-                // CRITICAL FIX: Only override local predictions if this is a future prediction
-                // For historical data analysis, keep the locally calculated predictions
-                if ($isPrediction) {
-                    // Future prediction mode - use AI-generated predictions
-                    if (isset($aiData['wait_time_predictions'])) {
-                        $this->waitTimePredictions = $aiData['wait_time_predictions'];
-                    }
-                    
-                    if (isset($aiData['staffing_recommendations'])) {
-                        $this->staffingRecommendations = $aiData['staffing_recommendations'];
-                    }
-                    
-                    // Log::info('===== APPLIED AI PREDICTIONS TO UI =====', [
-                    //     'date_range' => "{$this->startDate} to {$this->endDate}",
-                    //     'wait_predictions' => $this->waitTimePredictions,
-                    //     'staffing_recs' => $this->staffingRecommendations,
-                    //     'trigger' => debug_backtrace()[1]['function'] ?? 'unknown',
-                    // ]);
-                } else {
-                    // Historical data analysis - KEEP local calculations, don't override
-                    // Log::info('Keeping local predictions for historical data analysis', [
-                    //     'wait_predictions_count' => count($this->waitTimePredictions),
-                    //     'staffing_count' => count($this->staffingRecommendations),
-                    //     'ai_wait_count' => isset($aiData['wait_time_predictions']) ? count($aiData['wait_time_predictions']) : 0,
-                    //     'ai_staffing_count' => isset($aiData['staffing_recommendations']) ? count($aiData['staffing_recommendations']) : 0
-                    // ]);
-                }
-                
-                // Always update these as they don't conflict with local calculations
-                if (isset($aiData['peak_hours_forecast'])) {
-                    $this->peakHoursForecast = $aiData['peak_hours_forecast'];
-                }
-                
-                if (isset($aiData['no_show_probability'])) {
-                    $this->noShowProbability = $aiData['no_show_probability'];
-                }
-                
-                if (isset($aiData['bottleneck_detection'])) {
-                    $this->bottleneckDetection = $aiData['bottleneck_detection'];
-                }
-
-                // Handle predicted metrics for top cards
-                // Only overwrite top cards if this was a prediction (i.e. we have no actual data)
-                if ($isPrediction && isset($aiData['predicted_metrics'])) {
-                    $metrics = $aiData['predicted_metrics'];
-                    
-                    if (isset($metrics['incoming_sessions'])) $this->incomingSessions = $metrics['incoming_sessions'];
-                    if (isset($metrics['engaged_sessions'])) $this->engagedSessions = $metrics['engaged_sessions'];
-                    if (isset($metrics['avg_wait_seconds'])) $this->avgWaitTime = $metrics['avg_wait_seconds'];
-                    if (isset($metrics['avg_handle_minutes'])) $this->avgSessionHandleTime = $metrics['avg_handle_minutes'];
-                    if (isset($metrics['transfer_rate'])) $this->transferRate = $metrics['transfer_rate'];
-                    if (isset($metrics['avg_sentiment'])) $this->avgSessionSentiment = $metrics['avg_sentiment'];
-                    
-                } elseif (!$isPrediction) {
-                    // Log::info('generateOpenAIInsight: Keeping actual metrics (no prediction override needed)');
-                }
-
-                // Handle daily forecast for charts
-                if (isset($aiData['daily_forecast']) && is_array($aiData['daily_forecast'])) {
-                    
-                    // Initialize/clear chart arrays for predictions
-                    if ($isPrediction) {
-                        $this->sessionsChartData = [];
-                        $this->waitTimeChartData = [];
-                    }
-                    
-                    foreach ($aiData['daily_forecast'] as $day) {
-                        try {
-                            $dateObj = Carbon::parse($day['date']);
-                            $formattedDate = $dateObj->format('M d') . ' (Est.)'; // Add (Est.) to indicate prediction
-                            
-                            // Check if this date already exists in our data to avoid duplicates (crude check)
-                            // Actually, just appending creates a clear "Actual -> Forecast" flow
-                            
-                            $this->sessionsChartData[] = [
-                                'date' => $formattedDate,
-                                'incoming' => $day['incoming_sessions'],
-                                'engaged' => $day['engaged_sessions'],
-                                'is_predicted' => true
-                            ];
-
-                            $this->waitTimeChartData[] = [
-                                'date' => $formattedDate,
-                                'wait_time' => round(($day['avg_wait_seconds'] ?? 0) / 60, 1),
-                                'handle_time' => $day['avg_handle_minutes'] ?? 0,
-                                'is_predicted' => true
-                            ];
-                        } catch (\Exception $e) {
-                            Log::warning('Error parsing forecast date', ['date' => $day['date'] ?? 'unknown']);
-                        }
-                    }
-                    
-                    $this->dispatch('chartsUpdated', 
-                        sessionsData: $this->sessionsChartData, 
-                        waitTimeData: $this->waitTimeChartData
-                    );
-                }
-
-                $this->aiAnalysisTime = Carbon::now();
-                
-                // Log final results after AI generation
-                $this->logFinalResults('AFTER_AI_GENERATION');
-                
-                // Dispatch events to update UI
-                $this->dispatch('chartsUpdated', 
-                    sessionsData: $this->sessionsChartData, 
-                    waitTimeData: $this->waitTimeChartData
-                );
-                $this->dispatch('$refresh'); // Force Livewire to re-render
-                
-                // Clear the text insight so it doesn't show the big box
-                $this->openaiInsight = ''; 
-            } else {
-                Log::warning('generateOpenAIInsight: Invalid JSON', ['raw' => $result['ai_analysis']]);
-                // Fallback if not valid JSON (should be rare with JSON mode)
-                $this->openaiInsight = $result['ai_analysis'];
-                $this->aiAnalysisTime = Carbon::now();
-            }
-            
-        } catch (\Exception $e) {
-            Log::error('generateOpenAIInsight: Exception', ['message' => $e->getMessage(), 'trace' => $e->getTraceAsString()]);
-            // Add error message to chat instead of showing banner
-            $this->chatMessages[] = [
-                'role' => 'assistant',
-                'content' => 'I encountered an error while analyzing your data: ' . $e->getMessage() . '. Please try again or contact support if the issue persists.',
-                'time' => Carbon::now()->format('H:i')
-            ];
-        } finally {
-            $this->isGeneratingInsight = false;
-        }
+        Log::info('[AIQueueAnalytics] optimizeThroughput count', ['count' => count($this->throughputOptimization)]);
     }
 
     private function prepareChartData()
     {
+        Log::info('[AIQueueAnalytics] prepareChartData starting', ['selectedQueue' => $this->selectedQueue]);
         $startDate = Carbon::parse($this->startDate, $this->timezone)->startOfDay();
         $endDate = Carbon::parse($this->endDate, $this->timezone)->endOfDay();
 
         // 1. Get raw queries grouped by date
-        $sessionsData = QueueStorage::where('team_id', $this->teamId)
+        $baseQuery = QueueStorage::where('team_id', $this->teamId)
             ->where('locations_id', $this->location)
-            ->whereBetween('arrives_time', [$startDate, $endDate])
-            ->when($this->selectedQueue !== 'all', function($q) {
-                $q->where('category_id', $this->selectedQueue);
-            })
-            ->when($this->selectedAgent !== 'all', function($q) {
-                $q->where('assign_staff_id', $this->selectedAgent);
-            })
+            ->whereBetween('arrives_time', [$startDate, $endDate]);
+
+        if ($this->selectedQueue !== 'all' && !empty($this->selectedQueue)) {
+            $baseQuery->where('category_id', (int) $this->selectedQueue);
+        }
+
+        $sessionsData = (clone $baseQuery)
             ->selectRaw("DATE(arrives_time) as date, COUNT(*) as incoming, SUM(CASE WHEN status = 'Close' THEN 1 ELSE 0 END) as engaged")
             ->groupBy('date')
             ->orderBy('date')
             ->get()
-            ->keyBy('date'); // Key by date for easy lookup
+            ->keyBy('date');
+        Log::info('[AIQueueAnalytics] prepareChartData sessionsData count', ['count' => count($sessionsData)]);
 
-        $timeData = QueueStorage::where('team_id', $this->teamId)
-            ->where('locations_id', $this->location)
-            ->whereBetween('arrives_time', [$startDate, $endDate])
-            ->when($this->selectedQueue !== 'all', function($q) {
-                $q->where('category_id', $this->selectedQueue);
-            })
-            ->when($this->selectedAgent !== 'all', function($q) {
-                $q->where('assign_staff_id', $this->selectedAgent);
-            })
+        $timeData = (clone $baseQuery)
             ->whereNotNull('called_datetime')
             ->whereNotNull('arrives_time')
             ->selectRaw('DATE(arrives_time) as date, AVG(TIMESTAMPDIFF(SECOND, arrives_time, called_datetime)) as avg_wait, AVG(TIMESTAMPDIFF(SECOND, called_datetime, closed_datetime)) as avg_handle')
@@ -823,6 +637,7 @@ class AIQueueAnalytics extends Component
             ->orderBy('date')
             ->get()
             ->keyBy('date');
+        Log::info('[AIQueueAnalytics] prepareChartData timeData count', ['count' => count($timeData)]);
 
         // 2. Generate continuous date range loop
         $this->sessionsChartData = [];
@@ -851,10 +666,10 @@ class AIQueueAnalytics extends Component
             ];
         }
         
-        $this->dispatch('chartsUpdated', 
-            sessionsData: $this->sessionsChartData, 
-            waitTimeData: $this->waitTimeChartData
-        );
+        $this->dispatch('chartsUpdated', [
+            'sessionsData' => $this->sessionsChartData,
+            'waitTimeData' => $this->waitTimeChartData,
+        ]);
     }
 
     #[Computed]
@@ -867,307 +682,305 @@ class AIQueueAnalytics extends Component
             ->get();
     }
 
-    #[Computed]
-    public function agents()
+    #[Renderless]
+    public function sendMessage(string $message)
     {
-        return User::where('team_id', $this->teamId)
-            ->whereJsonContains('locations', (string) $this->location)
-            ->select('id', 'name')
-            ->get();
-    }
-
-    public function sendMessage()
-    {
-        // Log::info('sendMessage: Method called', ['input' => $this->chatInput]);
+        \Illuminate\Support\Facades\Log::info('[AIQueueAnalytics] sendMessage called', ['raw_message' => $message]);
         
-        if (empty($this->chatInput)) {
-            // Log::info('sendMessage: Empty input, returning');
+        $message = trim($message);
+        \Illuminate\Support\Facades\Log::info('[AIQueueAnalytics] Message trimmed', ['trimmed_message' => $message]);
+        
+        if (empty($message)) {
+            \Illuminate\Support\Facades\Log::warning('[AIQueueAnalytics] Empty message after trim');
             return;
         }
 
-        $this->isChatProcessing = true;
-        $this->lastUserQuery = $this->chatInput;
-        // Log::info('sendMessage: Storing query', ['query' => $this->lastUserQuery]);
-        
-        // Add user message to history immediately
-        $this->chatMessages[] = [
-            'role' => 'user',
-            'content' => $this->chatInput,
-            'time' => Carbon::now()->format('H:i')
-        ];
+        $this->lastUserQuery = $message;
+        \Illuminate\Support\Facades\Log::info('[AIQueueAnalytics] Set lastUserQuery', ['lastUserQuery' => $this->lastUserQuery]);
 
-        $this->chatInput = ''; // Clear input immediately for UI responsiveness
-        
-        // Log::info('sendMessage: Dispatching chat-message-sent event');
-        // Trigger the actual processing - event listener will call processChat()
-        $this->dispatch('chat-message-sent'); 
+        // Store in server-side history
+        $this->chatMessages[] = [
+            'role'    => 'user',
+            'content' => $message,
+            'time'    => Carbon::now()->format('H:i')
+        ];
+        \Illuminate\Support\Facades\Log::info('[AIQueueAnalytics] Added message to chat history', ['message_count' => count($this->chatMessages)]);
+
+        // Process and reply — dispatches aiResponse event, no page re-render
+        \Illuminate\Support\Facades\Log::info('[AIQueueAnalytics] Calling processChat');
+        $this->processChat();
+        \Illuminate\Support\Facades\Log::info('[AIQueueAnalytics] processChat completed');
     }
 
+    #[Renderless]
     public function processChat()
     {
-        if (empty($this->lastUserQuery)) {
-            $this->isChatProcessing = false;
+        if (!$this->lastUserQuery) {
+            Log::warning('[processChat] Called with no user query');
             return;
         }
 
+        Log::info('[processChat] Started', ['lastUserQuery' => $this->lastUserQuery]);
+        $this->isChatProcessing = true;
+
         try {
-            // Prepared lists for AI context
-            $queuesList    = $this->queues()->map(fn($q) => ['id' => $q->id, 'name' => $q->name])->toArray();
-            $agentsList    = $this->agents()->map(fn($a) => ['id' => $a->id, 'name' => $a->name])->toArray();
-            $locationsList = $this->allLocations->map(fn($l) => ['id' => $l->id, 'name' => $l->location_name])->toArray();
+            Log::info('[processChat] Creating QueueAnalyticsAssistant agent');
+            $agent = new \App\Ai\Agents\QueueAnalyticsAssistant($this->teamId, $this->location);
+            Log::info('[processChat] Agent created successfully');
 
-            $analyst = new OpenAIQueueAnalyst();
-            $params  = $analyst->parseUserQuery(
-                $this->lastUserQuery,
-                $this->teamId,
-                $this->location,
-                $this->timezone,
-                $queuesList,
-                $agentsList,
-                $locationsList,
-                $this->startDate,
-                $this->endDate,
-                $this->selectedQueue,
-                $this->selectedAgent
-            );
+            // Build history from chat messages
+            $history = collect($this->chatMessages)->map(fn ($msg) => [
+                'role'    => $msg['role'] === 'user' ? 'user' : 'assistant',
+                'content' => $msg['content']
+            ])->all();
+            Log::info('[processChat] Built chat history', ['message_count' => count($history)]);
 
-            if ($params) {
-                $intent = $params['intent'] ?? null;
+            Log::info('[processChat] Calling callOpenAiWithTools');
+            $response = $this->callOpenAiWithTools($agent, $history);
+            Log::info('[processChat] OpenAI response received', ['success' => $response['success']]);
+            
+            $reply = $response['success'] ? $response['message'] : 'Sorry, I encountered an error. Please try again.';
+            Log::info('[processChat] Reply prepared', ['reply_length' => strlen($reply)]);
 
-                // ── Data-changing intents: update filters + reload ────────────────
-                $start = $params['start_date'] ?? null;
-                $end   = $params['end_date']   ?? null;
-                $queue = $params['queue_id']    ?? null;
-                $agent = $params['agent_id']    ?? null;
-
-                $filtersChanged = false;
-
-                if ($start && $end && ($start != $this->startDate || $end != $this->endDate)) {
-                    $this->startDate = $start;
-                    $this->endDate   = $end;
-                    $filtersChanged  = true;
-                    $this->dispatch('update-date-picker', ['start' => $start, 'end' => $end]);
-                }
-
-                if ($queue && $queue != $this->selectedQueue) {
-                    $this->selectedQueue = $queue;
-                    $filtersChanged = true;
-                }
-
-                if ($agent && $agent != $this->selectedAgent) {
-                    $this->selectedAgent = $agent;
-                    $filtersChanged = true;
-                }
-
-                // Only reload heavy analytics when something actually changed
-                if ($filtersChanged) {
-                    $this->loadAnalytics();
-                }
-
-                // Add the AI explanation reply ONLY if it's NOT a complex intent that will be answered separately
-                // For 'question' or 'scenario', we want the detailed answer to stand alone
-                if (!in_array($intent, ['question', 'scenario'])) {
-                    $this->chatMessages[] = [
-                        'role'    => 'assistant',
-                        'content' => $params['explanation'],
-                        'time'    => Carbon::now()->format('H:i')
-                    ];
-                }
-
-                // Trigger detailed insights for prediction/analysis intents
-                if (in_array($intent, ['prediction', 'analysis'])) {
-                    $this->generateOpenAIInsight();
-                }
-
-                // Check for follow-up context (e.g. user answering a clarification question)
-                $isFollowUp = false;
-                $combinedQuery = $this->lastUserQuery;
-                $historyCount = count($this->chatMessages);
-                
-                if ($historyCount >= 4) {
-                     $lastAssistantMsg = $this->chatMessages[$historyCount - 3];
-                     // Check if that assistant message was asking for clarification
-                     if ($lastAssistantMsg['role'] === 'assistant' && 
-                        (str_contains(strtolower($lastAssistantMsg['content']), 'specify') || 
-                         str_contains(strtolower($lastAssistantMsg['content']), 'details') ||
-                         str_ends_with(trim($lastAssistantMsg['content']), '?'))) {
-                         
-                         $prevUserMsg = $this->chatMessages[$historyCount - 4];
-                         $combinedQuery = "Original Request: " . $prevUserMsg['content'] . "\nContext Update: " . $this->lastUserQuery;
-                         $isFollowUp = true;
-                     }
-                }
-
-                // Handle specific questions or scenarios OR if it's a follow-up answer
-                if (in_array($intent, ['question', 'scenario']) || $isFollowUp) {
-                    if (Carbon::parse($this->endDate)->isFuture() && empty($this->waitTimePredictions)) {
-                        $this->generateOpenAIInsight();
+            // Check if the AI wants to update the dashboard dates based on tool calls
+            if ($response['success'] && isset($response['tool_calls'])) {
+                foreach ($response['tool_calls'] as $toolCall) {
+                    if ($toolCall['function']['name'] === 'FetchHistoricalMetricsTool' && isset($toolCall['function']['arguments'])) {
+                        $args = json_decode($toolCall['function']['arguments'], true) ?: [];
+                        if (isset($args['start_date']) && isset($args['end_date'])) {
+                            Log::info('[processChat] AI requested date change', ['start' => $args['start_date'], 'end' => $args['end_date']]);
+                            $this->dispatch('ai-set-date-range', start: $args['start_date'], end: $args['end_date']);
+                        }
                     }
-
-                    // Fetch daily breakdown for "Top days" or trend analysis
-                    // Limit to last 60 days to respect token limits
-                    $dailyStats = \App\Models\QueueStorage::where('team_id', $this->teamId)
-                        ->where('locations_id', $this->location)
-                        ->whereBetween('created_at', [
-                            Carbon::parse($this->startDate)->startOfDay(), 
-                            Carbon::parse($this->endDate)->endOfDay()
-                        ]);
-                    
-                    if ($this->selectedQueue && $this->selectedQueue !== 'all') {
-                        $dailyStats->where('category_id', $this->selectedQueue);
-                    }
-                    if ($this->selectedAgent && $this->selectedAgent !== 'all') {
-                        $dailyStats->where('user_id', $this->selectedAgent);
-                    }
-
-                    $dailyData = $dailyStats->selectRaw('DATE(created_at) as date, COUNT(*) as tickets, AVG(TIMESTAMPDIFF(SECOND, arrives_time, called_datetime)) as avg_wait_sec')
-                        ->groupBy('date')
-                        ->orderBy('tickets', 'desc') // Order by volume to help AI find "busiest" quickly
-                        ->limit(60)
-                        ->get()
-                        ->map(function($row) {
-                            return [
-                                'date' => $row->date,
-                                'tickets' => $row->tickets,
-                                'avg_wait_min' => round(($row->avg_wait_sec ?? 0) / 60, 1)
-                            ];
-                        })->toArray();
-
-                    // ── INTEGRATE PREDICTION TOOL FOR SMART ANCHORING ──────────────────
-                    // Use the dedicated tool to get robust historical context and trend analysis
-                    $predTool = new \App\Mcp\Tools\PredictQueuePerformanceTool();
-                    $smartContext = $predTool->getPredictionContext(
-                        $this->teamId,
-                        $this->location,
-                        $this->startDate,
-                        $this->endDate,
-                        $this->selectedQueue ?: 'all',
-                        $this->selectedAgent ?: 'all',
-                        $this->timezone
-                    );
-                    
-                    $contextData = [
-                        'period'  => "{$this->startDate} to {$this->endDate}",
-                        'metrics' => [
-                            'incoming'          => $this->incomingSessions,
-                            'served'            => $this->engagedSessions,
-                            'avg_wait_minutes'  => round($this->avgWaitTime / 60, 1),
-                            'avg_handle_minutes'=> $this->avgSessionHandleTime,
-                            'sentiment'         => $this->avgSessionSentiment
-                        ],
-                        'daily_performance' => $dailyData, 
-                        'smart_prediction_context' => $smartContext, // CRITICAL: Added robust tool context
-                        'predictions' => [
-                            'wait_time_hourly' => $this->waitTimePredictions,
-                            'staffing_hourly'  => $this->staffingRecommendations,
-                            'peak_hours'       => $this->peakHoursForecast,
-                            'no_show_prob'     => $this->noShowProbability
-                        ],
-                        'insights' => [
-                            'bottlenecks' => $this->bottleneckDetection,
-                            'top_issues'  => $this->slaBreachAlerts
-                        ]
-                    ];
-
-                    $answer = $analyst->answerSpecificQuestion(
-                        $combinedQuery,
-                        $contextData,
-                        $this->timezone
-                    );
-
-                    $this->chatMessages[] = [
-                        'role'    => 'assistant',
-                        'content' => $answer,
-                        'time'    => Carbon::now()->format('H:i')
-                    ];
                 }
-
-            } else {
-                $this->chatMessages[] = [
-                    'role'    => 'assistant',
-                    'content' => "I'm sorry, I couldn't understand that request. Please try asking about a specific time range (e.g., 'Show me last week's data').",
-                    'time'    => Carbon::now()->format('H:i')
-                ];
             }
 
-        } catch (\Exception $e) {
-            Log::error('Chat Error', ['message' => $e->getMessage()]);
-            $this->chatMessages[] = [
-                'role'    => 'assistant',
-                'content' => 'An error occurred while processing your request.',
-                'time'    => Carbon::now()->format('H:i')
-            ];
-        } finally {
-            $this->isChatProcessing = false;
-            $this->dispatch('scroll-chat'); // Auto-scroll after every response
+        } catch (\Throwable $e) {
+            Log::error('[processChat] Chat Error: ' . $e->getMessage(), [
+                'trace' => $e->getTraceAsString(),
+            ]);
+            $reply = 'Sorry, I encountered an error while processing your data. Please try again.';
         }
+
+        Log::info('[processChat] Adding AI response to chat messages');
+        $this->chatMessages[] = [
+            'role'    => 'assistant',
+            'content' => $reply,
+            'time'    => Carbon::now()->format('H:i')
+        ];
+
+        // Tell Alpine to append the AI bubble — no Livewire re-render
+        Log::info('[processChat] Dispatching chat-ai-response event', ['content' => $reply, 'time' => Carbon::now()->format('H:i')]);
+        $this->dispatch('chat-ai-response', [
+            'content' => $reply,
+            'time'    => Carbon::now()->format('H:i')
+        ]);
+        
+        Log::info('[processChat] Completed successfully');
+        $this->isChatProcessing = false;
     }
 
-    /**
-     * Log debug information with context
-     */
+    protected function callOpenAiWithTools(QueueAnalyticsAssistant $agent, array $messages): array
+    {
+        \Illuminate\Support\Facades\Log::info('[callOpenAiWithTools] Starting OpenAI API call');
+        
+        $apiKey = config('services.openai.api_key');
+        \Illuminate\Support\Facades\Log::info('[callOpenAiWithTools] API key exists', ['has_key' => !empty($apiKey)]);
+        
+        if (empty($apiKey)) {
+            \Illuminate\Support\Facades\Log::error('[callOpenAiWithTools] OpenAI API key not configured');
+            throw new \Exception('OpenAI API key not configured');
+        }
+
+        $apiMessages = [
+            ['role' => 'system', 'content' => $agent->instructions()]
+        ];
+        
+        foreach ($messages as $msg) {
+            $apiMessages[] = $msg;
+        }
+        \Illuminate\Support\Facades\Log::info('[callOpenAiWithTools] Built API messages', ['message_count' => count($apiMessages)]);
+
+        $toolsDefinition = $this->getToolDefinitions($agent);
+        \Illuminate\Support\Facades\Log::info('[callOpenAiWithTools] Got tool definitions', ['tool_count' => count($toolsDefinition)]);
+
+        $payload = [
+            'model' => 'gpt-4o',
+            'messages' => $apiMessages,
+            'tools' => $toolsDefinition,
+            'tool_choice' => 'auto',
+            'temperature' => 0.1,
+        ];
+        \Illuminate\Support\Facades\Log::info('[callOpenAiWithTools] Sending request to OpenAI API');
+
+        $response = Http::withToken($apiKey)->timeout(60)->post('https://api.openai.com/v1/chat/completions', $payload);
+        \Illuminate\Support\Facades\Log::info('[callOpenAiWithTools] API response status', ['successful' => $response->successful()]);
+
+        if (!$response->successful()) {
+            \Illuminate\Support\Facades\Log::error('[callOpenAiWithTools] API error', ['status' => $response->status(), 'body' => $response->body()]);
+            return ['success' => false, 'message' => 'API error. Failed to reach OpenAI.'];
+        }
+
+        $data = $response->json();
+        \Illuminate\Support\Facades\Log::info('[callOpenAiWithTools] Parsed JSON response');
+        
+        $message = $data['choices'][0]['message'] ?? null;
+
+        if (!empty($message['tool_calls'])) {
+            \Illuminate\Support\Facades\Log::info('[callOpenAiWithTools] Tool calls detected', ['count' => count($message['tool_calls'])]);
+            return $this->handleToolCalls($agent, $message['tool_calls'], $apiMessages, $apiKey);
+        }
+
+        \Illuminate\Support\Facades\Log::info('[callOpenAiWithTools] No tool calls, returning direct message');
+        return [
+            'success' => true,
+            'message' => $message['content'] ?? 'I cannot answer that right now.',
+        ];
+    }
+
+    protected function handleToolCalls(QueueAnalyticsAssistant $agent, array $toolCalls, array $apiMessages, string $apiKey): array
+    {
+        $apiMessages[] = [
+            'role' => 'assistant',
+            'content' => null,
+            'tool_calls' => $toolCalls,
+        ];
+
+        foreach ($toolCalls as $toolCall) {
+            $functionName = $toolCall['function']['name'];
+            $arguments = json_decode($toolCall['function']['arguments'], true) ?: [];
+
+            $result = "Tool not found.";
+            
+            foreach ($agent->tools() as $tool) {
+                if (class_basename($tool) === $functionName) {
+                    try {
+                        $result = $tool->handle(new \Laravel\Ai\Tools\Request($arguments));
+                    } catch (\Exception $e) {
+                        $result = "Error executing tool: " . $e->getMessage();
+                    }
+                    break;
+                }
+            }
+
+            $apiMessages[] = [
+                'role' => 'tool',
+                'tool_call_id' => $toolCall['id'],
+                'name' => $functionName,
+                'content' => (string) $result,
+            ];
+        }
+
+        $payload = [
+            'model' => 'gpt-4o',
+            'messages' => $apiMessages,
+            'temperature' => 0.1,
+        ];
+
+        $response = Http::withToken($apiKey)->timeout(60)->post('https://api.openai.com/v1/chat/completions', $payload);
+
+        if (!$response->successful()) {
+            return ['success' => false, 'message' => 'API error on tool return.'];
+        }
+
+        $data = $response->json();
+        return [
+            'success' => true,
+            'message' => $data['choices'][0]['message']['content'] ?? 'Done.',
+        ];
+    }
+
+    protected function getToolDefinitions(QueueAnalyticsAssistant $agent): array
+    {
+        $defs = [];
+        
+        foreach ($agent->tools() as $tool) {
+            $schemaParams = $tool->schema(new class implements \Illuminate\Contracts\JsonSchema\JsonSchema {
+                public function string(): \Illuminate\JsonSchema\Types\StringType
+                {
+                    return \Illuminate\JsonSchema\JsonSchema::string();
+                }
+
+                public function integer(): \Illuminate\JsonSchema\Types\IntegerType
+                {
+                    return \Illuminate\JsonSchema\JsonSchema::integer();
+                }
+
+                public function number(): \Illuminate\JsonSchema\Types\NumberType
+                {
+                    return \Illuminate\JsonSchema\JsonSchema::number();
+                }
+
+                public function boolean(): \Illuminate\JsonSchema\Types\BooleanType
+                {
+                    return \Illuminate\JsonSchema\JsonSchema::boolean();
+                }
+
+                public function array(): \Illuminate\JsonSchema\Types\ArrayType
+                {
+                    return \Illuminate\JsonSchema\JsonSchema::array();
+                }
+
+                public function object($properties = []): \Illuminate\JsonSchema\Types\ObjectType
+                {
+                    return \Illuminate\JsonSchema\JsonSchema::object($properties);
+                }
+            });
+            
+            $properties = [];
+            $required = [];
+
+            foreach ($schemaParams as $key => $typeBuilder) {
+                if ($typeBuilder instanceof \Illuminate\JsonSchema\Types\Type) {
+                    $prop = $typeBuilder->toArray();
+                    $properties[$key] = $prop;
+                    if (!isset($prop['nullable']) || !$prop['nullable']) {
+                        $required[] = $key;
+                    }
+                }
+            }
+
+            $defs[] = [
+                'type' => 'function',
+                'function' => [
+                    'name' => class_basename($tool),
+                    'description' => (string) $tool->description(),
+                    'parameters' => [
+                        'type' => 'object',
+                        'properties' => $properties,
+                        'required' => $required,
+                    ],
+                ]
+            ];
+        }
+        return $defs;
+    }
+
     private function logDebug($source, $message)
     {
         Log::info("[$source] $message", [
             'startDate' => $this->startDate,
             'endDate' => $this->endDate,
-            'queue' => $this->selectedQueue,
-            'agent' => $this->selectedAgent
+            'queue' => $this->selectedQueue
         ]);
-    }
-
-    /**
-     * Log final results to a dedicated file for debugging
-     */
-    private function logFinalResults($trigger)
-    {
-        $logData = [
-            'timestamp' => Carbon::now()->toDateTimeString(),
-            'trigger' => $trigger,
-            'filters' => [
-                'startDate' => $this->startDate,
-                'endDate' => $this->endDate,
-                'selectedQueue' => $this->selectedQueue,
-                'selectedAgent' => $this->selectedAgent,
-                'location' => $this->location,
-                'teamId' => $this->teamId,
-            ],
-            'metrics' => [
-                'incomingSessions' => $this->incomingSessions,
-                'engagedSessions' => $this->engagedSessions,
-                'avgWaitTime' => $this->avgWaitTime,
-                'avgSessionHandleTime' => $this->avgSessionHandleTime,
-            ],
-            'waitTimePredictions' => $this->waitTimePredictions,
-            'staffingRecommendations' => $this->staffingRecommendations,
-            'peakHoursForecast' => $this->peakHoursForecast,
-            'isShowingPrediction' => $this->isShowingPrediction,
-        ];
-
-        // Create logs directory if it doesn't exist
-        $logDir = storage_path('logs/ai_analytics');
-        if (!file_exists($logDir)) {
-            mkdir($logDir, 0755, true);
-        }
-
-        // Create a dated log file
-        $logFile = $logDir . '/analytics_' . date('Y-m-d') . '.log';
-        
-        // Append to log file with clear separators
-        $separator = str_repeat('=', 80);
-        $logContent = "\n{$separator}\n" . json_encode($logData, JSON_PRETTY_PRINT) . "\n{$separator}\n";
-        
-        file_put_contents($logFile, $logContent, FILE_APPEND);
-        
-        // Log::info("Final results logged to: $logFile", [
-        //     'trigger' => $trigger,
-        //     'wait_predictions_count' => count($this->waitTimePredictions),
-        //     'staffing_recommendations_count' => count($this->staffingRecommendations)
-        // ]);
     }
 
     public function render()
     {
+        // One final force-update of the key before rendering
+        $this->lastUpdate = (string) microtime(true);
+
+        Log::info('[AIQueueAnalytics] render() called', [
+            'incomingSessions' => $this->incomingSessions,
+            'engagedSessions' => $this->engagedSessions,
+            'avgWaitTime' => $this->avgWaitTime,
+            'avgSessionHandleTime' => $this->avgSessionHandleTime,
+            'avgSessionSentiment' => $this->avgSessionSentiment,
+            'startDate' => $this->startDate,
+            'endDate' => $this->endDate,
+            'lastUpdate' => $this->lastUpdate
+        ]);
+
         return view('livewire.ai-queue-analytics');
     }
 }
